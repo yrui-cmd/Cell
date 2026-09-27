@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "cell-ppt-edited": {
+      "command": "powershell.exe",
+      "args": ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", "./scripts/launch.ps1"],
+      "cwd": "."
+    }
+  }
+}

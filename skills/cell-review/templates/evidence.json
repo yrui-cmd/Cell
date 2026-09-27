@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "searches": [],
+  "records": [],
+  "claims": [],
+  "benchmarks": [],
+  "issues": [],
+  "host_self_review": {
+    "status": "pending",
+    "checked_at": null,
+    "review_sha256": null,
+    "checks": {
+      "question_answered": false,
+      "added_value_explained": false,
+      "main_claims_traced": false,
+      "counterevidence_addressed": false,
+      "design_limits_respected": false,
+      "citations_semantically_checked": false,
+      "review_type_honest": false,
+      "manuscript_complete": false,
+      "benchmark_checked_or_disclosed": false,
+      "limitations_disclosed": false
+    },
+    "notes": "只能在宿主真实完成对应自查后填写。脚本不判断科学内容是否正确。"
+  },
+  "delivery_review": {
+    "status": "pending",
+    "checked_at": null,
+    "source_sha256": null,
+    "docx_sha256": null,
+    "page_count": null,
+    "pages_inspected": null,
+    "preview_locator": null,
+    "checks": {
+      "editable_word": false,
+      "source_matches_word": false,
+      "all_pages_visually_checked": false,
+      "layout_clean": false,
+      "citations_match": false,
+      "unique_article_identity_checked": false,
+      "no_padding_references": false
+    },
+    "citation_map": [],
+    "notes": "仅在真实检查最终 Word 后填写；脚本不渲染页面、不证明文献真实性或宿主实际看过页面。"
+  }
+}

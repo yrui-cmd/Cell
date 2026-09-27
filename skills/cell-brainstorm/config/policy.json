@@ -1,0 +1,117 @@
+{
+  "policy_version": "2.0.0",
+  "final_slots": 5,
+  "candidate_target": 24,
+  "shortlist_target": 10,
+  "max_shortlist_input": 10,
+  "max_repair_rounds": 2,
+  "max_candidates_per_primary_gap": 2,
+  "foundational_window": "unbounded",
+  "frontier_months": 36,
+  "recent_check_days": 180,
+  "live_source_read_age_hours": 24,
+  "metadata_record_budget": 300,
+  "abstract_screen_budget": 100,
+  "initial_deep_read_budget": 30,
+  "candidate_novelty_queries": 6,
+  "total_retrieval_call_budget": 100,
+  "novelty_levels": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "score_weights": {
+    "N": 0.3,
+    "V": 0.2,
+    "F": 0.2,
+    "T": 0.15,
+    "E": 0.15
+  },
+  "score_scale": 100,
+  "minimum_novelty_for_qualified": 2,
+  "required_checks": [
+    "scope",
+    "premise_support",
+    "novelty_delta",
+    "counterevidence",
+    "discriminating_design",
+    "resource_fit",
+    "integrity",
+    "ethics"
+  ],
+  "source_independence_unit": "study_id",
+  "unknown_resource_policy": "conditional",
+  "insufficient_candidates_policy": "conditional_then_vacant_slots",
+  "cache_policy": "versioned_evidence_snapshot",
+  "privacy": "private_by_default_public_queries_only",
+  "execution_mode": "single_model_sequential",
+  "max_distinct_models_per_run": 1,
+  "max_concurrent_model_calls": 1,
+  "review_mode": "same_model_self_audit",
+  "seed_target": 12,
+  "postcheck_new_target": 12,
+  "preliminary_scoring_allowed": false,
+  "weight_sensitivity_delta": 0.05,
+  "public_steps": 6,
+  "progress_format": "第{step}步",
+  "progress_repeat": false,
+  "default_cli_quiet": true,
+  "gate_statuses": [
+    "pass",
+    "conditional",
+    "fail"
+  ],
+  "schema_version": "2.0",
+  "public_step_map": {
+    "1": [
+      "S00",
+      "S01",
+      "S02"
+    ],
+    "2": [
+      "S03",
+      "S04",
+      "S05",
+      "S06",
+      "S07"
+    ],
+    "3": [
+      "S08",
+      "S09"
+    ],
+    "4": [
+      "S10.paths"
+    ],
+    "5": [
+      "S10.validation"
+    ],
+    "6": [
+      "S11",
+      "S12",
+      "S13"
+    ]
+  },
+  "research_types": [
+    "mechanism",
+    "causal",
+    "method",
+    "engineering",
+    "descriptive",
+    "theory",
+    "qualitative"
+  ],
+  "delivery_style": "supervisor_research_memo",
+  "public_scores": false,
+  "public_audit_logs": false,
+  "topic_text_target_chars": [
+    220,
+    350
+  ],
+  "total_text_target_chars": [
+    1200,
+    2000
+  ],
+  "preliminary_scoring_scope": "unverified_seeds_only; provisional scoring allowed for post-evidence shortlist"
+}

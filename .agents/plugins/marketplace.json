@@ -1,0 +1,20 @@
+{
+  "name": "cell",
+  "interface": {
+    "displayName": "Cell"
+  },
+  "plugins": [
+    {
+      "name": "cell-ppt-edited",
+      "source": {
+        "source": "local",
+        "path": "./plugins/cell-ppt-edited"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

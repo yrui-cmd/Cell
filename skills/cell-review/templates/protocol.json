@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "skill_version": "1.1.0",
+  "topic": "",
+  "question": "",
+  "review_type": "critical_narrative",
+  "language": "zh-CN",
+  "created_at": null,
+  "last_search_date": null,
+  "evidence_cutoff": null,
+  "cutoff_note": "不得以创建日期替代实际检索日期。",
+  "citation_style": "numeric_draft",
+  "output_format": "docx",
+  "target_journals": [],
+  "scope": {
+    "population_or_object": "",
+    "conditions": "",
+    "factor_or_mechanism": "",
+    "comparison": "",
+    "outcomes": [],
+    "time_range": null,
+    "inclusion": [],
+    "exclusion": []
+  },
+  "added_value": "",
+  "assumptions": [],
+  "amendments": [],
+  "capabilities": {
+    "web_search": null,
+    "full_text_access": null,
+    "local_execution": null,
+    "document_export": []
+  },
+  "formal_methods": {
+    "completed": false,
+    "guidance_sources": [],
+    "reviewer_setup": "single_host_self_review",
+    "checks": {},
+    "quantitative_synthesis_completed": false,
+    "uncompleted_items": []
+  },
+  "output_file": "review.docx",
+  "output_citation_style": "numeric",
+  "minimum_article_count": 30,
+  "reference_count_policy": {
+    "unit": "unique_article_actually_cited",
+    "same_article_versions_count_once": true,
+    "metadata_and_content_verification_required": true,
+    "no_padding": true
+  }
+}

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Cell · 科研选题"
+  short_description: "以证据和可行性约束形成五个科研选题"
+  default_prompt: "使用 $cell-brainstorm，围绕我提供的研究方向、资源和限制完成六步选题流程，最终给出五个有文献依据、研究增量和最小验证路径的选题。"
+policy:
+  allow_implicit_invocation: true

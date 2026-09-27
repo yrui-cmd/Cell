@@ -1,0 +1,57 @@
+{
+  "status": "SPECIFICATION_ONLY_NOT_MODEL_EVALUATED",
+  "note": "以下为触发验收用例，不代表已在真实宿主上完成语义路由测试。",
+  "cases": [
+    {
+      "input": "帮我写一篇关于肿瘤相关成纤维细胞和化疗耐药的综述，参考顶刊标准。",
+      "expected_trigger": true
+    },
+    {
+      "input": "Write a critical literature review on robust machine learning under distribution shift.",
+      "expected_trigger": true
+    },
+    {
+      "input": "更新这篇文献综述，补上最新证据，重新分析争议。",
+      "expected_trigger": true
+    },
+    {
+      "input": "用这个 Skill 做系统综述。",
+      "expected_trigger": true,
+      "expected_behavior": "进入正式类型分支，核实方法，不把单模型自查冒称双人独立筛选。"
+    },
+    {
+      "input": "给我解释一下这篇论文的图3。",
+      "expected_trigger": false
+    },
+    {
+      "input": "把这篇摘要全部翻译成中文。",
+      "expected_trigger": false
+    },
+    {
+      "input": "只帮我找5篇相关论文，不写综述。",
+      "expected_trigger": false
+    },
+    {
+      "input": "根据我的数据推荐5个博士选题。",
+      "expected_trigger": false
+    },
+    {
+      "input": "帮这段英文润色，不改科学内容。",
+      "expected_trigger": false
+    },
+    {
+      "input": "画一张图形摘要。",
+      "expected_trigger": false
+    },
+    {
+      "input": "$cell-review，没有联网权限，只能用这些上传的论文。",
+      "expected_trigger": true,
+      "expected_behavior": "依据已取得资料形成 Word 综述，披露覆盖与时效限制，不虚构检索；可用且经核验的有效引用不足 30 篇时，只能交付如实标明缺口的 Word 未完成稿，不能宣布任务完成。"
+    },
+    {
+      "input": "最终交的是word，还有必须有三十篇文章以上。",
+      "expected_trigger": true,
+      "expected_behavior": "作为已有综述任务/Skill 的更新要求：唯一最终交付 .docx，至少 30 篇实际引用的经核验相关文章，计数去重且不灌水。"
+    }
+  ]
+}

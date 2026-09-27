@@ -1,0 +1,6 @@
+interface:
+  display_name: "Cell · 科研数据绘图"
+  short_description: "先用数据和代码复现参考图并核验，再换研究数据，交付最终代码、绘图前数据与三格式图件。"
+  default_prompt: "使用 $cell-data-figure，根据研究问题和数据找到可比参考图，先用数据编写并运行复现代码，通过视觉核验后再替换我的数据。最终仅交付最终版 plot.py、绘图前数据以及 TIF、JPG、PDF 图件。"
+policy:
+  allow_implicit_invocation: true

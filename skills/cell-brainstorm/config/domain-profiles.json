@@ -1,0 +1,54 @@
+{
+  "version": "1.0.0",
+  "note": "这些是固定路由配置，不是已接通的API。运行前核验来源可用性、授权和适用范围。未知领域用general，不虚构专用数据库。",
+  "profiles": {
+    "biomedical": {
+      "discovery": ["PubMed", "Europe PMC"],
+      "verification": ["publisher primary article", "Crossref"],
+      "conditional_sources": ["bioRxiv/medRxiv for preprints", "ClinicalTrials.gov for human intervention questions", "GEO for relevant public omics data"],
+      "units": ["patient", "animal", "cell type", "organoid"],
+      "design_requirements": ["cell/population specificity", "alternative explanation", "orthogonal or rescue test when mechanism is claimed", "intervention versus prevention versus regression distinction"],
+      "warning": "不能把不同细胞的方向平均为组织机制；单细胞评分和通讯预测不等于功能或因果证明。"
+    },
+    "machine_learning": {
+      "discovery": ["arXiv", "OpenReview", "relevant conference proceedings"],
+      "verification": ["primary paper", "official code and benchmark release"],
+      "conditional_sources": ["Crossref"],
+      "units": ["dataset", "task", "model", "compute budget"],
+      "design_requirements": ["strong matched baseline", "data leakage audit", "ablation", "compute/latency/cost parity", "out-of-distribution evaluation"],
+      "warning": "多个流行模块相加、只换数据集、与过时基线比较不能自动称方法创新。"
+    },
+    "engineering": {
+      "discovery": ["domain-specific primary literature", "authorized scholarly index"],
+      "verification": ["primary paper", "official standard or specification when applicable"],
+      "conditional_sources": ["patent records for overlap awareness, not legal novelty certification"],
+      "units": ["system", "material", "device", "operating condition"],
+      "design_requirements": ["physical constraints", "fair baseline", "scalability", "failure envelope", "measurement uncertainty"],
+      "warning": "不得把仿真改进自动外推成现实部署收益。"
+    },
+    "social_science": {
+      "discovery": ["field-specific scholarly index", "primary journal articles"],
+      "verification": ["primary paper", "official data documentation"],
+      "conditional_sources": ["study registration", "working paper repository"],
+      "units": ["individual", "organization", "region", "time period"],
+      "design_requirements": ["construct definition", "identification assumptions", "confounding or rival explanation", "external validity", "ethical data access"],
+      "warning": "相关性、地域替换和样本量增加不是天然的因果或理论创新。"
+    },
+    "theory": {
+      "discovery": ["field-specific primary literature", "preprint archive"],
+      "verification": ["original theorem or proof", "versioned formalization when available"],
+      "conditional_sources": [],
+      "units": ["theorem", "model class", "assumption set", "complexity regime"],
+      "design_requirements": ["precise proposition", "closest result and assumptions", "proof obligation or counterexample", "nontrivial improvement"],
+      "warning": "用证明义务、反例、适用边界替代湿实验；不能因问题长期未解就自动否决。"
+    },
+    "general": {
+      "discovery": ["relevant primary sources", "available authoritative scholarly index"],
+      "verification": ["original publication or primary record"],
+      "conditional_sources": [],
+      "units": ["research unit", "context", "relationship", "outcome"],
+      "design_requirements": ["precise question", "closest existing work", "meaningful delta", "discriminating test or argument", "resource and evidence limits"],
+      "warning": "未校准领域仅输出通用框架，明示领域规则覆盖不足。"
+    }
+  }
+}

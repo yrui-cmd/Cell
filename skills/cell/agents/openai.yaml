@@ -1,0 +1,6 @@
+interface:
+  display_name: "Cell"
+  short_description: "统一分流选题、计划、综述、投稿与科研绘图"
+  default_prompt: "使用 $cell 判断当前科研任务最适合哪个 Cell 成员，并直接完成对应流程。"
+policy:
+  allow_implicit_invocation: true

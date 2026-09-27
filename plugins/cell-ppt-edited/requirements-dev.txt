@@ -1,0 +1,3 @@
+-r requirements.txt
+Pillow>=11
+mcp>=1.0

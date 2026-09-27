@@ -1,0 +1,6 @@
+interface:
+  display_name: "Cell · SCI 审稿回复"
+  short_description: "提取审稿意见并生成两阶段 Word 回复"
+  default_prompt: "使用 $cell-reviewer-response，读取我提供的编辑和审稿意见，先生成问题归类与解决方案 Word；材料齐备后再生成正式逐点回复 Word。"
+policy:
+  allow_implicit_invocation: true

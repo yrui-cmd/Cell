@@ -1,0 +1,767 @@
+{
+  "schema_version": "1.1",
+  "run": {
+    "run_id": "synthetic-demo",
+    "mode": "synthetic",
+    "model_id": "NO_MODEL_EXECUTED",
+    "as_of": "2026-09-26",
+    "report_created_at": "2026-09-26T12:00:00+00:00",
+    "final_checked_at": "2026-09-26T11:00:00+00:00",
+    "snapshot_id": "SYNTHETIC_FIXTURE_NOT_REAL_EVIDENCE",
+    "query_log_refs": [
+      "SYNTHETIC_NOT_A_REAL_SEARCH"
+    ],
+    "coverage_limitations": [
+      "No literature was searched; all content is synthetic test data."
+    ],
+    "source_channels": [
+      "SYNTHETIC_ONLY"
+    ]
+  },
+  "brief": {
+    "research_content": "合成软件测试，不是实际选题",
+    "domain_profile": "general",
+    "known_resources": [
+      "合成资源"
+    ],
+    "unknown_resources": [],
+    "exclusions": []
+  },
+  "sources": [
+    {
+      "id": "S1",
+      "study_id": "TEST_STUDY_1",
+      "title": "SYNTHETIC TEST FIXTURE 1 — NOT A REAL PAPER",
+      "url": "https://example.invalid/synthetic-source-1",
+      "first_public_date": "2025-01-01",
+      "version_date": "2025-01-01",
+      "access": "fulltext",
+      "source_type": "primary",
+      "integrity": "checked",
+      "verified_metadata": true,
+      "content_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "retrieved_at": "2026-09-26T10:00:00+00:00"
+    },
+    {
+      "id": "S2",
+      "study_id": "TEST_STUDY_2",
+      "title": "SYNTHETIC TEST FIXTURE 2 — NOT A REAL PAPER",
+      "url": "https://example.invalid/synthetic-source-2",
+      "first_public_date": "2025-01-01",
+      "version_date": "2025-01-01",
+      "access": "fulltext",
+      "source_type": "primary",
+      "integrity": "checked",
+      "verified_metadata": true,
+      "content_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "retrieved_at": "2026-09-26T10:00:00+00:00"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "C01",
+      "question_key": "synthetic-independent-question-1",
+      "primary_gap_id": "G1",
+      "title": "合成测试题1（不是科研推荐）",
+      "question": "测试问题1是否能被合成判别任务区分？",
+      "hypothesis": "仅为测试程序的占位假说，不是真实研究判断。",
+      "gap": "合成数据中的测试缺口。",
+      "novelty_delta": "合成差量，用于验证流程而非宣称学术创新。",
+      "why_it_matters": "仅用于检查门禁与渲染。",
+      "novelty_confidence": "high",
+      "novelty_queries_complete": true,
+      "critical_comparison_verified": true,
+      "nearest_work": [
+        {
+          "source_id": "S1",
+          "what_done": "合成来源的已知测试信息。",
+          "remaining_delta": "合成来源未覆盖的测试断言。",
+          "locator": "TEST FIXTURE section 1",
+          "overlap": "partial"
+        }
+      ],
+      "claims": [
+        {
+          "text": "这是合成测试中的前提，不是真实科学事实。",
+          "kind": "known",
+          "citations": [
+            {
+              "source_id": "S1",
+              "locator": "TEST section 1"
+            },
+            {
+              "source_id": "S2",
+              "locator": "TEST section 2"
+            }
+          ]
+        }
+      ],
+      "design": {
+        "key_test": "合成测试内容；不用于实际实验。",
+        "main_readout": "合成测试内容；不用于实际实验。",
+        "controls": "合成测试内容；不用于实际实验。",
+        "alternative_explanation": "合成测试内容；不用于实际实验。",
+        "orthogonal_test": "合成测试内容；不用于实际实验。",
+        "falsifier": "合成测试内容；不用于实际实验。",
+        "first_step": "合成测试内容；不用于实际实验。",
+        "continue_if": "合成测试内容；不用于实际实验。",
+        "stop_if": "合成测试内容；不用于实际实验。"
+      },
+      "resources": {
+        "required": [
+          "合成资源"
+        ],
+        "confirmed": [
+          "合成资源"
+        ],
+        "missing": [],
+        "critical_unknowns": []
+      },
+      "risks": [
+        "测试数据不能用于真实研究"
+      ],
+      "ratings": {
+        "N": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "V": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "F": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "T": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "E": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        }
+      },
+      "checks": {
+        "scope": "pass",
+        "premise_support": "pass",
+        "novelty_delta": "pass",
+        "counterevidence": "pass",
+        "discriminating_design": "pass",
+        "resource_fit": "pass",
+        "integrity": "pass",
+        "ethics": "pass"
+      },
+      "audit_summary": "纯合成测试。"
+    },
+    {
+      "id": "C02",
+      "question_key": "synthetic-independent-question-2",
+      "primary_gap_id": "G1",
+      "title": "合成测试题2（不是科研推荐）",
+      "question": "测试问题2是否能被合成判别任务区分？",
+      "hypothesis": "仅为测试程序的占位假说，不是真实研究判断。",
+      "gap": "合成数据中的测试缺口。",
+      "novelty_delta": "合成差量，用于验证流程而非宣称学术创新。",
+      "why_it_matters": "仅用于检查门禁与渲染。",
+      "novelty_confidence": "high",
+      "novelty_queries_complete": true,
+      "critical_comparison_verified": true,
+      "nearest_work": [
+        {
+          "source_id": "S1",
+          "what_done": "合成来源的已知测试信息。",
+          "remaining_delta": "合成来源未覆盖的测试断言。",
+          "locator": "TEST FIXTURE section 1",
+          "overlap": "partial"
+        }
+      ],
+      "claims": [
+        {
+          "text": "这是合成测试中的前提，不是真实科学事实。",
+          "kind": "known",
+          "citations": [
+            {
+              "source_id": "S1",
+              "locator": "TEST section 1"
+            },
+            {
+              "source_id": "S2",
+              "locator": "TEST section 2"
+            }
+          ]
+        }
+      ],
+      "design": {
+        "key_test": "合成测试内容；不用于实际实验。",
+        "main_readout": "合成测试内容；不用于实际实验。",
+        "controls": "合成测试内容；不用于实际实验。",
+        "alternative_explanation": "合成测试内容；不用于实际实验。",
+        "orthogonal_test": "合成测试内容；不用于实际实验。",
+        "falsifier": "合成测试内容；不用于实际实验。",
+        "first_step": "合成测试内容；不用于实际实验。",
+        "continue_if": "合成测试内容；不用于实际实验。",
+        "stop_if": "合成测试内容；不用于实际实验。"
+      },
+      "resources": {
+        "required": [
+          "合成资源"
+        ],
+        "confirmed": [
+          "合成资源"
+        ],
+        "missing": [],
+        "critical_unknowns": []
+      },
+      "risks": [
+        "测试数据不能用于真实研究"
+      ],
+      "ratings": {
+        "N": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "V": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "F": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "T": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "E": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        }
+      },
+      "checks": {
+        "scope": "pass",
+        "premise_support": "pass",
+        "novelty_delta": "pass",
+        "counterevidence": "pass",
+        "discriminating_design": "pass",
+        "resource_fit": "pass",
+        "integrity": "pass",
+        "ethics": "pass"
+      },
+      "audit_summary": "纯合成测试。"
+    },
+    {
+      "id": "C03",
+      "question_key": "synthetic-independent-question-3",
+      "primary_gap_id": "G2",
+      "title": "合成测试题3（不是科研推荐）",
+      "question": "测试问题3是否能被合成判别任务区分？",
+      "hypothesis": "仅为测试程序的占位假说，不是真实研究判断。",
+      "gap": "合成数据中的测试缺口。",
+      "novelty_delta": "合成差量，用于验证流程而非宣称学术创新。",
+      "why_it_matters": "仅用于检查门禁与渲染。",
+      "novelty_confidence": "high",
+      "novelty_queries_complete": true,
+      "critical_comparison_verified": true,
+      "nearest_work": [
+        {
+          "source_id": "S1",
+          "what_done": "合成来源的已知测试信息。",
+          "remaining_delta": "合成来源未覆盖的测试断言。",
+          "locator": "TEST FIXTURE section 1",
+          "overlap": "partial"
+        }
+      ],
+      "claims": [
+        {
+          "text": "这是合成测试中的前提，不是真实科学事实。",
+          "kind": "known",
+          "citations": [
+            {
+              "source_id": "S1",
+              "locator": "TEST section 1"
+            },
+            {
+              "source_id": "S2",
+              "locator": "TEST section 2"
+            }
+          ]
+        }
+      ],
+      "design": {
+        "key_test": "合成测试内容；不用于实际实验。",
+        "main_readout": "合成测试内容；不用于实际实验。",
+        "controls": "合成测试内容；不用于实际实验。",
+        "alternative_explanation": "合成测试内容；不用于实际实验。",
+        "orthogonal_test": "合成测试内容；不用于实际实验。",
+        "falsifier": "合成测试内容；不用于实际实验。",
+        "first_step": "合成测试内容；不用于实际实验。",
+        "continue_if": "合成测试内容；不用于实际实验。",
+        "stop_if": "合成测试内容；不用于实际实验。"
+      },
+      "resources": {
+        "required": [
+          "合成资源"
+        ],
+        "confirmed": [
+          "合成资源"
+        ],
+        "missing": [],
+        "critical_unknowns": []
+      },
+      "risks": [
+        "测试数据不能用于真实研究"
+      ],
+      "ratings": {
+        "N": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "V": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "F": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "T": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "E": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        }
+      },
+      "checks": {
+        "scope": "pass",
+        "premise_support": "pass",
+        "novelty_delta": "pass",
+        "counterevidence": "pass",
+        "discriminating_design": "pass",
+        "resource_fit": "pass",
+        "integrity": "pass",
+        "ethics": "pass"
+      },
+      "audit_summary": "纯合成测试。"
+    },
+    {
+      "id": "C04",
+      "question_key": "synthetic-independent-question-4",
+      "primary_gap_id": "G2",
+      "title": "合成测试题4（不是科研推荐）",
+      "question": "测试问题4是否能被合成判别任务区分？",
+      "hypothesis": "仅为测试程序的占位假说，不是真实研究判断。",
+      "gap": "合成数据中的测试缺口。",
+      "novelty_delta": "合成差量，用于验证流程而非宣称学术创新。",
+      "why_it_matters": "仅用于检查门禁与渲染。",
+      "novelty_confidence": "high",
+      "novelty_queries_complete": true,
+      "critical_comparison_verified": true,
+      "nearest_work": [
+        {
+          "source_id": "S1",
+          "what_done": "合成来源的已知测试信息。",
+          "remaining_delta": "合成来源未覆盖的测试断言。",
+          "locator": "TEST FIXTURE section 1",
+          "overlap": "partial"
+        }
+      ],
+      "claims": [
+        {
+          "text": "这是合成测试中的前提，不是真实科学事实。",
+          "kind": "known",
+          "citations": [
+            {
+              "source_id": "S1",
+              "locator": "TEST section 1"
+            },
+            {
+              "source_id": "S2",
+              "locator": "TEST section 2"
+            }
+          ]
+        }
+      ],
+      "design": {
+        "key_test": "合成测试内容；不用于实际实验。",
+        "main_readout": "合成测试内容；不用于实际实验。",
+        "controls": "合成测试内容；不用于实际实验。",
+        "alternative_explanation": "合成测试内容；不用于实际实验。",
+        "orthogonal_test": "合成测试内容；不用于实际实验。",
+        "falsifier": "合成测试内容；不用于实际实验。",
+        "first_step": "合成测试内容；不用于实际实验。",
+        "continue_if": "合成测试内容；不用于实际实验。",
+        "stop_if": "合成测试内容；不用于实际实验。"
+      },
+      "resources": {
+        "required": [
+          "合成资源"
+        ],
+        "confirmed": [
+          "合成资源"
+        ],
+        "missing": [],
+        "critical_unknowns": []
+      },
+      "risks": [
+        "测试数据不能用于真实研究"
+      ],
+      "ratings": {
+        "N": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "V": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "F": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "T": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "E": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        }
+      },
+      "checks": {
+        "scope": "pass",
+        "premise_support": "pass",
+        "novelty_delta": "pass",
+        "counterevidence": "pass",
+        "discriminating_design": "pass",
+        "resource_fit": "pass",
+        "integrity": "pass",
+        "ethics": "pass"
+      },
+      "audit_summary": "纯合成测试。"
+    },
+    {
+      "id": "C05",
+      "question_key": "synthetic-independent-question-5",
+      "primary_gap_id": "G3",
+      "title": "合成测试题5（不是科研推荐）",
+      "question": "测试问题5是否能被合成判别任务区分？",
+      "hypothesis": "仅为测试程序的占位假说，不是真实研究判断。",
+      "gap": "合成数据中的测试缺口。",
+      "novelty_delta": "合成差量，用于验证流程而非宣称学术创新。",
+      "why_it_matters": "仅用于检查门禁与渲染。",
+      "novelty_confidence": "high",
+      "novelty_queries_complete": true,
+      "critical_comparison_verified": true,
+      "nearest_work": [
+        {
+          "source_id": "S1",
+          "what_done": "合成来源的已知测试信息。",
+          "remaining_delta": "合成来源未覆盖的测试断言。",
+          "locator": "TEST FIXTURE section 1",
+          "overlap": "partial"
+        }
+      ],
+      "claims": [
+        {
+          "text": "这是合成测试中的前提，不是真实科学事实。",
+          "kind": "known",
+          "citations": [
+            {
+              "source_id": "S1",
+              "locator": "TEST section 1"
+            },
+            {
+              "source_id": "S2",
+              "locator": "TEST section 2"
+            }
+          ]
+        }
+      ],
+      "design": {
+        "key_test": "合成测试内容；不用于实际实验。",
+        "main_readout": "合成测试内容；不用于实际实验。",
+        "controls": "合成测试内容；不用于实际实验。",
+        "alternative_explanation": "合成测试内容；不用于实际实验。",
+        "orthogonal_test": "合成测试内容；不用于实际实验。",
+        "falsifier": "合成测试内容；不用于实际实验。",
+        "first_step": "合成测试内容；不用于实际实验。",
+        "continue_if": "合成测试内容；不用于实际实验。",
+        "stop_if": "合成测试内容；不用于实际实验。"
+      },
+      "resources": {
+        "required": [
+          "合成资源"
+        ],
+        "confirmed": [
+          "合成资源"
+        ],
+        "missing": [],
+        "critical_unknowns": []
+      },
+      "risks": [
+        "测试数据不能用于真实研究"
+      ],
+      "ratings": {
+        "N": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "V": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "F": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "T": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "E": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        }
+      },
+      "checks": {
+        "scope": "pass",
+        "premise_support": "pass",
+        "novelty_delta": "pass",
+        "counterevidence": "pass",
+        "discriminating_design": "pass",
+        "resource_fit": "pass",
+        "integrity": "pass",
+        "ethics": "pass"
+      },
+      "audit_summary": "纯合成测试。"
+    },
+    {
+      "id": "C06",
+      "question_key": "synthetic-independent-question-6",
+      "primary_gap_id": "G3",
+      "title": "合成测试题6（不是科研推荐）",
+      "question": "测试问题6是否能被合成判别任务区分？",
+      "hypothesis": "仅为测试程序的占位假说，不是真实研究判断。",
+      "gap": "合成数据中的测试缺口。",
+      "novelty_delta": "合成差量，用于验证流程而非宣称学术创新。",
+      "why_it_matters": "仅用于检查门禁与渲染。",
+      "novelty_confidence": "high",
+      "novelty_queries_complete": true,
+      "critical_comparison_verified": true,
+      "nearest_work": [
+        {
+          "source_id": "S1",
+          "what_done": "合成来源的已知测试信息。",
+          "remaining_delta": "合成来源未覆盖的测试断言。",
+          "locator": "TEST FIXTURE section 1",
+          "overlap": "partial"
+        }
+      ],
+      "claims": [
+        {
+          "text": "这是合成测试中的前提，不是真实科学事实。",
+          "kind": "known",
+          "citations": [
+            {
+              "source_id": "S1",
+              "locator": "TEST section 1"
+            },
+            {
+              "source_id": "S2",
+              "locator": "TEST section 2"
+            }
+          ]
+        }
+      ],
+      "design": {
+        "key_test": "合成测试内容；不用于实际实验。",
+        "main_readout": "合成测试内容；不用于实际实验。",
+        "controls": "合成测试内容；不用于实际实验。",
+        "alternative_explanation": "合成测试内容；不用于实际实验。",
+        "orthogonal_test": "合成测试内容；不用于实际实验。",
+        "falsifier": "合成测试内容；不用于实际实验。",
+        "first_step": "合成测试内容；不用于实际实验。",
+        "continue_if": "合成测试内容；不用于实际实验。",
+        "stop_if": "合成测试内容；不用于实际实验。"
+      },
+      "resources": {
+        "required": [
+          "合成资源"
+        ],
+        "confirmed": [
+          "合成资源"
+        ],
+        "missing": [],
+        "critical_unknowns": []
+      },
+      "risks": [
+        "测试数据不能用于真实研究"
+      ],
+      "ratings": {
+        "N": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "V": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "F": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "T": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "E": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        }
+      },
+      "checks": {
+        "scope": "pass",
+        "premise_support": "pass",
+        "novelty_delta": "pass",
+        "counterevidence": "pass",
+        "discriminating_design": "pass",
+        "resource_fit": "pass",
+        "integrity": "pass",
+        "ethics": "pass"
+      },
+      "audit_summary": "纯合成测试。"
+    }
+  ],
+  "execution": {
+    "mode": "single_model_sequential",
+    "generator_model_id": "NO_MODEL_EXECUTED",
+    "reviewer_model_id": "NO_MODEL_EXECUTED",
+    "review_type": "same_model_self_audit",
+    "independent_review": false,
+    "context_mode": "same_context",
+    "exposed_to_previous_scores": true
+  }
+}

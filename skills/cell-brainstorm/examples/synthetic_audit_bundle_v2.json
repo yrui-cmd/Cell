@@ -1,0 +1,1953 @@
+{
+  "schema_version": "2.0",
+  "run": {
+    "run_id": "synthetic-demo",
+    "mode": "synthetic",
+    "model_id": "NO_MODEL_EXECUTED",
+    "as_of": "2026-09-26",
+    "report_created_at": "2026-09-26T12:00:00+00:00",
+    "final_checked_at": "2026-09-26T11:00:00+00:00",
+    "snapshot_id": "SYNTHETIC_FIXTURE_NOT_REAL_EVIDENCE",
+    "query_log_refs": [
+      "SYNTHETIC_NOT_A_REAL_SEARCH"
+    ],
+    "coverage_limitations": [
+      "全部记录均为合成数据，未开展真实文献检索"
+    ],
+    "source_channels": [
+      "SYNTHETIC_ONLY"
+    ]
+  },
+  "brief": {
+    "research_content": "合成方法测试（仅用于软件验证）",
+    "domain_profile": "general",
+    "known_resources": [
+      "合成资源"
+    ],
+    "unknown_resources": [],
+    "exclusions": []
+  },
+  "sources": [
+    {
+      "id": "S1",
+      "study_id": "TEST_STUDY_1",
+      "title": "SYNTHETIC TEST FIXTURE 1 — NOT A REAL PAPER",
+      "url": "https://example.invalid/synthetic-source-1",
+      "first_public_date": "2025-01-01",
+      "version_date": "2025-01-01",
+      "access": "fulltext",
+      "source_type": "primary",
+      "integrity": "checked",
+      "verified_metadata": true,
+      "content_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "retrieved_at": "2026-09-26T10:00:00+00:00"
+    },
+    {
+      "id": "S2",
+      "study_id": "TEST_STUDY_2",
+      "title": "SYNTHETIC TEST FIXTURE 2 — NOT A REAL PAPER",
+      "url": "https://example.invalid/synthetic-source-2",
+      "first_public_date": "2025-01-01",
+      "version_date": "2025-01-01",
+      "access": "fulltext",
+      "source_type": "primary",
+      "integrity": "checked",
+      "verified_metadata": true,
+      "content_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "retrieved_at": "2026-09-26T10:00:00+00:00"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "C01",
+      "question_key": "synthetic-independent-question-1",
+      "primary_gap_id": "G1",
+      "title": "合成测试题1（不是科研推荐）",
+      "question": "测试问题1是否能被合成判别任务区分？",
+      "hypothesis": "仅为测试程序的占位假说，不是真实研究判断。",
+      "gap": "合成数据中的测试缺口。",
+      "novelty_delta": "合成差量，用于验证流程而非宣称学术创新。",
+      "why_it_matters": "仅用于检查门禁与渲染。",
+      "novelty_confidence": "high",
+      "novelty_queries_complete": true,
+      "critical_comparison_verified": true,
+      "nearest_work": [
+        {
+          "source_id": "S1",
+          "what_done": "合成来源的已知测试信息。",
+          "remaining_delta": "合成来源未覆盖的测试断言。",
+          "locator": "TEST FIXTURE section 1",
+          "overlap": "partial"
+        }
+      ],
+      "claims": [
+        {
+          "text": "这是合成测试中的前提，不是真实科学事实。",
+          "kind": "known",
+          "citations": [
+            {
+              "source_id": "S1",
+              "locator": "TEST section 1"
+            },
+            {
+              "source_id": "S2",
+              "locator": "TEST section 2"
+            }
+          ]
+        }
+      ],
+      "design": {
+        "key_test": "合成测试内容；不用于实际实验。",
+        "main_readout": "合成测试内容；不用于实际实验。",
+        "controls": "合成测试内容；不用于实际实验。",
+        "alternative_explanation": "合成测试内容；不用于实际实验。",
+        "orthogonal_test": "合成测试内容；不用于实际实验。",
+        "falsifier": "合成测试内容；不用于实际实验。",
+        "first_step": "合成测试内容；不用于实际实验。",
+        "continue_if": "合成测试内容；不用于实际实验。",
+        "stop_if": "合成测试内容；不用于实际实验。"
+      },
+      "resources": {
+        "required": [
+          "合成资源"
+        ],
+        "confirmed": [
+          "合成资源"
+        ],
+        "missing": [],
+        "critical_unknowns": []
+      },
+      "risks": [
+        "测试数据不能用于真实研究"
+      ],
+      "ratings": {
+        "N": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "V": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "F": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "T": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "E": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        }
+      },
+      "checks": {
+        "scope": "pass",
+        "premise_support": "pass",
+        "novelty_delta": "pass",
+        "counterevidence": "pass",
+        "discriminating_design": "pass",
+        "resource_fit": "pass",
+        "integrity": "pass",
+        "ethics": "pass"
+      },
+      "audit_summary": "纯合成测试。",
+      "enhancement": {
+        "research_type": "method",
+        "answerability": {
+          "target": "比较测试设置。",
+          "criterion": "区分合成输入与输出。",
+          "comparison_or_precision_basis": "合成基线。",
+          "scope_limits": "不得外推真实科学。"
+        },
+        "why_now": "本次用于回归测试。",
+        "assumptions": [
+          {
+            "statement": "合成前提。",
+            "category": "measurement",
+            "status": "supported",
+            "source_ids": [
+              "S1"
+            ],
+            "prediction_if_changed": "对应测试分支改变。"
+          }
+        ],
+        "reframing": {
+          "applied": false,
+          "original_question": "测试问题1是否能被合成判别任务区分？",
+          "changed_dimension": "本用例不做重构。",
+          "new_prediction_or_contribution": "仅软件测试。",
+          "retained_scope": "保留合成场景。",
+          "decision": "retain",
+          "reason": "本用例检查结构。"
+        },
+        "analogies": [],
+        "revision": {
+          "version": 1,
+          "claim_changed": false,
+          "last_novelty_checked_version": 1,
+          "inference_loss": "未改动。"
+        },
+        "constraint_ladder": [
+          {
+            "scenario": "current",
+            "constraint_ref": "RES",
+            "change": "保留合成条件。",
+            "status": "applicable",
+            "core_claim_preserved": true,
+            "inference_loss": "无。"
+          },
+          {
+            "scenario": "relaxed",
+            "constraint_ref": "RES",
+            "change": "反事实放宽一个合成资源限制。",
+            "status": "applicable",
+            "core_claim_preserved": true,
+            "inference_loss": "无，仍仅软件测试。"
+          },
+          {
+            "scenario": "tightened",
+            "constraint_ref": "RES",
+            "change": "收紧一个合成资源条件。",
+            "status": "applicable",
+            "core_claim_preserved": true,
+            "inference_loss": "无，仍仅软件测试。"
+          }
+        ],
+        "paths": {
+          "P0": {
+            "summary": "合成路径，仅供软件测试。",
+            "status": "ready",
+            "routes": [
+              {
+                "id": "P0-R1",
+                "claim_preserved": true,
+                "dependencies": [
+                  {
+                    "id": "D1",
+                    "resource": "合成资源",
+                    "needed_for": "检查软件分支。",
+                    "status": "confirmed",
+                    "verification_ref": "SYNTHETIC_RESOURCE_RECORD",
+                    "constraint_ref": "RES",
+                    "alternative": "无其他测试路线。",
+                    "inference_limit": "不产生实际科研结论。"
+                  }
+                ],
+                "allowed_conclusion": "仅软件合同检查。"
+              }
+            ],
+            "reason": "仅测试夹具已提供，不代表真实资源。"
+          },
+          "P1": {
+            "summary": "合成路径，仅供软件测试。",
+            "status": "ready",
+            "routes": [
+              {
+                "id": "P1-R1",
+                "claim_preserved": true,
+                "dependencies": [
+                  {
+                    "id": "D1",
+                    "resource": "合成资源",
+                    "needed_for": "检查软件分支。",
+                    "status": "confirmed",
+                    "verification_ref": "SYNTHETIC_RESOURCE_RECORD",
+                    "constraint_ref": "RES",
+                    "alternative": "无其他测试路线。",
+                    "inference_limit": "不产生实际科研结论。"
+                  }
+                ],
+                "allowed_conclusion": "仅软件合同检查。"
+              }
+            ],
+            "reason": "仅测试夹具已提供，不代表真实资源。"
+          },
+          "P2": {
+            "summary": "不扩展。",
+            "status": "not_assessed",
+            "routes": [],
+            "reason": "无需扩展的软件夹具。"
+          }
+        },
+        "prediction_matrix": [
+          {
+            "same_test": "同一合成输入比较。",
+            "favored_prediction": "输出A。",
+            "comparison_prediction": "输出B。",
+            "mixed_or_ambiguous_case": "输入不可解析。",
+            "separating_observation": "断言返回值。",
+            "quality_controls": "检查夹具格式。"
+          }
+        ],
+        "minimum_validation": {
+          "purpose": "feasibility",
+          "critical_unknown": "新字段能否正确传递。",
+          "priority_reason": "决定是否继续本地回归。",
+          "procedure_summary": "先核对合成字段，再检查对应输出。",
+          "quality_requirements": "输入和输出均为合成记录。",
+          "precision_plan": "不涉及真实样本量估计。",
+          "continue_if": "合成断言匹配。",
+          "adjust_if": "映射规则需修订。",
+          "stop_if": "输入违反合同。",
+          "inconclusive_if": "输入或输出缺失。",
+          "execution_status": "planned",
+          "execution_evidence_refs": []
+        },
+        "premortem": [
+          {
+            "failure": "字段失配。",
+            "early_check": "本地校验。",
+            "mitigation": "修正字段。",
+            "remaining_risk": "不能核实科学语义。"
+          }
+        ],
+        "decision_uncertainties": [],
+        "essential_assumption_ids": [],
+        "scientific_gates": {
+          "knowledge_gain": {
+            "status": "pass",
+            "reason": "合成测试条件满足。",
+            "evidence_refs": [
+              "S1"
+            ]
+          },
+          "answerability": {
+            "status": "pass",
+            "reason": "合成测试条件满足。",
+            "evidence_refs": [
+              "S1"
+            ]
+          },
+          "feasibility": {
+            "status": "pass",
+            "reason": "合成测试条件满足。",
+            "evidence_refs": [
+              "S1"
+            ]
+          }
+        }
+      },
+      "report_sections": {
+        "basis": {
+          "text": "合成来源用于提供不同测试条件，尚不涉及真实研究对象。本例仅检查记录中的已知内容和未解字段能否被准确区分。",
+          "source_ids": [
+            "S1"
+          ]
+        },
+        "question": {
+          "text": "拟比较两种输入在既定规则下的输出差异，检查新字段是否保留原有合同。所述差异仅为软件验证目标，不构成学术创新判断。",
+          "source_ids": []
+        },
+        "plan": {
+          "text": "先核对输入结构，再比较判定结果，并以缺失字段和不一致记录作为反例。验证方案尚未作为科研实验执行。",
+          "source_ids": []
+        },
+        "limitations": {
+          "text": "所需合成夹具已纳入测试目录；其结果仅适用于程序和版式检查。记录缺失时不能判断规则是否成立，也不能外推至实际科研可行性。",
+          "source_ids": []
+        }
+      }
+    },
+    {
+      "id": "C02",
+      "question_key": "synthetic-independent-question-2",
+      "primary_gap_id": "G1",
+      "title": "合成测试题2（不是科研推荐）",
+      "question": "测试问题2是否能被合成判别任务区分？",
+      "hypothesis": "仅为测试程序的占位假说，不是真实研究判断。",
+      "gap": "合成数据中的测试缺口。",
+      "novelty_delta": "合成差量，用于验证流程而非宣称学术创新。",
+      "why_it_matters": "仅用于检查门禁与渲染。",
+      "novelty_confidence": "high",
+      "novelty_queries_complete": true,
+      "critical_comparison_verified": true,
+      "nearest_work": [
+        {
+          "source_id": "S1",
+          "what_done": "合成来源的已知测试信息。",
+          "remaining_delta": "合成来源未覆盖的测试断言。",
+          "locator": "TEST FIXTURE section 1",
+          "overlap": "partial"
+        }
+      ],
+      "claims": [
+        {
+          "text": "这是合成测试中的前提，不是真实科学事实。",
+          "kind": "known",
+          "citations": [
+            {
+              "source_id": "S1",
+              "locator": "TEST section 1"
+            },
+            {
+              "source_id": "S2",
+              "locator": "TEST section 2"
+            }
+          ]
+        }
+      ],
+      "design": {
+        "key_test": "合成测试内容；不用于实际实验。",
+        "main_readout": "合成测试内容；不用于实际实验。",
+        "controls": "合成测试内容；不用于实际实验。",
+        "alternative_explanation": "合成测试内容；不用于实际实验。",
+        "orthogonal_test": "合成测试内容；不用于实际实验。",
+        "falsifier": "合成测试内容；不用于实际实验。",
+        "first_step": "合成测试内容；不用于实际实验。",
+        "continue_if": "合成测试内容；不用于实际实验。",
+        "stop_if": "合成测试内容；不用于实际实验。"
+      },
+      "resources": {
+        "required": [
+          "合成资源"
+        ],
+        "confirmed": [
+          "合成资源"
+        ],
+        "missing": [],
+        "critical_unknowns": []
+      },
+      "risks": [
+        "测试数据不能用于真实研究"
+      ],
+      "ratings": {
+        "N": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "V": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "F": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "T": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "E": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        }
+      },
+      "checks": {
+        "scope": "pass",
+        "premise_support": "pass",
+        "novelty_delta": "pass",
+        "counterevidence": "pass",
+        "discriminating_design": "pass",
+        "resource_fit": "pass",
+        "integrity": "pass",
+        "ethics": "pass"
+      },
+      "audit_summary": "纯合成测试。",
+      "enhancement": {
+        "research_type": "method",
+        "answerability": {
+          "target": "比较测试设置。",
+          "criterion": "区分合成输入与输出。",
+          "comparison_or_precision_basis": "合成基线。",
+          "scope_limits": "不得外推真实科学。"
+        },
+        "why_now": "本次用于回归测试。",
+        "assumptions": [
+          {
+            "statement": "合成前提。",
+            "category": "measurement",
+            "status": "supported",
+            "source_ids": [
+              "S1"
+            ],
+            "prediction_if_changed": "对应测试分支改变。"
+          }
+        ],
+        "reframing": {
+          "applied": false,
+          "original_question": "测试问题2是否能被合成判别任务区分？",
+          "changed_dimension": "本用例不做重构。",
+          "new_prediction_or_contribution": "仅软件测试。",
+          "retained_scope": "保留合成场景。",
+          "decision": "retain",
+          "reason": "本用例检查结构。"
+        },
+        "analogies": [],
+        "revision": {
+          "version": 1,
+          "claim_changed": false,
+          "last_novelty_checked_version": 1,
+          "inference_loss": "未改动。"
+        },
+        "constraint_ladder": [
+          {
+            "scenario": "current",
+            "constraint_ref": "RES",
+            "change": "保留合成条件。",
+            "status": "applicable",
+            "core_claim_preserved": true,
+            "inference_loss": "无。"
+          },
+          {
+            "scenario": "relaxed",
+            "constraint_ref": "RES",
+            "change": "反事实放宽一个合成资源限制。",
+            "status": "applicable",
+            "core_claim_preserved": true,
+            "inference_loss": "无，仍仅软件测试。"
+          },
+          {
+            "scenario": "tightened",
+            "constraint_ref": "RES",
+            "change": "收紧一个合成资源条件。",
+            "status": "applicable",
+            "core_claim_preserved": true,
+            "inference_loss": "无，仍仅软件测试。"
+          }
+        ],
+        "paths": {
+          "P0": {
+            "summary": "合成路径，仅供软件测试。",
+            "status": "ready",
+            "routes": [
+              {
+                "id": "P0-R1",
+                "claim_preserved": true,
+                "dependencies": [
+                  {
+                    "id": "D1",
+                    "resource": "合成资源",
+                    "needed_for": "检查软件分支。",
+                    "status": "confirmed",
+                    "verification_ref": "SYNTHETIC_RESOURCE_RECORD",
+                    "constraint_ref": "RES",
+                    "alternative": "无其他测试路线。",
+                    "inference_limit": "不产生实际科研结论。"
+                  }
+                ],
+                "allowed_conclusion": "仅软件合同检查。"
+              }
+            ],
+            "reason": "仅测试夹具已提供，不代表真实资源。"
+          },
+          "P1": {
+            "summary": "合成路径，仅供软件测试。",
+            "status": "ready",
+            "routes": [
+              {
+                "id": "P1-R1",
+                "claim_preserved": true,
+                "dependencies": [
+                  {
+                    "id": "D1",
+                    "resource": "合成资源",
+                    "needed_for": "检查软件分支。",
+                    "status": "confirmed",
+                    "verification_ref": "SYNTHETIC_RESOURCE_RECORD",
+                    "constraint_ref": "RES",
+                    "alternative": "无其他测试路线。",
+                    "inference_limit": "不产生实际科研结论。"
+                  }
+                ],
+                "allowed_conclusion": "仅软件合同检查。"
+              }
+            ],
+            "reason": "仅测试夹具已提供，不代表真实资源。"
+          },
+          "P2": {
+            "summary": "不扩展。",
+            "status": "not_assessed",
+            "routes": [],
+            "reason": "无需扩展的软件夹具。"
+          }
+        },
+        "prediction_matrix": [
+          {
+            "same_test": "同一合成输入比较。",
+            "favored_prediction": "输出A。",
+            "comparison_prediction": "输出B。",
+            "mixed_or_ambiguous_case": "输入不可解析。",
+            "separating_observation": "断言返回值。",
+            "quality_controls": "检查夹具格式。"
+          }
+        ],
+        "minimum_validation": {
+          "purpose": "feasibility",
+          "critical_unknown": "新字段能否正确传递。",
+          "priority_reason": "决定是否继续本地回归。",
+          "procedure_summary": "先核对合成字段，再检查对应输出。",
+          "quality_requirements": "输入和输出均为合成记录。",
+          "precision_plan": "不涉及真实样本量估计。",
+          "continue_if": "合成断言匹配。",
+          "adjust_if": "映射规则需修订。",
+          "stop_if": "输入违反合同。",
+          "inconclusive_if": "输入或输出缺失。",
+          "execution_status": "planned",
+          "execution_evidence_refs": []
+        },
+        "premortem": [
+          {
+            "failure": "字段失配。",
+            "early_check": "本地校验。",
+            "mitigation": "修正字段。",
+            "remaining_risk": "不能核实科学语义。"
+          }
+        ],
+        "decision_uncertainties": [],
+        "essential_assumption_ids": [],
+        "scientific_gates": {
+          "knowledge_gain": {
+            "status": "pass",
+            "reason": "合成测试条件满足。",
+            "evidence_refs": [
+              "S1"
+            ]
+          },
+          "answerability": {
+            "status": "pass",
+            "reason": "合成测试条件满足。",
+            "evidence_refs": [
+              "S1"
+            ]
+          },
+          "feasibility": {
+            "status": "pass",
+            "reason": "合成测试条件满足。",
+            "evidence_refs": [
+              "S1"
+            ]
+          }
+        }
+      },
+      "report_sections": {
+        "basis": {
+          "text": "合成来源用于提供不同测试条件，尚不涉及真实研究对象。本例仅检查记录中的已知内容和未解字段能否被准确区分。",
+          "source_ids": [
+            "S1"
+          ]
+        },
+        "question": {
+          "text": "拟比较两种输入在既定规则下的输出差异，检查新字段是否保留原有合同。所述差异仅为软件验证目标，不构成学术创新判断。",
+          "source_ids": []
+        },
+        "plan": {
+          "text": "先核对输入结构，再比较判定结果，并以缺失字段和不一致记录作为反例。验证方案尚未作为科研实验执行。",
+          "source_ids": []
+        },
+        "limitations": {
+          "text": "所需合成夹具已纳入测试目录；其结果仅适用于程序和版式检查。记录缺失时不能判断规则是否成立，也不能外推至实际科研可行性。",
+          "source_ids": []
+        }
+      }
+    },
+    {
+      "id": "C03",
+      "question_key": "synthetic-independent-question-3",
+      "primary_gap_id": "G2",
+      "title": "合成测试题3（不是科研推荐）",
+      "question": "测试问题3是否能被合成判别任务区分？",
+      "hypothesis": "仅为测试程序的占位假说，不是真实研究判断。",
+      "gap": "合成数据中的测试缺口。",
+      "novelty_delta": "合成差量，用于验证流程而非宣称学术创新。",
+      "why_it_matters": "仅用于检查门禁与渲染。",
+      "novelty_confidence": "high",
+      "novelty_queries_complete": true,
+      "critical_comparison_verified": true,
+      "nearest_work": [
+        {
+          "source_id": "S1",
+          "what_done": "合成来源的已知测试信息。",
+          "remaining_delta": "合成来源未覆盖的测试断言。",
+          "locator": "TEST FIXTURE section 1",
+          "overlap": "partial"
+        }
+      ],
+      "claims": [
+        {
+          "text": "这是合成测试中的前提，不是真实科学事实。",
+          "kind": "known",
+          "citations": [
+            {
+              "source_id": "S1",
+              "locator": "TEST section 1"
+            },
+            {
+              "source_id": "S2",
+              "locator": "TEST section 2"
+            }
+          ]
+        }
+      ],
+      "design": {
+        "key_test": "合成测试内容；不用于实际实验。",
+        "main_readout": "合成测试内容；不用于实际实验。",
+        "controls": "合成测试内容；不用于实际实验。",
+        "alternative_explanation": "合成测试内容；不用于实际实验。",
+        "orthogonal_test": "合成测试内容；不用于实际实验。",
+        "falsifier": "合成测试内容；不用于实际实验。",
+        "first_step": "合成测试内容；不用于实际实验。",
+        "continue_if": "合成测试内容；不用于实际实验。",
+        "stop_if": "合成测试内容；不用于实际实验。"
+      },
+      "resources": {
+        "required": [
+          "合成资源"
+        ],
+        "confirmed": [
+          "合成资源"
+        ],
+        "missing": [],
+        "critical_unknowns": []
+      },
+      "risks": [
+        "测试数据不能用于真实研究"
+      ],
+      "ratings": {
+        "N": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "V": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "F": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "T": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "E": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        }
+      },
+      "checks": {
+        "scope": "pass",
+        "premise_support": "pass",
+        "novelty_delta": "pass",
+        "counterevidence": "pass",
+        "discriminating_design": "pass",
+        "resource_fit": "pass",
+        "integrity": "pass",
+        "ethics": "pass"
+      },
+      "audit_summary": "纯合成测试。",
+      "enhancement": {
+        "research_type": "method",
+        "answerability": {
+          "target": "比较测试设置。",
+          "criterion": "区分合成输入与输出。",
+          "comparison_or_precision_basis": "合成基线。",
+          "scope_limits": "不得外推真实科学。"
+        },
+        "why_now": "本次用于回归测试。",
+        "assumptions": [
+          {
+            "statement": "合成前提。",
+            "category": "measurement",
+            "status": "supported",
+            "source_ids": [
+              "S1"
+            ],
+            "prediction_if_changed": "对应测试分支改变。"
+          }
+        ],
+        "reframing": {
+          "applied": false,
+          "original_question": "测试问题3是否能被合成判别任务区分？",
+          "changed_dimension": "本用例不做重构。",
+          "new_prediction_or_contribution": "仅软件测试。",
+          "retained_scope": "保留合成场景。",
+          "decision": "retain",
+          "reason": "本用例检查结构。"
+        },
+        "analogies": [],
+        "revision": {
+          "version": 1,
+          "claim_changed": false,
+          "last_novelty_checked_version": 1,
+          "inference_loss": "未改动。"
+        },
+        "constraint_ladder": [
+          {
+            "scenario": "current",
+            "constraint_ref": "RES",
+            "change": "保留合成条件。",
+            "status": "applicable",
+            "core_claim_preserved": true,
+            "inference_loss": "无。"
+          },
+          {
+            "scenario": "relaxed",
+            "constraint_ref": "RES",
+            "change": "反事实放宽一个合成资源限制。",
+            "status": "applicable",
+            "core_claim_preserved": true,
+            "inference_loss": "无，仍仅软件测试。"
+          },
+          {
+            "scenario": "tightened",
+            "constraint_ref": "RES",
+            "change": "收紧一个合成资源条件。",
+            "status": "applicable",
+            "core_claim_preserved": true,
+            "inference_loss": "无，仍仅软件测试。"
+          }
+        ],
+        "paths": {
+          "P0": {
+            "summary": "合成路径，仅供软件测试。",
+            "status": "ready",
+            "routes": [
+              {
+                "id": "P0-R1",
+                "claim_preserved": true,
+                "dependencies": [
+                  {
+                    "id": "D1",
+                    "resource": "合成资源",
+                    "needed_for": "检查软件分支。",
+                    "status": "confirmed",
+                    "verification_ref": "SYNTHETIC_RESOURCE_RECORD",
+                    "constraint_ref": "RES",
+                    "alternative": "无其他测试路线。",
+                    "inference_limit": "不产生实际科研结论。"
+                  }
+                ],
+                "allowed_conclusion": "仅软件合同检查。"
+              }
+            ],
+            "reason": "仅测试夹具已提供，不代表真实资源。"
+          },
+          "P1": {
+            "summary": "合成路径，仅供软件测试。",
+            "status": "ready",
+            "routes": [
+              {
+                "id": "P1-R1",
+                "claim_preserved": true,
+                "dependencies": [
+                  {
+                    "id": "D1",
+                    "resource": "合成资源",
+                    "needed_for": "检查软件分支。",
+                    "status": "confirmed",
+                    "verification_ref": "SYNTHETIC_RESOURCE_RECORD",
+                    "constraint_ref": "RES",
+                    "alternative": "无其他测试路线。",
+                    "inference_limit": "不产生实际科研结论。"
+                  }
+                ],
+                "allowed_conclusion": "仅软件合同检查。"
+              }
+            ],
+            "reason": "仅测试夹具已提供，不代表真实资源。"
+          },
+          "P2": {
+            "summary": "不扩展。",
+            "status": "not_assessed",
+            "routes": [],
+            "reason": "无需扩展的软件夹具。"
+          }
+        },
+        "prediction_matrix": [
+          {
+            "same_test": "同一合成输入比较。",
+            "favored_prediction": "输出A。",
+            "comparison_prediction": "输出B。",
+            "mixed_or_ambiguous_case": "输入不可解析。",
+            "separating_observation": "断言返回值。",
+            "quality_controls": "检查夹具格式。"
+          }
+        ],
+        "minimum_validation": {
+          "purpose": "feasibility",
+          "critical_unknown": "新字段能否正确传递。",
+          "priority_reason": "决定是否继续本地回归。",
+          "procedure_summary": "先核对合成字段，再检查对应输出。",
+          "quality_requirements": "输入和输出均为合成记录。",
+          "precision_plan": "不涉及真实样本量估计。",
+          "continue_if": "合成断言匹配。",
+          "adjust_if": "映射规则需修订。",
+          "stop_if": "输入违反合同。",
+          "inconclusive_if": "输入或输出缺失。",
+          "execution_status": "planned",
+          "execution_evidence_refs": []
+        },
+        "premortem": [
+          {
+            "failure": "字段失配。",
+            "early_check": "本地校验。",
+            "mitigation": "修正字段。",
+            "remaining_risk": "不能核实科学语义。"
+          }
+        ],
+        "decision_uncertainties": [],
+        "essential_assumption_ids": [],
+        "scientific_gates": {
+          "knowledge_gain": {
+            "status": "pass",
+            "reason": "合成测试条件满足。",
+            "evidence_refs": [
+              "S1"
+            ]
+          },
+          "answerability": {
+            "status": "pass",
+            "reason": "合成测试条件满足。",
+            "evidence_refs": [
+              "S1"
+            ]
+          },
+          "feasibility": {
+            "status": "pass",
+            "reason": "合成测试条件满足。",
+            "evidence_refs": [
+              "S1"
+            ]
+          }
+        }
+      },
+      "report_sections": {
+        "basis": {
+          "text": "合成来源用于提供不同测试条件，尚不涉及真实研究对象。本例仅检查记录中的已知内容和未解字段能否被准确区分。",
+          "source_ids": [
+            "S1"
+          ]
+        },
+        "question": {
+          "text": "拟比较两种输入在既定规则下的输出差异，检查新字段是否保留原有合同。所述差异仅为软件验证目标，不构成学术创新判断。",
+          "source_ids": []
+        },
+        "plan": {
+          "text": "先核对输入结构，再比较判定结果，并以缺失字段和不一致记录作为反例。验证方案尚未作为科研实验执行。",
+          "source_ids": []
+        },
+        "limitations": {
+          "text": "所需合成夹具已纳入测试目录；其结果仅适用于程序和版式检查。记录缺失时不能判断规则是否成立，也不能外推至实际科研可行性。",
+          "source_ids": []
+        }
+      }
+    },
+    {
+      "id": "C04",
+      "question_key": "synthetic-independent-question-4",
+      "primary_gap_id": "G2",
+      "title": "合成测试题4（不是科研推荐）",
+      "question": "测试问题4是否能被合成判别任务区分？",
+      "hypothesis": "仅为测试程序的占位假说，不是真实研究判断。",
+      "gap": "合成数据中的测试缺口。",
+      "novelty_delta": "合成差量，用于验证流程而非宣称学术创新。",
+      "why_it_matters": "仅用于检查门禁与渲染。",
+      "novelty_confidence": "high",
+      "novelty_queries_complete": true,
+      "critical_comparison_verified": true,
+      "nearest_work": [
+        {
+          "source_id": "S1",
+          "what_done": "合成来源的已知测试信息。",
+          "remaining_delta": "合成来源未覆盖的测试断言。",
+          "locator": "TEST FIXTURE section 1",
+          "overlap": "partial"
+        }
+      ],
+      "claims": [
+        {
+          "text": "这是合成测试中的前提，不是真实科学事实。",
+          "kind": "known",
+          "citations": [
+            {
+              "source_id": "S1",
+              "locator": "TEST section 1"
+            },
+            {
+              "source_id": "S2",
+              "locator": "TEST section 2"
+            }
+          ]
+        }
+      ],
+      "design": {
+        "key_test": "合成测试内容；不用于实际实验。",
+        "main_readout": "合成测试内容；不用于实际实验。",
+        "controls": "合成测试内容；不用于实际实验。",
+        "alternative_explanation": "合成测试内容；不用于实际实验。",
+        "orthogonal_test": "合成测试内容；不用于实际实验。",
+        "falsifier": "合成测试内容；不用于实际实验。",
+        "first_step": "合成测试内容；不用于实际实验。",
+        "continue_if": "合成测试内容；不用于实际实验。",
+        "stop_if": "合成测试内容；不用于实际实验。"
+      },
+      "resources": {
+        "required": [
+          "合成资源"
+        ],
+        "confirmed": [
+          "合成资源"
+        ],
+        "missing": [],
+        "critical_unknowns": []
+      },
+      "risks": [
+        "测试数据不能用于真实研究"
+      ],
+      "ratings": {
+        "N": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "V": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "F": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "T": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "E": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        }
+      },
+      "checks": {
+        "scope": "pass",
+        "premise_support": "pass",
+        "novelty_delta": "pass",
+        "counterevidence": "pass",
+        "discriminating_design": "pass",
+        "resource_fit": "pass",
+        "integrity": "pass",
+        "ethics": "pass"
+      },
+      "audit_summary": "纯合成测试。",
+      "enhancement": {
+        "research_type": "method",
+        "answerability": {
+          "target": "比较测试设置。",
+          "criterion": "区分合成输入与输出。",
+          "comparison_or_precision_basis": "合成基线。",
+          "scope_limits": "不得外推真实科学。"
+        },
+        "why_now": "本次用于回归测试。",
+        "assumptions": [
+          {
+            "statement": "合成前提。",
+            "category": "measurement",
+            "status": "supported",
+            "source_ids": [
+              "S1"
+            ],
+            "prediction_if_changed": "对应测试分支改变。"
+          }
+        ],
+        "reframing": {
+          "applied": false,
+          "original_question": "测试问题4是否能被合成判别任务区分？",
+          "changed_dimension": "本用例不做重构。",
+          "new_prediction_or_contribution": "仅软件测试。",
+          "retained_scope": "保留合成场景。",
+          "decision": "retain",
+          "reason": "本用例检查结构。"
+        },
+        "analogies": [],
+        "revision": {
+          "version": 1,
+          "claim_changed": false,
+          "last_novelty_checked_version": 1,
+          "inference_loss": "未改动。"
+        },
+        "constraint_ladder": [
+          {
+            "scenario": "current",
+            "constraint_ref": "RES",
+            "change": "保留合成条件。",
+            "status": "applicable",
+            "core_claim_preserved": true,
+            "inference_loss": "无。"
+          },
+          {
+            "scenario": "relaxed",
+            "constraint_ref": "RES",
+            "change": "反事实放宽一个合成资源限制。",
+            "status": "applicable",
+            "core_claim_preserved": true,
+            "inference_loss": "无，仍仅软件测试。"
+          },
+          {
+            "scenario": "tightened",
+            "constraint_ref": "RES",
+            "change": "收紧一个合成资源条件。",
+            "status": "applicable",
+            "core_claim_preserved": true,
+            "inference_loss": "无，仍仅软件测试。"
+          }
+        ],
+        "paths": {
+          "P0": {
+            "summary": "合成路径，仅供软件测试。",
+            "status": "ready",
+            "routes": [
+              {
+                "id": "P0-R1",
+                "claim_preserved": true,
+                "dependencies": [
+                  {
+                    "id": "D1",
+                    "resource": "合成资源",
+                    "needed_for": "检查软件分支。",
+                    "status": "confirmed",
+                    "verification_ref": "SYNTHETIC_RESOURCE_RECORD",
+                    "constraint_ref": "RES",
+                    "alternative": "无其他测试路线。",
+                    "inference_limit": "不产生实际科研结论。"
+                  }
+                ],
+                "allowed_conclusion": "仅软件合同检查。"
+              }
+            ],
+            "reason": "仅测试夹具已提供，不代表真实资源。"
+          },
+          "P1": {
+            "summary": "合成路径，仅供软件测试。",
+            "status": "ready",
+            "routes": [
+              {
+                "id": "P1-R1",
+                "claim_preserved": true,
+                "dependencies": [
+                  {
+                    "id": "D1",
+                    "resource": "合成资源",
+                    "needed_for": "检查软件分支。",
+                    "status": "confirmed",
+                    "verification_ref": "SYNTHETIC_RESOURCE_RECORD",
+                    "constraint_ref": "RES",
+                    "alternative": "无其他测试路线。",
+                    "inference_limit": "不产生实际科研结论。"
+                  }
+                ],
+                "allowed_conclusion": "仅软件合同检查。"
+              }
+            ],
+            "reason": "仅测试夹具已提供，不代表真实资源。"
+          },
+          "P2": {
+            "summary": "不扩展。",
+            "status": "not_assessed",
+            "routes": [],
+            "reason": "无需扩展的软件夹具。"
+          }
+        },
+        "prediction_matrix": [
+          {
+            "same_test": "同一合成输入比较。",
+            "favored_prediction": "输出A。",
+            "comparison_prediction": "输出B。",
+            "mixed_or_ambiguous_case": "输入不可解析。",
+            "separating_observation": "断言返回值。",
+            "quality_controls": "检查夹具格式。"
+          }
+        ],
+        "minimum_validation": {
+          "purpose": "feasibility",
+          "critical_unknown": "新字段能否正确传递。",
+          "priority_reason": "决定是否继续本地回归。",
+          "procedure_summary": "先核对合成字段，再检查对应输出。",
+          "quality_requirements": "输入和输出均为合成记录。",
+          "precision_plan": "不涉及真实样本量估计。",
+          "continue_if": "合成断言匹配。",
+          "adjust_if": "映射规则需修订。",
+          "stop_if": "输入违反合同。",
+          "inconclusive_if": "输入或输出缺失。",
+          "execution_status": "planned",
+          "execution_evidence_refs": []
+        },
+        "premortem": [
+          {
+            "failure": "字段失配。",
+            "early_check": "本地校验。",
+            "mitigation": "修正字段。",
+            "remaining_risk": "不能核实科学语义。"
+          }
+        ],
+        "decision_uncertainties": [],
+        "essential_assumption_ids": [],
+        "scientific_gates": {
+          "knowledge_gain": {
+            "status": "pass",
+            "reason": "合成测试条件满足。",
+            "evidence_refs": [
+              "S1"
+            ]
+          },
+          "answerability": {
+            "status": "pass",
+            "reason": "合成测试条件满足。",
+            "evidence_refs": [
+              "S1"
+            ]
+          },
+          "feasibility": {
+            "status": "pass",
+            "reason": "合成测试条件满足。",
+            "evidence_refs": [
+              "S1"
+            ]
+          }
+        }
+      },
+      "report_sections": {
+        "basis": {
+          "text": "合成来源用于提供不同测试条件，尚不涉及真实研究对象。本例仅检查记录中的已知内容和未解字段能否被准确区分。",
+          "source_ids": [
+            "S1"
+          ]
+        },
+        "question": {
+          "text": "拟比较两种输入在既定规则下的输出差异，检查新字段是否保留原有合同。所述差异仅为软件验证目标，不构成学术创新判断。",
+          "source_ids": []
+        },
+        "plan": {
+          "text": "先核对输入结构，再比较判定结果，并以缺失字段和不一致记录作为反例。验证方案尚未作为科研实验执行。",
+          "source_ids": []
+        },
+        "limitations": {
+          "text": "所需合成夹具已纳入测试目录；其结果仅适用于程序和版式检查。记录缺失时不能判断规则是否成立，也不能外推至实际科研可行性。",
+          "source_ids": []
+        }
+      }
+    },
+    {
+      "id": "C05",
+      "question_key": "synthetic-independent-question-5",
+      "primary_gap_id": "G3",
+      "title": "合成测试题5（不是科研推荐）",
+      "question": "测试问题5是否能被合成判别任务区分？",
+      "hypothesis": "仅为测试程序的占位假说，不是真实研究判断。",
+      "gap": "合成数据中的测试缺口。",
+      "novelty_delta": "合成差量，用于验证流程而非宣称学术创新。",
+      "why_it_matters": "仅用于检查门禁与渲染。",
+      "novelty_confidence": "high",
+      "novelty_queries_complete": true,
+      "critical_comparison_verified": true,
+      "nearest_work": [
+        {
+          "source_id": "S1",
+          "what_done": "合成来源的已知测试信息。",
+          "remaining_delta": "合成来源未覆盖的测试断言。",
+          "locator": "TEST FIXTURE section 1",
+          "overlap": "partial"
+        }
+      ],
+      "claims": [
+        {
+          "text": "这是合成测试中的前提，不是真实科学事实。",
+          "kind": "known",
+          "citations": [
+            {
+              "source_id": "S1",
+              "locator": "TEST section 1"
+            },
+            {
+              "source_id": "S2",
+              "locator": "TEST section 2"
+            }
+          ]
+        }
+      ],
+      "design": {
+        "key_test": "合成测试内容；不用于实际实验。",
+        "main_readout": "合成测试内容；不用于实际实验。",
+        "controls": "合成测试内容；不用于实际实验。",
+        "alternative_explanation": "合成测试内容；不用于实际实验。",
+        "orthogonal_test": "合成测试内容；不用于实际实验。",
+        "falsifier": "合成测试内容；不用于实际实验。",
+        "first_step": "合成测试内容；不用于实际实验。",
+        "continue_if": "合成测试内容；不用于实际实验。",
+        "stop_if": "合成测试内容；不用于实际实验。"
+      },
+      "resources": {
+        "required": [
+          "合成资源"
+        ],
+        "confirmed": [
+          "合成资源"
+        ],
+        "missing": [],
+        "critical_unknowns": []
+      },
+      "risks": [
+        "测试数据不能用于真实研究"
+      ],
+      "ratings": {
+        "N": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "V": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "F": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "T": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "E": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        }
+      },
+      "checks": {
+        "scope": "pass",
+        "premise_support": "pass",
+        "novelty_delta": "pass",
+        "counterevidence": "pass",
+        "discriminating_design": "pass",
+        "resource_fit": "pass",
+        "integrity": "pass",
+        "ethics": "pass"
+      },
+      "audit_summary": "纯合成测试。",
+      "enhancement": {
+        "research_type": "method",
+        "answerability": {
+          "target": "比较测试设置。",
+          "criterion": "区分合成输入与输出。",
+          "comparison_or_precision_basis": "合成基线。",
+          "scope_limits": "不得外推真实科学。"
+        },
+        "why_now": "本次用于回归测试。",
+        "assumptions": [
+          {
+            "statement": "合成前提。",
+            "category": "measurement",
+            "status": "supported",
+            "source_ids": [
+              "S1"
+            ],
+            "prediction_if_changed": "对应测试分支改变。"
+          }
+        ],
+        "reframing": {
+          "applied": false,
+          "original_question": "测试问题5是否能被合成判别任务区分？",
+          "changed_dimension": "本用例不做重构。",
+          "new_prediction_or_contribution": "仅软件测试。",
+          "retained_scope": "保留合成场景。",
+          "decision": "retain",
+          "reason": "本用例检查结构。"
+        },
+        "analogies": [],
+        "revision": {
+          "version": 1,
+          "claim_changed": false,
+          "last_novelty_checked_version": 1,
+          "inference_loss": "未改动。"
+        },
+        "constraint_ladder": [
+          {
+            "scenario": "current",
+            "constraint_ref": "RES",
+            "change": "保留合成条件。",
+            "status": "applicable",
+            "core_claim_preserved": true,
+            "inference_loss": "无。"
+          },
+          {
+            "scenario": "relaxed",
+            "constraint_ref": "RES",
+            "change": "反事实放宽一个合成资源限制。",
+            "status": "applicable",
+            "core_claim_preserved": true,
+            "inference_loss": "无，仍仅软件测试。"
+          },
+          {
+            "scenario": "tightened",
+            "constraint_ref": "RES",
+            "change": "收紧一个合成资源条件。",
+            "status": "applicable",
+            "core_claim_preserved": true,
+            "inference_loss": "无，仍仅软件测试。"
+          }
+        ],
+        "paths": {
+          "P0": {
+            "summary": "合成路径，仅供软件测试。",
+            "status": "ready",
+            "routes": [
+              {
+                "id": "P0-R1",
+                "claim_preserved": true,
+                "dependencies": [
+                  {
+                    "id": "D1",
+                    "resource": "合成资源",
+                    "needed_for": "检查软件分支。",
+                    "status": "confirmed",
+                    "verification_ref": "SYNTHETIC_RESOURCE_RECORD",
+                    "constraint_ref": "RES",
+                    "alternative": "无其他测试路线。",
+                    "inference_limit": "不产生实际科研结论。"
+                  }
+                ],
+                "allowed_conclusion": "仅软件合同检查。"
+              }
+            ],
+            "reason": "仅测试夹具已提供，不代表真实资源。"
+          },
+          "P1": {
+            "summary": "合成路径，仅供软件测试。",
+            "status": "ready",
+            "routes": [
+              {
+                "id": "P1-R1",
+                "claim_preserved": true,
+                "dependencies": [
+                  {
+                    "id": "D1",
+                    "resource": "合成资源",
+                    "needed_for": "检查软件分支。",
+                    "status": "confirmed",
+                    "verification_ref": "SYNTHETIC_RESOURCE_RECORD",
+                    "constraint_ref": "RES",
+                    "alternative": "无其他测试路线。",
+                    "inference_limit": "不产生实际科研结论。"
+                  }
+                ],
+                "allowed_conclusion": "仅软件合同检查。"
+              }
+            ],
+            "reason": "仅测试夹具已提供，不代表真实资源。"
+          },
+          "P2": {
+            "summary": "不扩展。",
+            "status": "not_assessed",
+            "routes": [],
+            "reason": "无需扩展的软件夹具。"
+          }
+        },
+        "prediction_matrix": [
+          {
+            "same_test": "同一合成输入比较。",
+            "favored_prediction": "输出A。",
+            "comparison_prediction": "输出B。",
+            "mixed_or_ambiguous_case": "输入不可解析。",
+            "separating_observation": "断言返回值。",
+            "quality_controls": "检查夹具格式。"
+          }
+        ],
+        "minimum_validation": {
+          "purpose": "feasibility",
+          "critical_unknown": "新字段能否正确传递。",
+          "priority_reason": "决定是否继续本地回归。",
+          "procedure_summary": "先核对合成字段，再检查对应输出。",
+          "quality_requirements": "输入和输出均为合成记录。",
+          "precision_plan": "不涉及真实样本量估计。",
+          "continue_if": "合成断言匹配。",
+          "adjust_if": "映射规则需修订。",
+          "stop_if": "输入违反合同。",
+          "inconclusive_if": "输入或输出缺失。",
+          "execution_status": "planned",
+          "execution_evidence_refs": []
+        },
+        "premortem": [
+          {
+            "failure": "字段失配。",
+            "early_check": "本地校验。",
+            "mitigation": "修正字段。",
+            "remaining_risk": "不能核实科学语义。"
+          }
+        ],
+        "decision_uncertainties": [],
+        "essential_assumption_ids": [],
+        "scientific_gates": {
+          "knowledge_gain": {
+            "status": "pass",
+            "reason": "合成测试条件满足。",
+            "evidence_refs": [
+              "S1"
+            ]
+          },
+          "answerability": {
+            "status": "pass",
+            "reason": "合成测试条件满足。",
+            "evidence_refs": [
+              "S1"
+            ]
+          },
+          "feasibility": {
+            "status": "pass",
+            "reason": "合成测试条件满足。",
+            "evidence_refs": [
+              "S1"
+            ]
+          }
+        }
+      },
+      "report_sections": {
+        "basis": {
+          "text": "合成来源用于提供不同测试条件，尚不涉及真实研究对象。本例仅检查记录中的已知内容和未解字段能否被准确区分。",
+          "source_ids": [
+            "S1"
+          ]
+        },
+        "question": {
+          "text": "拟比较两种输入在既定规则下的输出差异，检查新字段是否保留原有合同。所述差异仅为软件验证目标，不构成学术创新判断。",
+          "source_ids": []
+        },
+        "plan": {
+          "text": "先核对输入结构，再比较判定结果，并以缺失字段和不一致记录作为反例。验证方案尚未作为科研实验执行。",
+          "source_ids": []
+        },
+        "limitations": {
+          "text": "所需合成夹具已纳入测试目录；其结果仅适用于程序和版式检查。记录缺失时不能判断规则是否成立，也不能外推至实际科研可行性。",
+          "source_ids": []
+        }
+      }
+    },
+    {
+      "id": "C06",
+      "question_key": "synthetic-independent-question-6",
+      "primary_gap_id": "G3",
+      "title": "合成测试题6（不是科研推荐）",
+      "question": "测试问题6是否能被合成判别任务区分？",
+      "hypothesis": "仅为测试程序的占位假说，不是真实研究判断。",
+      "gap": "合成数据中的测试缺口。",
+      "novelty_delta": "合成差量，用于验证流程而非宣称学术创新。",
+      "why_it_matters": "仅用于检查门禁与渲染。",
+      "novelty_confidence": "high",
+      "novelty_queries_complete": true,
+      "critical_comparison_verified": true,
+      "nearest_work": [
+        {
+          "source_id": "S1",
+          "what_done": "合成来源的已知测试信息。",
+          "remaining_delta": "合成来源未覆盖的测试断言。",
+          "locator": "TEST FIXTURE section 1",
+          "overlap": "partial"
+        }
+      ],
+      "claims": [
+        {
+          "text": "这是合成测试中的前提，不是真实科学事实。",
+          "kind": "known",
+          "citations": [
+            {
+              "source_id": "S1",
+              "locator": "TEST section 1"
+            },
+            {
+              "source_id": "S2",
+              "locator": "TEST section 2"
+            }
+          ]
+        }
+      ],
+      "design": {
+        "key_test": "合成测试内容；不用于实际实验。",
+        "main_readout": "合成测试内容；不用于实际实验。",
+        "controls": "合成测试内容；不用于实际实验。",
+        "alternative_explanation": "合成测试内容；不用于实际实验。",
+        "orthogonal_test": "合成测试内容；不用于实际实验。",
+        "falsifier": "合成测试内容；不用于实际实验。",
+        "first_step": "合成测试内容；不用于实际实验。",
+        "continue_if": "合成测试内容；不用于实际实验。",
+        "stop_if": "合成测试内容；不用于实际实验。"
+      },
+      "resources": {
+        "required": [
+          "合成资源"
+        ],
+        "confirmed": [
+          "合成资源"
+        ],
+        "missing": [],
+        "critical_unknowns": []
+      },
+      "risks": [
+        "测试数据不能用于真实研究"
+      ],
+      "ratings": {
+        "N": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "V": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "F": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "T": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        },
+        "E": {
+          "level": 3,
+          "rationale": "合成测试标注，不是模型评估成绩。",
+          "source_ids": [
+            "S1",
+            "S2"
+          ]
+        }
+      },
+      "checks": {
+        "scope": "pass",
+        "premise_support": "pass",
+        "novelty_delta": "pass",
+        "counterevidence": "pass",
+        "discriminating_design": "pass",
+        "resource_fit": "pass",
+        "integrity": "pass",
+        "ethics": "pass"
+      },
+      "audit_summary": "纯合成测试。",
+      "enhancement": {
+        "research_type": "method",
+        "answerability": {
+          "target": "比较测试设置。",
+          "criterion": "区分合成输入与输出。",
+          "comparison_or_precision_basis": "合成基线。",
+          "scope_limits": "不得外推真实科学。"
+        },
+        "why_now": "本次用于回归测试。",
+        "assumptions": [
+          {
+            "statement": "合成前提。",
+            "category": "measurement",
+            "status": "supported",
+            "source_ids": [
+              "S1"
+            ],
+            "prediction_if_changed": "对应测试分支改变。"
+          }
+        ],
+        "reframing": {
+          "applied": false,
+          "original_question": "测试问题6是否能被合成判别任务区分？",
+          "changed_dimension": "本用例不做重构。",
+          "new_prediction_or_contribution": "仅软件测试。",
+          "retained_scope": "保留合成场景。",
+          "decision": "retain",
+          "reason": "本用例检查结构。"
+        },
+        "analogies": [],
+        "revision": {
+          "version": 1,
+          "claim_changed": false,
+          "last_novelty_checked_version": 1,
+          "inference_loss": "未改动。"
+        },
+        "constraint_ladder": [
+          {
+            "scenario": "current",
+            "constraint_ref": "RES",
+            "change": "保留合成条件。",
+            "status": "applicable",
+            "core_claim_preserved": true,
+            "inference_loss": "无。"
+          },
+          {
+            "scenario": "relaxed",
+            "constraint_ref": "RES",
+            "change": "反事实放宽一个合成资源限制。",
+            "status": "applicable",
+            "core_claim_preserved": true,
+            "inference_loss": "无，仍仅软件测试。"
+          },
+          {
+            "scenario": "tightened",
+            "constraint_ref": "RES",
+            "change": "收紧一个合成资源条件。",
+            "status": "applicable",
+            "core_claim_preserved": true,
+            "inference_loss": "无，仍仅软件测试。"
+          }
+        ],
+        "paths": {
+          "P0": {
+            "summary": "合成路径，仅供软件测试。",
+            "status": "ready",
+            "routes": [
+              {
+                "id": "P0-R1",
+                "claim_preserved": true,
+                "dependencies": [
+                  {
+                    "id": "D1",
+                    "resource": "合成资源",
+                    "needed_for": "检查软件分支。",
+                    "status": "confirmed",
+                    "verification_ref": "SYNTHETIC_RESOURCE_RECORD",
+                    "constraint_ref": "RES",
+                    "alternative": "无其他测试路线。",
+                    "inference_limit": "不产生实际科研结论。"
+                  }
+                ],
+                "allowed_conclusion": "仅软件合同检查。"
+              }
+            ],
+            "reason": "仅测试夹具已提供，不代表真实资源。"
+          },
+          "P1": {
+            "summary": "合成路径，仅供软件测试。",
+            "status": "ready",
+            "routes": [
+              {
+                "id": "P1-R1",
+                "claim_preserved": true,
+                "dependencies": [
+                  {
+                    "id": "D1",
+                    "resource": "合成资源",
+                    "needed_for": "检查软件分支。",
+                    "status": "confirmed",
+                    "verification_ref": "SYNTHETIC_RESOURCE_RECORD",
+                    "constraint_ref": "RES",
+                    "alternative": "无其他测试路线。",
+                    "inference_limit": "不产生实际科研结论。"
+                  }
+                ],
+                "allowed_conclusion": "仅软件合同检查。"
+              }
+            ],
+            "reason": "仅测试夹具已提供，不代表真实资源。"
+          },
+          "P2": {
+            "summary": "不扩展。",
+            "status": "not_assessed",
+            "routes": [],
+            "reason": "无需扩展的软件夹具。"
+          }
+        },
+        "prediction_matrix": [
+          {
+            "same_test": "同一合成输入比较。",
+            "favored_prediction": "输出A。",
+            "comparison_prediction": "输出B。",
+            "mixed_or_ambiguous_case": "输入不可解析。",
+            "separating_observation": "断言返回值。",
+            "quality_controls": "检查夹具格式。"
+          }
+        ],
+        "minimum_validation": {
+          "purpose": "feasibility",
+          "critical_unknown": "新字段能否正确传递。",
+          "priority_reason": "决定是否继续本地回归。",
+          "procedure_summary": "先核对合成字段，再检查对应输出。",
+          "quality_requirements": "输入和输出均为合成记录。",
+          "precision_plan": "不涉及真实样本量估计。",
+          "continue_if": "合成断言匹配。",
+          "adjust_if": "映射规则需修订。",
+          "stop_if": "输入违反合同。",
+          "inconclusive_if": "输入或输出缺失。",
+          "execution_status": "planned",
+          "execution_evidence_refs": []
+        },
+        "premortem": [
+          {
+            "failure": "字段失配。",
+            "early_check": "本地校验。",
+            "mitigation": "修正字段。",
+            "remaining_risk": "不能核实科学语义。"
+          }
+        ],
+        "decision_uncertainties": [],
+        "essential_assumption_ids": [],
+        "scientific_gates": {
+          "knowledge_gain": {
+            "status": "pass",
+            "reason": "合成测试条件满足。",
+            "evidence_refs": [
+              "S1"
+            ]
+          },
+          "answerability": {
+            "status": "pass",
+            "reason": "合成测试条件满足。",
+            "evidence_refs": [
+              "S1"
+            ]
+          },
+          "feasibility": {
+            "status": "pass",
+            "reason": "合成测试条件满足。",
+            "evidence_refs": [
+              "S1"
+            ]
+          }
+        }
+      },
+      "report_sections": {
+        "basis": {
+          "text": "合成来源用于提供不同测试条件，尚不涉及真实研究对象。本例仅检查记录中的已知内容和未解字段能否被准确区分。",
+          "source_ids": [
+            "S1"
+          ]
+        },
+        "question": {
+          "text": "拟比较两种输入在既定规则下的输出差异，检查新字段是否保留原有合同。所述差异仅为软件验证目标，不构成学术创新判断。",
+          "source_ids": []
+        },
+        "plan": {
+          "text": "先核对输入结构，再比较判定结果，并以缺失字段和不一致记录作为反例。验证方案尚未作为科研实验执行。",
+          "source_ids": []
+        },
+        "limitations": {
+          "text": "所需合成夹具已纳入测试目录；其结果仅适用于程序和版式检查。记录缺失时不能判断规则是否成立，也不能外推至实际科研可行性。",
+          "source_ids": []
+        }
+      }
+    }
+  ],
+  "execution": {
+    "mode": "single_model_sequential",
+    "generator_model_id": "NO_MODEL_EXECUTED",
+    "reviewer_model_id": "NO_MODEL_EXECUTED",
+    "review_type": "same_model_self_audit",
+    "independent_review": false,
+    "context_mode": "same_context",
+    "exposed_to_previous_scores": true
+  },
+  "constraints": [
+    {
+      "id": "RES",
+      "statement": "合成测试资源，不指向真实设备或授权。",
+      "status": "confirmed",
+      "negotiable": true,
+      "evidence_ref": "SYNTHETIC_RESOURCE_RECORD",
+      "category": "equipment"
+    }
+  ]
+}

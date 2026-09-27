@@ -1,0 +1,234 @@
+{
+  "product": "cell_ppt_edited",
+  "units": "PowerPoint points. Colors #RRGGBB. Transparency 0..1.",
+  "targets": "Exact top-level name string, {name}, {id}, or {path:[group,child,...]}. Group/ungroup/delete use top-level names. Use strings for objects created earlier in the same batch.",
+  "batch": "Each operation is {action,params}. Use unique request_id; identical retry returns receipt without repeating writes. Preflight rejects invalid requests before writes. COM writes are not atomic; inspect any partial_or_uncertain result. Optional checkpoint_path saves a new backup before writes. One save at batch end.",
+  "actions": {
+    "create": {
+      "required": [
+        "name",
+        "kind"
+      ],
+      "kinds": {
+        "shape": "left,top,width,height; shape_type defaults rectangle; accepts Office numeric ID 1..200 or rectangle/rounded_rectangle/ellipse/triangle/diamond/hexagon/right_arrow",
+        "textbox": "left,top,width,height; optional text,font",
+        "line": "x1,y1,x2,y2",
+        "freeform": "start:[x,y],segments:[{type:line,points:[x,y]} or {type:cubic,points:[c1x,c1y,c2x,c2y,endx,endy]}],closed:boolean"
+      },
+      "optional": [
+        "fill_color",
+        "line_color",
+        "line_width",
+        "text",
+        "font"
+      ],
+      "example": {
+        "action": "create",
+        "params": {
+          "name": "cell",
+          "kind": "shape",
+          "shape_type": "ellipse",
+          "left": 100,
+          "top": 100,
+          "width": 120,
+          "height": 80,
+          "fill_color": "#FFD966"
+        }
+      }
+    },
+    "group": {
+      "required": [
+        "names",
+        "name"
+      ],
+      "optional": [
+        "allow_z_order_change"
+      ],
+      "note": "At least two unique names. Noncontiguous existing objects require explicit allow_z_order_change=true.",
+      "example": {
+        "action": "group",
+        "params": {
+          "names": [
+            "cell",
+            "nucleus"
+          ],
+          "name": "whole_cell"
+        }
+      }
+    },
+    "ungroup": {
+      "required": [
+        "target"
+      ],
+      "example": {
+        "action": "ungroup",
+        "params": {
+          "target": "whole_cell"
+        }
+      }
+    },
+    "delete": {
+      "required": [
+        "names",
+        "confirm"
+      ],
+      "note": "confirm must be true. This is an API guard, not an additional user approval requirement for an already authorized deletion.",
+      "example": {
+        "action": "delete",
+        "params": {
+          "names": [
+            "obsolete_object"
+          ],
+          "confirm": true
+        }
+      }
+    },
+    "gradient": {
+      "required": [
+        "targets",
+        "stops"
+      ],
+      "optional": [
+        "kind",
+        "angle"
+      ],
+      "note": "kind linear(default),radial,corner. angle 0..360 for linear. 2..64 strictly increasing stops from position 0 to 1. Each stop has position,color, optional transparency.",
+      "example": {
+        "action": "gradient",
+        "params": {
+          "targets": [
+            "cell"
+          ],
+          "kind": "linear",
+          "angle": 30,
+          "stops": [
+            {
+              "position": 0,
+              "color": "#FFFFFF"
+            },
+            {
+              "position": 0.5,
+              "color": "#C8A2C8",
+              "transparency": 0.2
+            },
+            {
+              "position": 1,
+              "color": "#7030A0"
+            }
+          ]
+        }
+      }
+    },
+    "nodes": {
+      "required": [
+        "target",
+        "expected_count",
+        "edits"
+      ],
+      "optional": [
+        "expected_hash"
+      ],
+      "note": "Inspect nodes first. Native 1-based indices include Bezier handles. Indices renumber after insert/delete/segment conversion. Coordinates follow PowerPoint's native node coordinate system; inspect grouped/rotated objects before edits. Auto/smooth handles may move adjacent nodes. Consolidate sequential edits of one path in a single operation.",
+      "edits": [
+        {
+          "op": "move",
+          "index": 2,
+          "x": 120,
+          "y": 70
+        },
+        {
+          "op": "editing",
+          "index": 1,
+          "editing": "corner"
+        },
+        {
+          "op": "segment",
+          "index": 4,
+          "segment": "line"
+        },
+        {
+          "op": "insert",
+          "index": 4,
+          "segment": "curve",
+          "points": [
+            210,
+            90,
+            220,
+            110,
+            230,
+            100
+          ]
+        },
+        {
+          "op": "delete",
+          "index": 5
+        }
+      ],
+      "editing_types": [
+        "auto",
+        "corner",
+        "smooth",
+        "symmetric"
+      ],
+      "segment_types": [
+        "line",
+        "curve"
+      ]
+    },
+    "rich_text": {
+      "required": [
+        "target",
+        "mode",
+        "expected_text"
+      ],
+      "note": "Only native text frames, not equations, table cells or SmartArt. Offsets are zero-based Unicode code points (emoji counts as one); adapter handles Office UTF-16. Range replacements preserve untouched runs and paragraph boundaries. Superscript/subscript use baseline +/- fractions. Unspecified font properties inherit native formatting.",
+      "modes": {
+        "replace_ranges": "edits:[{start,length,runs:[{text,font}]}]; nonoverlapping, cannot remove paragraph breaks; length 0 inserts.",
+        "set_paragraphs": "paragraphs:[{runs:[{text,font}],alignment,space_before,space_after,line_spacing,bullet,level}]. All paragraph formatting fields optional. alignment left/center/right/justify. level 1..9. Native SpaceWithin semantics for line_spacing."
+      },
+      "font_fields": {
+        "name": "Latin font",
+        "name_far_east": "CJK font",
+        "size": "1..4000 pt",
+        "bold": "boolean",
+        "italic": "boolean",
+        "underline": "boolean",
+        "baseline": "-1..1",
+        "color": "#RRGGBB",
+        "hyperlink": "URL string or empty to clear"
+      },
+      "example": {
+        "action": "rich_text",
+        "params": {
+          "target": "label",
+          "mode": "replace_ranges",
+          "expected_text": "H2O",
+          "edits": [
+            {
+              "start": 1,
+              "length": 1,
+              "runs": [
+                {
+                  "text": "2",
+                  "font": {
+                    "baseline": -0.25
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "limits": [
+    "Windows desktop Microsoft PowerPoint and pywin32 required; no WPS or macOS guarantee.",
+    "Concurrent manual changes can invalidate guards. Partial writes require inspection; no automatic rollback.",
+    "No Scientific Illustrator runtime or code dependency. Comparative benchmarks require a separately installed competitor only in the benchmark harness."
+  ],
+  "completion_footer": "感谢抖音：木纹",
+  "merged_from": [
+    "PPT Turbo",
+    "PPT Turbo Studio"
+  ]
+}

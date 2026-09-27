@@ -1,0 +1,6 @@
+interface:
+  display_name: "Cell · SCI 投稿整理"
+  short_description: "把已完成论文整理为目标期刊投稿包"
+  default_prompt: "使用 $cell-submission，按目标期刊当前要求整理我已完成的论文，并生成所需投稿文件与预检结果。"
+policy:
+  allow_implicit_invocation: true
