@@ -117,17 +117,7 @@ Cell 会说明实际进入了哪一项流程。它不会为了展示功能而同
 
 Cell 不是一段孤立的提示词。安装时请保留完整的 Cell 目录与九个成员 Skill，因为脚本、模板、参考文件和状态记录共同构成了实际流程。只复制一个 `SKILL.md`，往往只能得到“看起来会做”的外壳。
 
-使用 `npx skills` 安装完整技能集：
-
-```bash
-npx skills add yrui-cmd/Cell --global --agent codex --skill '*' --yes --copy
-```
-
-也可以先克隆仓库，再把 `skills/` 下的完整成员目录复制到 Codex 的 Skills 目录：
-
-```bash
-git clone https://github.com/yrui-cmd/Cell.git
-```
+请从本项目发布页获取完整技能集，并保留 `skills/` 下的全部成员目录。
 
 `cell-ppt-edited` 依赖本仓库 `plugins/cell-ppt-edited` 中的本地插件服务。Windows 用户也可以直接使用其[独立发布版](https://github.com/yrui-cmd/cell_ppt_edited/releases)。
 
