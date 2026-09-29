@@ -1,3 +1,4 @@
+import os
 import re
 import subprocess
 import sys
@@ -51,12 +52,16 @@ def test_installed_free_skills_keep_all_entrypoint_links(installed_root):
 @pytest.mark.parametrize(("skill", "relative"), ENTRYPOINTS)
 def test_installed_cli_entrypoint_starts(installed_root, skill, relative):
     script = installed_root / skill / relative
+    env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "cp1252"
     result = subprocess.run(
         [sys.executable, str(script), "--help"],
         text=True,
+        encoding="utf-8",
         capture_output=True,
         timeout=20,
         check=False,
+        env=env,
     )
     assert result.returncode == 0, result.stderr
     assert "usage:" in result.stdout.lower()

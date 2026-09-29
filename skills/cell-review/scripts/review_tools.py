@@ -35,6 +35,17 @@ KINDS = {"descriptive", "association", "intervention", "mechanism", "prediction"
 REVIEW_TYPES = {"critical_narrative", "scoping", "systematic", "meta_analysis"}
 
 
+def configure_utf8_stdio() -> None:
+    """Keep redirected CLI output Unicode-safe on legacy Windows locales."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8")
+            except (OSError, ValueError):
+                pass
+
+
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -444,6 +455,7 @@ def audit_review(run_dir: Path) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_utf8_stdio()
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     p_init = sub.add_parser("init", help="Create a new empty review workspace; never overwrite")

@@ -2,6 +2,7 @@ import contextlib
 import copy
 import io
 import json
+import os
 import re
 import subprocess
 import sys
@@ -194,7 +195,8 @@ class ProgressAndCLITests(unittest.TestCase):
             self.assertEqual(p.returncode,0,p.stderr);self.assertEqual(p.stdout,'')
         self.assertTrue(out.is_file())
     def test_cli_progress_line(self):
-        p=subprocess.run([sys.executable,str(ROOT/'scripts/session.py'),'progress','--state',str(self.path),'--step','1','--model-id','M'],capture_output=True,text=True)
+        env=os.environ.copy();env['PYTHONIOENCODING']='cp1252'
+        p=subprocess.run([sys.executable,str(ROOT/'scripts/session.py'),'progress','--state',str(self.path),'--step','1','--model-id','M'],capture_output=True,text=True,encoding='utf-8',env=env)
         self.assertEqual(p.returncode,0,p.stderr);self.assertEqual(p.stdout,'第1步\n')
     def test_cli_no_input_overwrite(self):
         p=subprocess.run([sys.executable,str(ROOT/'scripts/quality_gate.py'),'--input',str(ROOT/'examples/synthetic_audit_bundle_v2.json'),'--output',str(ROOT/'examples/synthetic_audit_bundle_v2.json')],capture_output=True,text=True)

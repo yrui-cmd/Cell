@@ -14,6 +14,17 @@ from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 
+def configure_utf8_stdio() -> None:
+    """Keep redirected CLI output Unicode-safe on legacy Windows locales."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8")
+            except (OSError, ValueError):
+                pass
+
+
 @dataclass
 class Report:
     mode: str = "release"
@@ -461,6 +472,7 @@ def validate(data: Any, *, mode: str = "release") -> Report:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_utf8_stdio()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("state", type=Path, help="Path to plan_state.json")
     parser.add_argument("--mode", choices=("release", "draft"), default="release",
