@@ -8,7 +8,8 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPT_DIR))
 
-from preflight import GATES, check, file_in_root, scan, sha256  # noqa: E402
+from preflight import (GATES, check, file_in_root, package_fingerprint, scan,
+                       sha256)  # noqa: E402
 
 
 class SubmissionPreflightTests(unittest.TestCase):
@@ -39,7 +40,7 @@ class SubmissionPreflightTests(unittest.TestCase):
                 "status": "not_applicable" if gate in {"anonymity"} else "pass",
                 "evidence": f"Verified {gate} against the final package.",
             }
-        return {
+        manifest = {
             "version": 2,
             "root": "../deliverables",
             "journal": "Example Journal",
@@ -76,6 +77,11 @@ class SubmissionPreflightTests(unittest.TestCase):
                 "sha256": sha256(self.delivery),
             }],
         }
+        manifest["verification"] = {
+            "checked_at": "2026-09-28",
+            "package_sha256": package_fingerprint(manifest),
+        }
+        return manifest
 
     def write_manifest(self, manifest=None):
         self.manifest_path.write_text(
@@ -96,6 +102,33 @@ class SubmissionPreflightTests(unittest.TestCase):
         result = check(self.manifest_path)
         self.assertEqual(result["status"], "BLOCKED")
         self.assertTrue(any("Unresolved placeholder" in item for item in result["errors"]))
+
+    def test_contextual_ethics_placeholder_blocks_package(self):
+        self.delivery.write_text("Ethics approval number: TBD\n", encoding="utf-8")
+        manifest = self.manifest()
+        manifest["files"][0]["sha256"] = sha256(self.delivery)
+        manifest["verification"]["package_sha256"] = package_fingerprint(manifest)
+        self.write_manifest(manifest)
+        result = check(self.manifest_path)
+        self.assertTrue(any("Unresolved placeholder" in item for item in result["errors"]))
+
+    def test_scientific_xx_is_not_a_placeholder(self):
+        self.delivery.write_text("Chromosomes: XX; karyotype verified.\n", encoding="utf-8")
+        manifest = self.manifest()
+        manifest["files"][0]["sha256"] = sha256(self.delivery)
+        manifest["verification"]["package_sha256"] = package_fingerprint(manifest)
+        self.write_manifest(manifest)
+        self.assertEqual(check(self.manifest_path)["status"], "PASS")
+
+    def test_updated_file_hash_invalidates_old_gate_snapshot(self):
+        manifest = self.manifest()
+        old_snapshot = manifest["verification"]["package_sha256"]
+        self.delivery.write_text("Changed after the host gates were checked.\n", encoding="utf-8")
+        manifest["files"][0]["sha256"] = sha256(self.delivery)
+        self.assertEqual(manifest["verification"]["package_sha256"], old_snapshot)
+        self.write_manifest(manifest)
+        result = check(self.manifest_path)
+        self.assertTrue(any("verification is stale" in item for item in result["errors"]))
 
     def test_changed_source_and_stale_final_hash_are_blocked(self):
         self.source.write_text("Source changed after freezing.\n", encoding="utf-8")

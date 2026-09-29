@@ -114,7 +114,7 @@ Cover letter 仅在本刊当前阶段要求或作者明确要求时生成；不�
 
 **科学保真：** 对比源稿和提交稿的主要结论、所有关键数字及对应上下文。重新编号的引文、页码、图号与统计数值分开核对，不能以全文数字多重集相同作为保真证明。
 
-**文本与文件：** 正文、摘要、图表、投稿信、亮点与系统字段保持一致。参考文献、图表面板、文件名、图注和补充附件可闭环定位；没有未解决的批注/修订/占位符或错误域。
+**文本与文件：** 正文、摘要、图表、投稿信、亮点与系统字段保持一致。参考文献、图表面板、文件名、图注和补充附件可闭环定位；没有未解决的批注/修订/占位符或错误域。候选占位符结合字段语境复核：批准号、注册号、页码行号中的 `TBD/XX` 必须解决，染色体等合法科学记号不能按字符串误删。
 
 **版面与对象：** 实际渲染最终 Word/PDF，逐页查看是否缺字、遮挡、断表、公式破坏、分页或行号错误。每次修改后重渲染受影响内容，最终检查覆盖全部页面。仅 XML 检查或成功保存文件不能替代视觉检查。渲染不可用时不能标记版面通过。
 
@@ -124,8 +124,11 @@ Cover letter 仅在本刊当前阶段要求或作者明确要求时生成；不�
 
 ```bash
 python scripts/preflight.py scan --input /path/to/deliverables/Manuscript.docx --out /path/to/work/final_scan.json
+python scripts/preflight.py fingerprint --manifest /path/to/work/package_manifest.json
 python scripts/preflight.py check --manifest /path/to/work/package_manifest.json
 ```
+
+仅在最终文件、来源、适用规则和人工门禁均核对完成后生成 fingerprint，并写入 manifest 的 `verification`；任何相关内容变化都要重查，不能保留旧门禁状态只刷新文件哈希。
 
 脚本 PASS 只表示列明的静态检查通过，不替代上述语义、视觉、作者真实性检查。内部必须记录未验证项，不把“不适用”作为绕过条件。
 

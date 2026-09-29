@@ -10,7 +10,8 @@ from pathlib import Path
 
 from docx import Document
 
-from reviewer_docs import CHECKS, ValidationError, build, sha256, validate
+from reviewer_docs import (CHECKS, ValidationError, build, sha256, validate,
+                           verification_fingerprint)
 
 
 def fixture(root: Path) -> dict:
@@ -113,7 +114,15 @@ def completed(data: dict) -> dict:
         else:
             c["final_response"] = "Each point represents one independent specimen, as described in the Methods."
     data["checks"] = {key: True for key in CHECKS}
+    seal(data)
     return data
+
+
+def seal(data: dict) -> None:
+    data["verification"] = {
+        "checked_at": "2026-09-28",
+        "content_sha256": verification_fingerprint(data),
+    }
 
 
 class ReviewerDocsTests(unittest.TestCase):
@@ -165,6 +174,33 @@ class ReviewerDocsTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             validate(self.data, self.root, "stage1")
 
+    def test_changed_final_response_invalidates_checks(self):
+        data = completed(self.data)
+        data["comments"][0]["final_response"] += " Changed after review."
+        with self.assertRaisesRegex(ValidationError, "verification is stale"):
+            validate(data, self.root, "stage2")
+
+    def test_docx_equation_requires_bound_object_review(self):
+        data = completed(self.data)
+        path = self.root / "manuscript.docx"
+        doc = Document()
+        doc.add_paragraph(Path(data["artifacts"][1]["path"]).read_text(encoding="utf-8"))
+        equation = doc.paragraphs[0]._p.makeelement(
+            "{http://schemas.openxmlformats.org/officeDocument/2006/math}oMath")
+        doc.paragraphs[0]._p.append(equation)
+        doc.save(path)
+        artifact = data["artifacts"][1]
+        artifact.update(path=str(path), sha256=sha256(path))
+        seal(data)
+        with self.assertRaisesRegex(ValidationError, "object_review"):
+            validate(data, self.root, "stage2")
+        artifact["object_review"] = {
+            "source_sha256": artifact["sha256"],
+            "inspected_types": ["equation"],
+            "notes": "Inspected the equation against the final rendered manuscript.",
+        }
+        validate(data, self.root, "stage2")
+
     def test_original_comment_cannot_be_rewritten(self):
         self.data["comments"][1]["original_text"] = "A paraphrase that was not in the review."
         with self.assertRaises(ValidationError):
@@ -197,6 +233,7 @@ class ReviewerDocsTests(unittest.TestCase):
         issue["resolution"]["disposition"] = "reasoned_disagreement"
         issue["resolution"]["changes"] = []
         issue["resolution"]["no_change_reason"] = "The manuscript already makes the scope of inference explicit."
+        seal(data)
         validate(data, self.root, "stage2")
 
     def test_placeholder_blocks_final(self):

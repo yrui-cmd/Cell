@@ -30,6 +30,12 @@ PLACEHOLDER = re.compile(
     r'|^\s*(?:TODO|TBD|待补充|待填写|待确认|待核实)\s*[:：.。]?\s*$',
     re.I | re.M,
 )
+CONTEXT_PLACEHOLDER = re.compile(
+    r'(?:(?:ethics?|ethical|IRB|institutional review board|approval|protocol|registration|registry|accession|DOI|pages?|lines?)'
+    r'[^\n:：]{0,48}|(?:伦理|批准|审批|方案|注册|登记|登录号|页码|行号)[^\n:：]{0,24})'
+    r'\s*[:：]?\s*(?:TBD|TBC|TODO|XXX|XX+|\?{2,})(?=$|[\s,.;，。；])',
+    re.I | re.M,
+)
 FIELD_ERROR = re.compile(
     r'Error!\s*(?:Reference source not found|Bookmark not defined|No text of specified style in document)'
     r'|错误[!！]\s*(?:未找到引用源|未定义书签|文档中没有指定样式的文字)', re.I,
@@ -145,9 +151,23 @@ def scan(path: Path) -> dict[str, Any]:
         {'value': m.group(), 'context': text[max(0, m.start()-65):m.end()+65]}
         for m in NUMBER.finditer(text)
     ]
+    candidates = []
+    seen_spans: set[tuple[int, int]] = set()
+    for kind, pattern in (("explicit", PLACEHOLDER), ("contextual", CONTEXT_PLACEHOLDER)):
+        for match in pattern.finditer(text):
+            span = match.span()
+            if span in seen_spans:
+                continue
+            seen_spans.add(span)
+            candidates.append({
+                'kind': kind,
+                'value': match.group(),
+                'context': text[max(0, match.start()-65):match.end()+65],
+            })
     return {'path': str(path), 'sha256': sha256(path), 'bytes': path.stat().st_size,
             'word_count_approx': len(re.findall(r"\b[\w]+(?:[-'’][\w]+)*\b", text)),
-            'placeholders': [m.group() for m in PLACEHOLDER.finditer(text)],
+            'placeholders': [item['value'] for item in candidates],
+            'placeholder_candidates': candidates,
             'field_errors': [m.group() for m in FIELD_ERROR.finditer(text)],
             'review_terms': sorted(set(re.findall(r'\b(?:TODO|TBD|TBC|XXX)\b', text))),
             'numeric_contexts': numbers, **detail,
@@ -178,6 +198,18 @@ def file_in_root(root: Path, relative: Any) -> Path:
     if not resolved.is_relative_to(root):
         raise ValueError('Deliverable escapes package root.')
     return resolved
+
+
+def package_fingerprint(manifest: dict[str, Any]) -> str:
+    """Bind host gates to the declared rules, source snapshots and final files."""
+    payload = {
+        key: manifest.get(key)
+        for key in ('version', 'journal', 'article_type', 'stage', 'rules_checked_at',
+                    'rules', 'blockers', 'sources', 'files')
+    }
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True,
+                     separators=(',', ':')).encode('utf-8')
+    return hashlib.sha256(raw).hexdigest()
 
 
 def check(manifest_path: Path) -> dict[str, Any]:
@@ -213,6 +245,18 @@ def check(manifest_path: Path) -> dict[str, Any]:
             errors.append(f'Gate not complete: {gate}')
         if not nonempty(item.get('evidence')):
             errors.append(f'Gate evidence missing: {gate}')
+    verification = manifest.get('verification')
+    if not isinstance(verification, dict):
+        errors.append('Package verification is required and must bind gates to current content.')
+    else:
+        if verification.get('package_sha256') != package_fingerprint(manifest):
+            errors.append('Package verification is stale; recheck the current package and reseal it.')
+        try:
+            checked_at = date.fromisoformat(verification.get('checked_at', ''))
+            if checked_at > date.today():
+                errors.append('verification.checked_at cannot be in the future.')
+        except (TypeError, ValueError):
+            errors.append('verification.checked_at must be a real YYYY-MM-DD date.')
     blockers = manifest.get('blockers')
     if not isinstance(blockers, list):
         errors.append('blockers must be a list.')
@@ -358,7 +402,7 @@ def check(manifest_path: Path) -> dict[str, Any]:
                 errors.append(f'Invalid/stale final hash: {relative}')
             if path.suffix.lower() in TEXT_EXTS | {'.docx'}:
                 report = scan(path)
-                scanned[relative] = {k: report[k] for k in ('sha256', 'placeholders', 'field_errors', 'revisions', 'comments', 'comment_anchors')}
+                scanned[relative] = {k: report[k] for k in ('sha256', 'placeholders', 'placeholder_candidates', 'field_errors', 'revisions', 'comments', 'comment_anchors')}
                 if report['placeholders']:
                     errors.append(f'Unresolved placeholder(s): {relative}')
                 if report['field_errors']:
@@ -401,6 +445,9 @@ def main() -> int:
     check_parser = commands.add_parser('check', help='Validate a private package manifest and its whitelist.')
     check_parser.add_argument('--manifest', required=True, type=Path)
     check_parser.add_argument('--out', type=Path)
+    fingerprint_parser = commands.add_parser('fingerprint', help='Fingerprint declared package content after host review.')
+    fingerprint_parser.add_argument('--manifest', required=True, type=Path)
+    fingerprint_parser.add_argument('--out', type=Path)
     args = parser.parse_args()
     try:
         input_path = args.input if args.command == 'scan' else args.manifest
@@ -408,7 +455,13 @@ def main() -> int:
             raise ValueError('Output must not overwrite the input.')
         if args.out and args.out.suffix.lower() != '.json':
             raise ValueError('Internal scan/check reports must use a .json extension.')
-        result = scan(args.input) if args.command == 'scan' else check(args.manifest)
+        if args.command == 'scan':
+            result = scan(args.input)
+        elif args.command == 'fingerprint':
+            manifest = json.loads(args.manifest.read_text(encoding='utf-8-sig'))
+            result = {'package_sha256': package_fingerprint(manifest)}
+        else:
+            result = check(args.manifest)
         if args.out:
             if args.command == 'check':
                 m = json.loads(args.manifest.read_text(encoding='utf-8-sig'))
@@ -426,6 +479,10 @@ def main() -> int:
             print(json.dumps(result, ensure_ascii=False, indent=2))
         if args.command == 'scan':
             print('SCAN_WRITTEN')
+            return 0
+        if args.command == 'fingerprint':
+            if not args.out:
+                print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0
         if args.out:
             print(result['status'])

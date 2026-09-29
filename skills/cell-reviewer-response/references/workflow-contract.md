@@ -15,6 +15,7 @@ Word 渲染优先使用宿主现有文档能力；在配有 LibreOffice 的环�
 ```sh
 python scripts/reviewer_docs.py check1 work/ledger.json
 python scripts/reviewer_docs.py stage1 work/ledger.json --out work/01_审稿意见_Figure归类与解决方案.docx
+python scripts/reviewer_docs.py fingerprint work/ledger.json
 python scripts/reviewer_docs.py check2 work/ledger.json
 python scripts/reviewer_docs.py stage2 work/ledger.json --out work/02_Response_to_Reviewers.docx
 python scripts/test_reviewer_docs.py
@@ -24,7 +25,7 @@ python scripts/test_reviewer_docs.py
 
 ## 状态结构
 
-顶层字段为 `schema_version: 1`、`meta`、`artifacts`、`reviewers`、`comments`、`issues`、可选 `figure_map`、`checks`。
+顶层字段为 `schema_version: 1`、`meta`、`artifacts`、`reviewers`、`comments`、`issues`、可选 `figure_map`、`checks`；第二阶段另需 `verification`。
 
 ### meta
 
@@ -44,6 +45,8 @@ python scripts/test_reviewer_docs.py
 审稿源文件为纯文本/Word 可直接核对原文。来自 PDF、图片、邮件或对话的评论，先通过可用读取工具完整读取，保存逐字转录的 UTF-8 文本作为核对来源；记录原始文件或消息的 `origin_id` 和来源位置。转录本不是新证据，不能省略不能读取的原始内容。PDF 有可提取文本时不先 OCR。
 
 程序直接核对 TXT/MD/CSV/TSV/JSON/DOCX 内的原文与可选引文；图像/PDF等文件只核对可访问性和哈希，内容仍须由宿主实际查看。表格里的 Word 原文也可读取。不要把“有哈希”当成“科学结论正确”。
+
+DOCX 的普通段落提取不能证明公式、图片、旧式绘图、文本框、嵌入对象或外部内容块已被读取。程序检测到这些对象时，第二阶段要求该 artifact 增加 `object_review`：`source_sha256` 必须等于当前文件摘要，`inspected_types` 覆盖程序报告的类型，`notes` 记录实际查看的位置和结果。该记录只证明宿主对当前版本做了对象级查看，不证明公式或图的科学内容正确；文件改变后必须重查。
 
 计算文件摘要示例：
 
@@ -140,6 +143,17 @@ digest = hashlib.sha256(path.read_bytes()).hexdigest()
 第二阶段必须全部为 true：`coverage`、`evidence`、`locations`、`figures`、`humanizer`、`facts_after_humanizer`。这些字段是宿主实际完成相应核对后的记录，不能一开始全填 true。
 
 任何来源、正文、结果、图号、回复发生实质变动，先把受影响核验项重置为 false。检查失败处理原问题，不修改校验规则。图表未发生变化也要核对引用一致性，不能跳过 `figures`。
+
+全部核对完成后运行 `fingerprint`，把返回的 `content_sha256` 与真实核对日期写入：
+
+```json
+"verification": {
+  "checked_at": "YYYY-MM-DD",
+  "content_sha256": "fingerprint 命令返回的 64 位摘要"
+}
+```
+
+摘要绑定当前 artifacts 哈希、稿件元信息、审稿人顺序、原文、问题、解决证据、正式回复和图号映射；不包含 `checks` 自身。任何被绑定内容变化都会使第二阶段失败，必须重新核对后生成新摘要。机械刷新摘要不能代替重新阅读。
 
 ## 文档交付检查
 

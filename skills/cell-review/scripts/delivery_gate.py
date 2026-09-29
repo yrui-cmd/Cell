@@ -111,8 +111,8 @@ def read_docx(path: Path) -> tuple[str, str, int]:
     return body, bibliography, len(paragraphs)
 
 
-def count_unique(records: list[dict[str, Any]]) -> tuple[int, list[list[str]]]:
-    """Union duplicates by article family, identifier or normalized title."""
+def count_unique(records: list[dict[str, Any]]) -> tuple[int, list[list[str]], list[dict[str, Any]]]:
+    """Deduplicate strong identities; expose title collisions instead of hiding them."""
     parents = list(range(len(records)))
     def find(i: int) -> int:
         while parents[i] != i:
@@ -124,7 +124,6 @@ def count_unique(records: list[dict[str, Any]]) -> tuple[int, list[list[str]]]:
         identities = (
             ('article_id', compact(record['article_id']).casefold()),
             ('identifier', canonical_identifier(record['identifier'])),
-            ('title', canonical_title(record['title'])),
         )
         for kind, identity in identities:
             if not identity:
@@ -134,10 +133,28 @@ def count_unique(records: list[dict[str, Any]]) -> tuple[int, list[list[str]]]:
                 parents[find(i)] = find(keys[key])
             else:
                 keys[key] = i
+    title_groups: dict[str, list[int]] = {}
+    for i, record in enumerate(records):
+        title = canonical_title(record['title'])
+        if title:
+            title_groups.setdefault(title, []).append(i)
+    conflicts: list[dict[str, Any]] = []
+    for indices in title_groups.values():
+        roots = {find(i) for i in indices}
+        if len(roots) <= 1:
+            continue
+        # A title is only a candidate match. Conflicting strong identities require
+        # a human decision and must never be silently collapsed by punctuation/case.
+        conflicts.append({
+            'records': [records[i]['id'] for i in indices],
+            'title': records[indices[0]]['title'],
+            'article_ids': sorted({compact(records[i]['article_id']).casefold() for i in indices}),
+            'identifiers': sorted({canonical_identifier(records[i]['identifier']) for i in indices}),
+        })
     groups: dict[int, list[str]] = {}
     for i, record in enumerate(records):
         groups.setdefault(find(i), []).append(record['id'])
-    return len(groups), [group for group in groups.values() if len(group) > 1]
+    return len(groups), [group for group in groups.values() if len(group) > 1], conflicts
 
 
 def validate_delivery(run_dir: Path) -> dict[str, Any]:
@@ -150,6 +167,7 @@ def validate_delivery(run_dir: Path) -> dict[str, Any]:
     result: dict[str, Any] = {
         'status': 'NEEDS_REVISION', 'checked_at': rt.now_iso(), 'errors': errors,
         'warnings': warnings, 'counts': counts, 'duplicate_article_groups': duplicate_groups,
+        'identity_conflicts': [],
         'not_counted': excluded, 'scientific_quality_certified': False,
         'scope': 'DOCX structure, recorded citation support, deduplication and host-attested visual/content checks only. No live reference verification, rendering or independent review.',
     }
@@ -267,7 +285,16 @@ def validate_delivery(run_dir: Path) -> dict[str, Any]:
             rid = link.get('ref_id')
             if link.get('checked') is not True or not rt.has_text(link.get('locator')):
                 continue
-            if style == 'custom' and compact(text) not in compact(str(custom_map.get(rid, {}).get('body_excerpt', ''))):
+            word_excerpt = link.get('word_excerpt')
+            if not rt.has_text(word_excerpt) or compact(text) not in compact(word_excerpt) or compact(word_excerpt) not in body_compact:
+                errors.append(f'{claim.get("id")}/{rid}: checked link needs a final Word excerpt containing the claim and citation marker.')
+                continue
+            if style == 'numeric':
+                record = next((item for item in cited if item.get('id') == rid), None)
+                if record is None or record.get('citation_number') not in rt.citation_numbers(word_excerpt):
+                    errors.append(f'{claim.get("id")}/{rid}: Word excerpt does not contain this reference marker.')
+                    continue
+            elif style == 'custom' and compact(text) not in compact(str(custom_map.get(rid, {}).get('body_excerpt', ''))):
                 continue
             if isinstance(rid, str):
                 supported_ids.add(rid)
@@ -299,13 +326,16 @@ def validate_delivery(run_dir: Path) -> dict[str, Any]:
             eligible.append(r)
     # Identity fields already checked by the preflight; omit malformed fields rather than crash.
     eligible = [r for r in eligible if all(rt.has_text(r.get(k)) for k in ('id', 'article_id', 'identifier', 'title'))]
-    count, groups = count_unique(eligible)
+    count, groups, identity_conflicts = count_unique(eligible)
     counts['eligible_article_records'] = len(eligible)
     counts['unique_eligible_articles'] = count
     counts['related_study_families'] = len({r.get('study_id') for r in eligible if isinstance(r.get('study_id'), str)})
     duplicate_groups.extend(groups)
+    result['identity_conflicts'].extend(identity_conflicts)
     if groups:
         warnings.append('Duplicate article/version groups were counted once; study families are not independent replications.')
+    if identity_conflicts:
+        errors.append('Same-title records have conflicting article identifiers; verify the records or versions before delivery.')
     if count < minimum:
         errors.append(f'At least {minimum} unique verified relevant articles actually cited in Word are required; found {count}. Continue evidence work or label as incomplete; never pad or fabricate.')
     if not errors:

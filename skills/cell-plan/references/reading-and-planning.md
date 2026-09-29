@@ -101,6 +101,32 @@ HTML可优先阅读正文与嵌入原图；PDF按章节连续读取，必要时�
       }
     ]
   },
+  "resource_review": {
+    "applicability": "required",
+    "reason": "示例任务需要人员和设备投入；真实运行时替换为本项目判断",
+    "resources": [
+      {
+        "id": "RES01",
+        "name": "以实际人员、设备、设施或外部依赖替换",
+        "kind": "equipment",
+        "capacity": 1,
+        "unit": "slot_per_week",
+        "availability_note": "说明容量来源、可用时间；未知容量用null"
+      }
+    ],
+    "allocations": [
+      {
+        "resource_id": "RES01",
+        "task_id": "T01",
+        "start_week": 1,
+        "end_week": 1,
+        "amount": 1,
+        "occupancy": "active",
+        "holds_capacity": true,
+        "note": "说明实际投入、独占占用或等待期间是否占用容量"
+      }
+    ]
+  },
   "papers": [
     {
       "id": "R01",
@@ -144,7 +170,7 @@ HTML可优先阅读正文与嵌入原图；PDF按章节连续读取，必要时�
       "start_week": 1,
       "end_week": 1,
       "duration_basis": "规划估算：以实际规模和投入说明替换",
-      "resources": ["已提供的数据"]
+      "resources": ["RES01"]
     }
   ]
 }
@@ -158,6 +184,9 @@ HTML可优先阅读正文与嵌入原图；PDF按章节连续读取，必要时�
 - `limitations`：内部材料或条件记录；不要求因阅读不足填写“限制说明”，不自动输出到计划。
 - `open_skill_tasks`：尚未完成的检索、阅读、核验、选线与排程任务；正式交付前必须为空。实验室将来执行的研究任务写在 `tasks`，不要写入此字段。
 - `design_review`：正式交付必须存在。`applicability` 为 `required`、`not_applicable` 或草稿期的 `undetermined`；正式交付不能保留 `undetermined`。不适用时给出课题相关理由并令 `designs=[]`；适用时至少有一个设计对象，并用 `task_ids` 关联实际任务。
+- `resource_review`：正式交付必须存在。适用时用稳定资源 ID 记录人员、设备、设施、外部依赖或关键材料，并让任务 `resources` 和 `allocations` 对应这些 ID；不适用时给出项目相关理由并令两个数组为空。
+- `capacity` 与 `unit`：容量已知时写正数及可比较单位，如 person_hours_per_week、slot_per_week；未知写 `null`，不得默认无限。多个任务在未知容量资源上重叠时，必须先核实，或在 `overlap_resolution` 写明实际确认依据。
+- `allocations`：记录任务实际投入窗口和每单位时间用量。`occupancy` 为 `active`、`exclusive` 或 `passive_wait`；被动等待只有在真实占用设备/人员时才令 `holds_capacity=true`。脚本只发现明确的超容量和未知容量重叠，不声称求得最优排程。
 - `experimental_unit`、`observation_unit` 与 `analysis_unit`：分别记录独立接受处理/进入比较的单位、产生单次观测的单位以及主要推断的分析单位。三者可以不同，但必须用 `independence_basis` 说明层级、汇总或聚类处理，不能把同一样本的技术重复当作独立样本。
 - `assignment`：只取 `randomized`、`nonrandomized`、`observational` 或 `not_applicable`。随机分配必须保存 `randomization_record`，说明方法、种子或分配表位置；其他类型用 `assignment_rationale` 说明原因，不能为了过检查假写随机化。
 - `blocking_factors` 与 `known_confounders`：均为字符串数组，可为空；是否为空都要用 `blocking_rationale` 写明本课题的核查和处理方式。`blinding`、`batch_run_order`、生物/技术重复、样本量依据与排除/停止规则使用可执行描述，不只写“已考虑”。
