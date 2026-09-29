@@ -2,6 +2,7 @@ import contextlib
 import copy
 import io
 import json
+import os
 import re
 import subprocess
 import sys
@@ -115,9 +116,20 @@ class EnhancedTests(unittest.TestCase):
         self.e['analogies']=[{'source_system':'源','target_system':'目标','transferred_relation':'关系','required_conditions':'条件','mismatches':'差异','target_prediction':'预测','source_ids':['S1'],'target_status':'known'}]
         with self.assertRaises(ValueError):validate_input(self.b)
     def test_shared_unverified_premise_disclosed(self):
-        for c in self.b['candidates'][:2]:c['enhancement']['essential_assumption_ids']=['合成共同前提']
+        for c in self.b['candidates'][:2]:
+            c['enhancement']['assumptions'][0].update(
+                statement='合成共同前提', status='unverified', source_ids=[])
+            c['enhancement']['essential_assumption_ids']=['合成共同前提']
         r=build_report(self.b);self.assertEqual(len(r['shared_risks']),1)
         self.assertIn('合成共同前提',render(r))
+    def test_essential_assumption_must_exist_in_ledger(self):
+        self.e['essential_assumption_ids']=['不存在的前提']
+        with self.assertRaisesRegex(ValueError,'not present'):
+            build_report(self.b)
+    def test_duplicate_assumption_statement_rejected(self):
+        self.e['assumptions'].append(copy.deepcopy(self.e['assumptions'][0]))
+        with self.assertRaisesRegex(ValueError,'unique stable'):
+            build_report(self.b)
     def test_exact_five_memo_sections(self):
         out=render(build_report(self.b));self.assertEqual(len(re.findall(r'^## [一二三四五]、',out,re.M)),5)
         for name in ('研究依据','拟研究内容','研究方案','可行性与限制'):self.assertEqual(out.count(name+'：'),5)
@@ -183,7 +195,8 @@ class ProgressAndCLITests(unittest.TestCase):
             self.assertEqual(p.returncode,0,p.stderr);self.assertEqual(p.stdout,'')
         self.assertTrue(out.is_file())
     def test_cli_progress_line(self):
-        p=subprocess.run([sys.executable,str(ROOT/'scripts/session.py'),'progress','--state',str(self.path),'--step','1','--model-id','M'],capture_output=True,text=True)
+        env=os.environ.copy();env['PYTHONIOENCODING']='cp1252'
+        p=subprocess.run([sys.executable,str(ROOT/'scripts/session.py'),'progress','--state',str(self.path),'--step','1','--model-id','M'],capture_output=True,text=True,encoding='utf-8',env=env)
         self.assertEqual(p.returncode,0,p.stderr);self.assertEqual(p.stdout,'第1步\n')
     def test_cli_no_input_overwrite(self):
         p=subprocess.run([sys.executable,str(ROOT/'scripts/quality_gate.py'),'--input',str(ROOT/'examples/synthetic_audit_bundle_v2.json'),'--output',str(ROOT/'examples/synthetic_audit_bundle_v2.json')],capture_output=True,text=True)

@@ -12,8 +12,11 @@ import json
 import re
 import sys
 import tempfile
+import zipfile
+from datetime import date
 from pathlib import Path
 from typing import Any
+from xml.etree import ElementTree as ET
 
 from docx import Document
 from docx.oxml import OxmlElement
@@ -70,6 +73,51 @@ def artifact_text(path: Path) -> str | None:
     return None  # Figures/PDFs must be read by the host; never silently OCR.
 
 
+def artifact_object_types(path: Path) -> list[str]:
+    """Report DOCX content classes that plain paragraph extraction cannot verify."""
+    if path.suffix.lower() != ".docx":
+        return []
+    tags = {
+        "oMath": "equation", "oMathPara": "equation",
+        "drawing": "drawing_or_image", "pict": "legacy_drawing_or_image",
+        "object": "embedded_object", "txbxContent": "text_box",
+        "altChunk": "external_content_chunk",
+    }
+    found: set[str] = set()
+    with zipfile.ZipFile(path) as package:
+        for info in package.infolist():
+            if not info.filename.startswith("word/") or not info.filename.endswith(".xml"):
+                continue
+            if info.file_size > 32 * 1024 * 1024:
+                raise ValueError(f"DOCX XML part is too large to inspect: {info.filename}")
+            root = ET.fromstring(package.read(info))
+            for node in root.iter():
+                kind = tags.get(node.tag.rsplit("}", 1)[-1])
+                if kind:
+                    found.add(kind)
+    return sorted(found)
+
+
+def verification_fingerprint(data: dict[str, Any]) -> str:
+    """Bind final human checks to the exact response/manuscript content snapshot."""
+    artifacts = []
+    for artifact in data.get("artifacts", []):
+        if isinstance(artifact, dict):
+            artifacts.append({key: artifact.get(key) for key in ("id", "sha256")})
+    payload = {
+        "schema_version": data.get("schema_version"),
+        "meta": data.get("meta"),
+        "artifacts": artifacts,
+        "reviewers": data.get("reviewers"),
+        "comments": data.get("comments"),
+        "issues": data.get("issues"),
+        "figure_map": data.get("figure_map", []),
+    }
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True,
+                     separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
 def resolve_path(raw: str, base: Path) -> Path:
     path = Path(raw).expanduser()
     return (path if path.is_absolute() else base / path).resolve()
@@ -90,6 +138,7 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
     errors: list[str] = []
     artifacts: dict[str, dict[str, Any]] = {}
     source_texts: dict[str, str | None] = {}
+    object_types: dict[str, list[str]] = {}
     if data.get("schema_version") != 1:
         errors.append("schema_version must be 1")
     meta = data.get("meta", {})
@@ -110,8 +159,25 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
             errors.append(f"{aid}: source version changed; re-read and reverify")
         try:
             source_texts[aid] = artifact_text(path)
+            object_types[aid] = artifact_object_types(path)
         except Exception as exc:
             errors.append(f"{aid}: source unreadable ({exc})")
+        if stage == "stage2" and object_types.get(aid):
+            review = a.get("object_review")
+            if not isinstance(review, dict):
+                errors.append(
+                    f"{aid}: DOCX contains content not covered by plain-text extraction "
+                    f"({', '.join(object_types[aid])}); record object_review after inspecting it")
+            else:
+                if review.get("source_sha256") != a.get("sha256"):
+                    errors.append(f"{aid}: object_review is not bound to the current source hash")
+                inspected = review.get("inspected_types")
+                if (not isinstance(inspected, list)
+                        or any(not text(item) for item in inspected)
+                        or not set(object_types[aid]).issubset(set(inspected))):
+                    errors.append(f"{aid}: object_review does not cover all detected object types")
+                if not text(review.get("notes")):
+                    errors.append(f"{aid}: object_review needs concrete inspection notes")
 
     def reference(ref: Any, label: str) -> None:
         if not isinstance(ref, dict):
@@ -257,10 +323,23 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
                 errors.append(f"meta.{key}: final placeholder detected")
         if not text(meta.get("opening")):
             errors.append("a fact-checked short opening is required for stage2")
+        verification = data.get("verification")
+        if not isinstance(verification, dict):
+            errors.append("stage2 verification must bind the final checks to current content")
+        else:
+            if verification.get("content_sha256") != verification_fingerprint(data):
+                errors.append("stage2 verification is stale; recheck the final response and reseal it")
+            try:
+                checked_at = date.fromisoformat(text(verification.get("checked_at")))
+                if checked_at > date.today():
+                    errors.append("stage2 verification.checked_at cannot be in the future")
+            except ValueError:
+                errors.append("stage2 verification.checked_at must be a real YYYY-MM-DD date")
     if errors:
         raise ValidationError("\n".join(dict.fromkeys(errors)))
     return {"comments": len(comments), "issues": len(issue_ids),
-            "open": open_ids, "stage2_ready": stage == "stage2"}
+            "open": open_ids, "object_review_required": object_types,
+            "stage2_ready": stage == "stage2"}
 
 
 def font(run: Any, red: bool = False, bold: bool = False, italic: bool = False) -> None:
@@ -456,12 +535,15 @@ def build(data: dict[str, Any], base: Path, stage: str, output: Path) -> dict[st
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("stage", choices=["stage1", "stage2", "check1", "check2"])
+    parser.add_argument("stage", choices=["stage1", "stage2", "check1", "check2", "fingerprint"])
     parser.add_argument("ledger", type=Path)
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
     try:
         data = json.loads(args.ledger.read_text(encoding="utf-8-sig"))
+        if args.stage == "fingerprint":
+            print(json.dumps({"content_sha256": verification_fingerprint(data)}, ensure_ascii=False))
+            return 0
         stage = "stage2" if args.stage in {"stage2", "check2"} else "stage1"
         if args.stage.startswith("check"):
             result = validate(data, args.ledger.resolve().parent, stage)

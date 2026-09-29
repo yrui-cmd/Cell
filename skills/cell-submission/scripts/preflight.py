@@ -13,6 +13,7 @@ import re
 import sys
 import zipfile
 from collections import Counter
+from datetime import date
 from pathlib import Path, PurePosixPath
 from typing import Any
 import xml.etree.ElementTree as ET
@@ -29,6 +30,12 @@ PLACEHOLDER = re.compile(
     r'|^\s*(?:TODO|TBD|待补充|待填写|待确认|待核实)\s*[:：.。]?\s*$',
     re.I | re.M,
 )
+CONTEXT_PLACEHOLDER = re.compile(
+    r'(?:(?:ethics?|ethical|IRB|institutional review board|approval|protocol|registration|registry|accession|DOI|pages?|lines?)'
+    r'[^\n:：]{0,48}|(?:伦理|批准|审批|方案|注册|登记|登录号|页码|行号)[^\n:：]{0,24})'
+    r'\s*[:：]?\s*(?:TBD|TBC|TODO|XXX|XX+|\?{2,})(?=$|[\s,.;，。；])',
+    re.I | re.M,
+)
 FIELD_ERROR = re.compile(
     r'Error!\s*(?:Reference source not found|Bookmark not defined|No text of specified style in document)'
     r'|错误[!！]\s*(?:未找到引用源|未定义书签|文档中没有指定样式的文字)', re.I,
@@ -40,6 +47,11 @@ NA_GATES = {'references', 'declarations', 'anonymity'}
 REVISION_TAGS = {'ins', 'del', 'moveFrom', 'moveTo', 'moveFromRangeStart',
                  'moveToRangeStart', 'cellIns', 'cellDel', 'cellMerge',
                  'numberingChange', 'tblGridChange'}
+RULE_STRENGTHS = {'required', 'conditional', 'optional'}
+RULE_STATUSES = {'verified_applied', 'verified_not_applicable', 'missing',
+                 'unknown', 'conflict'}
+SOURCE_KINDS = {'journal_official', 'publisher_official', 'editor_instruction',
+                'reporting_guideline', 'author_provided_official_copy'}
 
 
 def sha256(path: Path) -> str:
@@ -139,9 +151,23 @@ def scan(path: Path) -> dict[str, Any]:
         {'value': m.group(), 'context': text[max(0, m.start()-65):m.end()+65]}
         for m in NUMBER.finditer(text)
     ]
+    candidates = []
+    seen_spans: set[tuple[int, int]] = set()
+    for kind, pattern in (("explicit", PLACEHOLDER), ("contextual", CONTEXT_PLACEHOLDER)):
+        for match in pattern.finditer(text):
+            span = match.span()
+            if span in seen_spans:
+                continue
+            seen_spans.add(span)
+            candidates.append({
+                'kind': kind,
+                'value': match.group(),
+                'context': text[max(0, match.start()-65):match.end()+65],
+            })
     return {'path': str(path), 'sha256': sha256(path), 'bytes': path.stat().st_size,
             'word_count_approx': len(re.findall(r"\b[\w]+(?:[-'’][\w]+)*\b", text)),
-            'placeholders': [m.group() for m in PLACEHOLDER.finditer(text)],
+            'placeholders': [item['value'] for item in candidates],
+            'placeholder_candidates': candidates,
             'field_errors': [m.group() for m in FIELD_ERROR.finditer(text)],
             'review_terms': sorted(set(re.findall(r'\b(?:TODO|TBD|TBC|XXX)\b', text))),
             'numeric_contexts': numbers, **detail,
@@ -174,11 +200,23 @@ def file_in_root(root: Path, relative: Any) -> Path:
     return resolved
 
 
+def package_fingerprint(manifest: dict[str, Any]) -> str:
+    """Bind host gates to the declared rules, source snapshots and final files."""
+    payload = {
+        key: manifest.get(key)
+        for key in ('version', 'journal', 'article_type', 'stage', 'rules_checked_at',
+                    'rules', 'blockers', 'sources', 'files')
+    }
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True,
+                     separators=(',', ':')).encode('utf-8')
+    return hashlib.sha256(raw).hexdigest()
+
+
 def check(manifest_path: Path) -> dict[str, Any]:
     manifest_path = manifest_path.resolve(strict=True)
     manifest = json.loads(manifest_path.read_text(encoding='utf-8-sig'))
-    if not isinstance(manifest, dict) or manifest.get('version') != 1:
-        raise ValueError('Manifest version must be 1.')
+    if not isinstance(manifest, dict) or manifest.get('version') != 2:
+        raise ValueError('Manifest version must be 2; migrate legacy free-text rule evidence.')
     root = internal_path(manifest_path.parent, manifest.get('root'))
     if manifest_path.is_relative_to(root):
         raise ValueError('The internal manifest must not be inside the deliverables directory.')
@@ -190,6 +228,13 @@ def check(manifest_path: Path) -> dict[str, Any]:
     for field in ('journal', 'article_type', 'stage', 'rules_checked_at'):
         if not nonempty(manifest.get(field)):
             errors.append(f'Missing manifest field: {field}')
+    rules_checked_on = None
+    try:
+        rules_checked_on = date.fromisoformat(manifest.get('rules_checked_at', ''))
+        if rules_checked_on > date.today():
+            errors.append('rules_checked_at cannot be in the future.')
+    except (TypeError, ValueError):
+        errors.append('rules_checked_at must be a real YYYY-MM-DD date.')
     for gate in GATES:
         item = checks.get(gate, {})
         if not isinstance(item, dict):
@@ -200,11 +245,88 @@ def check(manifest_path: Path) -> dict[str, Any]:
             errors.append(f'Gate not complete: {gate}')
         if not nonempty(item.get('evidence')):
             errors.append(f'Gate evidence missing: {gate}')
+    verification = manifest.get('verification')
+    if not isinstance(verification, dict):
+        errors.append('Package verification is required and must bind gates to current content.')
+    else:
+        if verification.get('package_sha256') != package_fingerprint(manifest):
+            errors.append('Package verification is stale; recheck the current package and reseal it.')
+        try:
+            checked_at = date.fromisoformat(verification.get('checked_at', ''))
+            if checked_at > date.today():
+                errors.append('verification.checked_at cannot be in the future.')
+        except (TypeError, ValueError):
+            errors.append('verification.checked_at must be a real YYYY-MM-DD date.')
     blockers = manifest.get('blockers')
     if not isinstance(blockers, list):
         errors.append('blockers must be a list.')
     else:
         errors.extend(f'Unresolved: {b}' for b in blockers)
+
+    rules = manifest.get('rules')
+    if not isinstance(rules, list) or not rules:
+        errors.append('At least one scoped journal rule record is required.')
+        rules = []
+    rule_map: dict[str, dict[str, Any]] = {}
+    rule_targets: dict[str, list[str]] = {}
+    for index, rule in enumerate(rules):
+        label = f'rules[{index}]'
+        if not isinstance(rule, dict):
+            errors.append(f'{label} must be an object.')
+            continue
+        rule_id = rule.get('id')
+        if not nonempty(rule_id):
+            errors.append(f'{label}.id is required.')
+            continue
+        if rule_id in rule_map:
+            errors.append(f'Duplicate rule ID: {rule_id}')
+            continue
+        rule_map[rule_id] = rule
+        for field in ('topic', 'requirement', 'source_locator', 'source_section',
+                      'accessed_at', 'interpretation'):
+            if not nonempty(rule.get(field)):
+                errors.append(f'{rule_id}.{field} is required.')
+        strength = rule.get('strength')
+        status = rule.get('status')
+        if strength not in RULE_STRENGTHS:
+            errors.append(f'{rule_id}.strength is invalid.')
+        if status not in RULE_STATUSES:
+            errors.append(f'{rule_id}.status is invalid.')
+        elif status in {'missing', 'unknown', 'conflict'}:
+            errors.append(f'{rule_id} is unresolved: {status}')
+        elif strength == 'required' and status != 'verified_applied':
+            errors.append(f'{rule_id}: a required rule must be verified_applied.')
+        if rule.get('source_kind') not in SOURCE_KINDS:
+            errors.append(f'{rule_id}.source_kind is invalid.')
+        try:
+            accessed = date.fromisoformat(rule.get('accessed_at', ''))
+            if accessed > date.today():
+                errors.append(f'{rule_id}.accessed_at cannot be in the future.')
+            if rules_checked_on is not None and accessed > rules_checked_on:
+                errors.append(f'{rule_id}.accessed_at is after rules_checked_at.')
+        except (TypeError, ValueError):
+            errors.append(f'{rule_id}.accessed_at must be a real YYYY-MM-DD date.')
+        scope = rule.get('applies_to')
+        if not isinstance(scope, dict):
+            errors.append(f'{rule_id}.applies_to must be an object.')
+        else:
+            if scope.get('article_type') not in {manifest.get('article_type'), 'all'}:
+                errors.append(f'{rule_id} does not apply to this article_type.')
+            if scope.get('stage') not in {manifest.get('stage'), 'all'}:
+                errors.append(f'{rule_id} does not apply to this submission stage.')
+        target_files = rule.get('target_files')
+        if not isinstance(target_files, list) or any(not nonempty(x) for x in target_files):
+            errors.append(f'{rule_id}.target_files must be a string array; it may be empty.')
+            target_files = []
+        elif len(target_files) != len(set(target_files)):
+            errors.append(f'{rule_id}.target_files contains duplicates.')
+        safe_targets = []
+        for target in target_files:
+            try:
+                safe_targets.append(file_in_root(root, target).relative_to(root).as_posix())
+            except (OSError, ValueError) as exc:
+                errors.append(f'{rule_id} has an unsafe target file: {exc}')
+        rule_targets[rule_id] = safe_targets
     sources = manifest.get('sources')
     if not isinstance(sources, list) or not sources:
         errors.append('At least one immutable source file is required.')
@@ -238,6 +360,30 @@ def check(manifest_path: Path) -> dict[str, Any]:
             expected.add(relative)
             if item.get('basis') not in {'journal_required', 'conditional_required', 'author_requested'}:
                 errors.append(f'File has no required/requested basis: {relative}')
+            basis = item.get('basis')
+            rule_ids = item.get('rule_ids', [])
+            if not isinstance(rule_ids, list) or any(not nonempty(x) for x in rule_ids):
+                errors.append(f'rule_ids must be a string array: {relative}')
+                rule_ids = []
+            elif len(rule_ids) != len(set(rule_ids)):
+                errors.append(f'Duplicate rule_ids: {relative}')
+            linked_rules = []
+            for rule_id in rule_ids:
+                rule = rule_map.get(rule_id)
+                if rule is None:
+                    errors.append(f'Unknown rule ID {rule_id}: {relative}')
+                else:
+                    linked_rules.append(rule)
+            if basis in {'journal_required', 'conditional_required'} and not linked_rules:
+                errors.append(f'Journal-triggered file has no valid rule link: {relative}')
+            expected_strength = {'journal_required': 'required',
+                                 'conditional_required': 'conditional'}.get(basis)
+            if expected_strength and not any(
+                    rule.get('strength') == expected_strength
+                    and rule.get('status') == 'verified_applied'
+                    and relative in rule_targets.get(rule.get('id'), [])
+                    for rule in linked_rules):
+                errors.append(f'File basis is not supported by an applied scoped rule: {relative}')
             if not nonempty(item.get('evidence')):
                 errors.append(f'File basis evidence missing: {relative}')
             if not nonempty(item.get('role')):
@@ -256,7 +402,7 @@ def check(manifest_path: Path) -> dict[str, Any]:
                 errors.append(f'Invalid/stale final hash: {relative}')
             if path.suffix.lower() in TEXT_EXTS | {'.docx'}:
                 report = scan(path)
-                scanned[relative] = {k: report[k] for k in ('sha256', 'placeholders', 'field_errors', 'revisions', 'comments', 'comment_anchors')}
+                scanned[relative] = {k: report[k] for k in ('sha256', 'placeholders', 'placeholder_candidates', 'field_errors', 'revisions', 'comments', 'comment_anchors')}
                 if report['placeholders']:
                     errors.append(f'Unresolved placeholder(s): {relative}')
                 if report['field_errors']:
@@ -279,6 +425,12 @@ def check(manifest_path: Path) -> dict[str, Any]:
                 errors.append(f'Symlink in deliverables: {path.relative_to(root).as_posix()}')
             elif path.is_file() and path.relative_to(root).as_posix() not in expected:
                 errors.append(f'Extra file outside whitelist: {path.relative_to(root).as_posix()}')
+    for rule_id, targets in rule_targets.items():
+        rule = rule_map[rule_id]
+        if rule.get('status') == 'verified_applied':
+            for target in targets:
+                if target not in expected:
+                    errors.append(f'Applied rule {rule_id} targets an unlisted file: {target}')
     return {'status': 'PASS' if not errors else 'BLOCKED', 'errors': errors,
             'manual_review_notes': review, 'files_checked': scanned,
             'scope': 'Static checks plus recorded host gates only; not an independent scientific or visual review.'}
@@ -293,6 +445,9 @@ def main() -> int:
     check_parser = commands.add_parser('check', help='Validate a private package manifest and its whitelist.')
     check_parser.add_argument('--manifest', required=True, type=Path)
     check_parser.add_argument('--out', type=Path)
+    fingerprint_parser = commands.add_parser('fingerprint', help='Fingerprint declared package content after host review.')
+    fingerprint_parser.add_argument('--manifest', required=True, type=Path)
+    fingerprint_parser.add_argument('--out', type=Path)
     args = parser.parse_args()
     try:
         input_path = args.input if args.command == 'scan' else args.manifest
@@ -300,7 +455,13 @@ def main() -> int:
             raise ValueError('Output must not overwrite the input.')
         if args.out and args.out.suffix.lower() != '.json':
             raise ValueError('Internal scan/check reports must use a .json extension.')
-        result = scan(args.input) if args.command == 'scan' else check(args.manifest)
+        if args.command == 'scan':
+            result = scan(args.input)
+        elif args.command == 'fingerprint':
+            manifest = json.loads(args.manifest.read_text(encoding='utf-8-sig'))
+            result = {'package_sha256': package_fingerprint(manifest)}
+        else:
+            result = check(args.manifest)
         if args.out:
             if args.command == 'check':
                 m = json.loads(args.manifest.read_text(encoding='utf-8-sig'))
@@ -318,6 +479,10 @@ def main() -> int:
             print(json.dumps(result, ensure_ascii=False, indent=2))
         if args.command == 'scan':
             print('SCAN_WRITTEN')
+            return 0
+        if args.command == 'fingerprint':
+            if not args.out:
+                print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0
         if args.out:
             print(result['status'])

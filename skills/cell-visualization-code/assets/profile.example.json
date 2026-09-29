@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "backend": "python",
+  "mode": "new",
+  "target": {
+    "medium": "journal",
+    "venue": "Replace with the actual journal or project profile",
+    "placement": "single_column",
+    "render_strategy": "native_final_size",
+    "width_cm": 8.89,
+    "height_cm": 6.0,
+    "display_width_cm": 8.89,
+    "tight_width_normalization": false,
+    "dpi": 600,
+    "formats": ["pdf", "png"],
+    "vector_required": true
+  },
+  "typography": {
+    "font_families": ["STIXGeneral", "Times New Roman", "serif"],
+    "title_pt": 9.0,
+    "axis_label_pt": 8.5,
+    "tick_pt": 8.0,
+    "legend_pt": 7.5,
+    "annotation_pt": 7.5
+  },
+  "strokes": {
+    "main_pt": 1.25,
+    "secondary_pt": 1.0,
+    "axes_pt": 0.8,
+    "grid_pt": 0.5
+  },
+  "semantic_colors": {
+    "primary": "#0072B2",
+    "comparison": "#D55E00",
+    "reference": "#222222"
+  },
+  "inputs": [
+    {"path": "plot_data.csv", "role": "Long-form plotting data"}
+  ],
+  "outputs": {
+    "code": "plot.py",
+    "figures": ["figure.pdf", "figure.png"],
+    "editable": []
+  }
+}

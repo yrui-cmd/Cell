@@ -1,4 +1,5 @@
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -11,8 +12,10 @@ EXPECTED_SKILLS = {
     "cell-brainstorm",
     "cell-plan",
     "cell-review",
+    "cell-manuscript-editing",
     "cell-reviewer-response",
     "cell-submission",
+    "cell-visualization-code",
     "cell-data-figure",
     "cell_su7",
     "cell-cns-figure",
@@ -51,6 +54,17 @@ def check_repository() -> None:
             raise AssertionError(f"Installer mismatch: {installed}")
 
 
+def test_repository_contract() -> None:
+    check_repository()
+
+
+def test_readme_documents_every_skill() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    section = readme.split("## Cell 功能索引", 1)[1].split("\n## ", 1)[0]
+    documented = set(re.findall(r"^\| `(cell(?:[-_][a-z0-9]+)*)` \|", section, re.MULTILINE))
+    assert documented == EXPECTED_SKILLS
+
+
 if __name__ == "__main__":
     check_repository()
-    print("REPOSITORY_OK|skills=10|plugin=cell-ppt-edited|installer=verified|tracked_artifacts=clean")
+    print("REPOSITORY_OK|skills=12|plugin=cell-ppt-edited|installer=verified|tracked_artifacts=clean")

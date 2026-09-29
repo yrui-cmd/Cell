@@ -44,6 +44,9 @@ class DeliveryGateTests(unittest.TestCase):
         self.ledger['claims'][0]['links'] = links
         self.body = f'Synthetic test only\nEvidence\n{self.claim_text}[1–{n}]\nLimitations\nThis is not a real review.'
         self.refs = '\n'.join(refs)
+        word_excerpt = f'{self.claim_text}[1–{n}]'
+        for link in links:
+            link['word_excerpt'] = word_excerpt
         self.base.text = f'# Synthetic test only\n\n## Evidence\n{self.claim_text}[1–{n}]\n\n## Limitations\nThis is not a real review.\n\n## References\n{self.refs}\n'
 
     def word(self, body=None, refs=None):
@@ -154,12 +157,19 @@ class DeliveryGateTests(unittest.TestCase):
         self.save()
         self.check('found 29')
 
-    def test_title_duplicate_counts_once(self):
+    def test_same_title_conflicting_ids_are_not_silently_merged(self):
         self.ledger['records'][-1]['title'] = 'Synthetic test reference 001'
         self.refs = self.refs.replace('Synthetic test reference 030', 'Synthetic test reference 001')
         self.base.text = self.base.text.replace('Synthetic test reference 030', 'Synthetic test reference 001')
         self.save()
-        self.check('found 29')
+        result = self.check('conflicting article identifiers')
+        self.assertEqual(result['counts']['unique_eligible_articles'], 30)
+        self.assertTrue(result['identity_conflicts'])
+
+    def test_claim_link_requires_final_word_range(self):
+        self.ledger['claims'][0]['links'][0]['word_excerpt'] = 'Unrelated sentence [1].'
+        self.save()
+        self.check('final Word excerpt containing the claim')
 
     def test_different_articles_same_study_family_can_count(self):
         for r in self.ledger['records']:
@@ -185,6 +195,9 @@ class DeliveryGateTests(unittest.TestCase):
         self.check('found 29')
 
     def test_uncited_word_entry_not_counted(self):
+        excerpt = f'{self.claim_text}[1–29]'
+        for link in self.ledger['claims'][0]['links']:
+            link['word_excerpt'] = excerpt
         self.save(body=self.body.replace('[1–30]', '[1–29]'))
         self.check('found 29')
 
@@ -249,6 +262,8 @@ class DeliveryGateTests(unittest.TestCase):
         self.ledger['delivery_review']['citation_map'] = [
             {'ref_id': f'R{i:03}', 'marker': markers[i-1], 'body_excerpt': body_excerpt,
              'reference_excerpt': refs[i-1]} for i in range(1, 31)]
+        for link in self.ledger['claims'][0]['links']:
+            link['word_excerpt'] = body_excerpt
         self.flush()
         result = gate.validate_delivery(self.run)
         self.assertEqual(result['status'], 'DELIVERY_CHECKS_PASSED', result)

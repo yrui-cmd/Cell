@@ -1,8 +1,8 @@
 # 本地验收协议
 
-本文件的 JSON、比较图和日志仅用于本次临时工作；不得复制进最终交付目录。
+本文件的 JSON、比较图和日志属于任务内部核验材料，不得复制进最终交付目录。发布后在任务 `_work/` 保留不可替代的最小集合：来源/输入哈希、变换说明、真实运行命令和依赖版本、当前 gate/review，以及证明关键视觉判断所需的比较证据。可清理缓存、可重建预览、过期迭代和冗余副本，不删除唯一证据、用户原件或外部任务结果。
 脚本所在路径以宿主实际安装位置解析，以下 `<SKILL>` / `<WORK>` 是占位符，不是需要新建的目录名。
-Python 依赖：`python -m pip install pillow numpy pymupdf matplotlib`。数据分析另按实际需求安装。
+Python 依赖：在本 Skill 目录运行 `python -m pip install -r requirements.txt`。数据分析另按实际需求安装。
 优先复用已有兼容环境，不自动升级用户项目依赖、不修改其全局环境。
 
 ## 1. 比较实际参考与代码生成图
@@ -104,6 +104,14 @@ PDF 从同一 Figure 直接生成，非从 JPG 转换；源图没有的图层不
 组件不会把内存 PNG 保存到最终目录。它不负责画图设计，也不自动防止所有标签碰撞；仍须读图检查。
 颜色、字体等均由已核验实现设置；组件只统一导出规则。
 
+在最终调色板确定后运行诊断：
+
+```bash
+python "<SKILL>/scripts/figure_tools.py" palette --colors "#0072B2" "#D55E00" "#009E73" --background "#FFFFFF"
+```
+
+输出包含背景对比、正常视图及三类色觉缺陷近似模拟下的成对颜色距离，`automatic_accessibility_pass` 永远为 false。宿主必须结合实际字号、线宽、面积、背景和语义查看最终图，并确保颜色之外还有标签、点形、线型或位置编码。不要用固定距离阈值宣称“色盲安全”。
+
 ## 4. 孤立目录重跑与正式文件审核
 
 复制最终 plot.py 与必要 plot_data* 到全新的临时目录，实际重跑；不带参考图、Skill 文件、门槛记录或旧运行输出。
@@ -131,8 +139,10 @@ python "<SKILL>/scripts/figure_tools.py" audit --stage "<WORK>/staging" --data p
     "data_integrity": {"passed": false, "observation": ""},
     "statistics": {"passed": false, "observation": ""},
     "visual_layout": {"passed": false, "observation": ""},
+    "accessibility": {"passed": false, "observation": ""},
     "format_consistency": {"passed": false, "observation": ""},
     "vector_pdf": {"passed": false, "observation": ""},
+    "font_handling": {"passed": false, "observation": ""},
     "clean_rerun": {"passed": false, "observation": ""}
   },
   "rerun": {
@@ -148,6 +158,7 @@ python "<SKILL>/scripts/figure_tools.py" audit --stage "<WORK>/staging" --data p
 artifacts 必须等于最新 audit 返回的完整映射；不得自行编造哈希。
 全部实际检查后 actual_formats_inspected 为 `["tif", "jpg", "pdf"]`。
 没有推断统计时 statistics 可记录“仅描述性，无推断检验或显著性标注”，不需要为了填字段强行做检验。
+accessibility 记录颜色以外的编码、文字/符号可读性及调色板诊断后的实际观察。font_handling 对照 `audit.figures.<name>.pdf_fonts` 和实际 PDF 查看器，记录文字可搜索/复制、替换或期刊特定嵌入要求；脚本只列字体对象，不自动证明正确嵌入。
 
 ## 5. 发布仅三类最终产物
 
@@ -159,7 +170,7 @@ python "<SKILL>/scripts/figure_tools.py" publish --stage "<WORK>/staging" --data
 所有输出图名都必须被某个真实通过的门槛 target_figures 覆盖。相同参考图族可共用已核验门槛，但不同参考不得冒用。
 目标目录必须尚不存在；已存在时使用新任务目录，不能删除或覆盖用户已有交付。
 工具先验证门槛、最终哈希和真实文件格式，再复制并检查，之后发布。失败不会删除用户文件。
-发布完成后，宿主只清理自身临时工作区；final 不保留 gate、review、比较图、参考脚本或包内运行组件。
+发布完成后，宿主只清理自身可重建的临时内容；最小内部审计包保留在任务 `_work/`，而 final 不保留 gate、review、比较图、参考脚本或包内运行组件。
 
 ## 维护依据
 
@@ -172,4 +183,5 @@ https://agentskills.io/specification
 https://developers.openai.com/codex/skills/
 https://matplotlib.org/stable/api/_as_gen/matplotlib.figure.Figure.savefig.html
 https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html
+https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html
 ```

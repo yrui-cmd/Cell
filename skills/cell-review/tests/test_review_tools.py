@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -208,7 +209,12 @@ class ReviewAuditTests(unittest.TestCase):
         self.assertEqual(rt.citation_numbers("[1, 3–5] [7](https://example.test) [^8] ![9](x)"), {1, 3, 4, 5})
 
     def test_cli_returns_nonzero_for_unready(self):
-        proc = subprocess.run([sys.executable, str(ROOT / "scripts" / "review_tools.py"), "audit", str(self.run)], capture_output=True, text=True)
+        env = os.environ.copy()
+        env["PYTHONIOENCODING"] = "cp1252"
+        proc = subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "review_tools.py"), "audit", str(self.run)],
+            capture_output=True, text=True, encoding="utf-8", env=env,
+        )
         self.assertEqual(proc.returncode, 1)
         self.assertEqual(json.loads(proc.stdout)["status"], "NEEDS_REVISION")
 

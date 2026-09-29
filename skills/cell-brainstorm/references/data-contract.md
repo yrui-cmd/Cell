@@ -12,7 +12,7 @@ constraints：confirmed/path_identified/assumed/unknown/unavailable，证据引�
 
 ## 候选
 基础候选沿用1.1合同：question_key、最近工作、差量、claims、design、resources、N/V/F/T/E及八项检查。enhancement包含类型对应answerability、why_now、assumptions、reframing、analogies、revision、constraint_ladder、P0/P1/P2、prediction_matrix、minimum_validation、premortem、decision_uncertainties、essential_assumption_ids、三道科学门。
-revision.last_novelty_checked_version必须与version一致才能确认当前创新判断；变更的旧记录留档。score是排序辅助，不是科研价值真值。
+revision.last_novelty_checked_version必须与version一致才能确认当前创新判断；变更的旧记录留档。score是排序辅助，不是科研价值真值。`essential_assumption_ids` 中的每一项必须与本候选 `assumptions[].statement` 的稳定表述完全一致，且不得重复；这样共同风险一定能回到实际假设账本，不能临时造一个未登记标签。
 
 ## 最终四段（新增必填）
 report_sections含basis/question/plan/limitations；每段为{text, source_ids}。text是已经核对的短学术段落，source_ids是该候选内部来源集合的子集。basis至少引用一个实际最近工作（若最近工作缺失，必须写资料不足）；方法涉及的外部事实也需来源。
