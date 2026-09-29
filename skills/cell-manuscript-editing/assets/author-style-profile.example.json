@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "manuscript_id": "replace-with-a-local-manuscript-id",
+  "default_edit_mode": "language_edit",
+  "preferences": {
+    "sentence_style": ["direct", "moderate_length", "high_information_density"],
+    "claim_strength": "match_evidence",
+    "voice": "prefer_active_when_clear"
+  },
+  "locked_terms": [
+    {
+      "preferred": "technical term",
+      "avoid": ["unapproved synonym"],
+      "scope": "whole_manuscript"
+    }
+  ],
+  "disfavored_phrases": ["provide important insights into"],
+  "protected_passages": [],
+  "confirmed_rules": [
+    {
+      "rule": "Keep conclusions concise and do not add promotional significance claims.",
+      "source": "explicit",
+      "scope": "discussion_and_conclusion"
+    }
+  ]
+}

@@ -3,8 +3,10 @@
 - `cell-brainstorm`
 - `cell-plan`
 - `cell-review`
+- `cell-manuscript-editing`
 - `cell-reviewer-response`
 - `cell-submission`
+- `cell-visualization-code`
 - `cell-data-figure`
 - `cell_su7`
 - `cell-cns-figure`

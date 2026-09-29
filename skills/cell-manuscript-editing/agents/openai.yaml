@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cell · 英文论文深度润色"
+  short_description: "保留科学含义和作者声音，深度润色并自然化英文论文"
+  default_prompt: "使用 $cell-manuscript-editing，在不改变科学事实和作者声音的前提下深度润色并自然化我的英文论文。"

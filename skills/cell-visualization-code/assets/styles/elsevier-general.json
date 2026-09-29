@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "id": "elsevier-general",
+  "publisher": "Elsevier",
+  "scope": "publisher_general",
+  "verified_on": "2026-09-28",
+  "journal_specific_override_required": true,
+  "source_urls": [
+    "https://www.elsevier.com/about/policies-and-standards/author/artwork-and-media-instructions/artwork-sizing",
+    "https://www.elsevier.com/about/policies-and-standards/author/artwork-and-media-instructions/artwork-overview"
+  ],
+  "placements": {
+    "minimal": {"width_cm": 3.0},
+    "single_column": {"width_cm": 9.0},
+    "one_point_five_column": {"width_cm": 14.0},
+    "double_column": {"width_cm": 19.0}
+  },
+  "font_families": ["Arial", "Helvetica", "DejaVu Sans", "sans-serif"],
+  "typography": {
+    "title_pt": 9.0,
+    "axis_label_pt": 8.0,
+    "tick_pt": 7.0,
+    "legend_pt": 7.0,
+    "annotation_pt": 7.0
+  },
+  "strokes": {
+    "main_pt": 1.25,
+    "secondary_pt": 1.0,
+    "axes_pt": 0.8,
+    "grid_pt": 0.5,
+    "marker_pt": 3.5
+  },
+  "raster_dpi": {
+    "color_grayscale": 300,
+    "combination": 500,
+    "line_art": 1000
+  },
+  "vector_formats": ["pdf", "eps"]
+}
