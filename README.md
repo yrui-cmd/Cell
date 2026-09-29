@@ -117,7 +117,21 @@ Cell 会说明实际进入了哪一项流程。它不会为了展示功能而同
 
 Cell 不是一段孤立的提示词。安装时请保留完整的 Cell 目录与九个成员 Skill，因为脚本、模板、参考文件和状态记录共同构成了实际流程。只复制一个 `SKILL.md`，往往只能得到“看起来会做”的外壳。
 
-请从本项目发布页获取完整技能集，并保留 `skills/` 下的全部成员目录。
+请从本项目发布页获取完整技能集，并保留 `skills/` 下的全部成员目录。也可以克隆仓库后运行安装器：
+
+```bash
+git clone https://github.com/yrui-cmd/Cell.git
+cd Cell
+python install.py
+```
+
+安装器默认写入 `${CODEX_HOME}/skills`；未设置 `CODEX_HOME` 时写入 `~/.codex/skills`。如果目标位置已经存在同名 Skill，安装器会在复制任何内容前停止，避免半安装；确认要整体更新时使用：
+
+```bash
+python install.py --force
+```
+
+`--force` 会替换 Cell 自己的同名 Skill 目录，不会处理其他 Skill。建议先保留自己对已安装副本所做的修改。
 
 `cell-ppt-edited` 依赖本仓库 `plugins/cell-ppt-edited` 中的本地插件服务。Windows 用户也可以直接使用其[独立发布版](https://github.com/yrui-cmd/cell_ppt_edited/releases)。
 
@@ -138,6 +152,24 @@ Cell 不是一段孤立的提示词。安装时请保留完整的 Cell 目录与
 ```
 
 安装或更新完成后，请新建一个 Codex 任务再调用 Cell，以便加载最新 Skill。
+
+### 本地开发与测试
+
+免费、可本地执行的科研 Skill 可以使用统一测试依赖和入口验证：
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pytest -q \
+  tests \
+  skills/cell-brainstorm/tests \
+  skills/cell-plan/tests \
+  skills/cell-review/tests \
+  skills/cell-reviewer-response/scripts/test_reviewer_docs.py \
+  skills/cell-submission/tests \
+  skills/cell-data-figure/tests
+```
+
+这组测试不提交付费任务、不调用科研绘图收费接口，也不需要 PowerPoint。Windows PowerPoint 插件继续使用其独立测试依赖和 CI 任务。自动测试验证确定性的文件、证据和交付门槛；真实文献质量、科学判断和最终版面仍需用实际任务验收。
 
 ---
 

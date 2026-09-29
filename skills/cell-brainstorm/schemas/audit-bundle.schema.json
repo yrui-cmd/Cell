@@ -1576,7 +1576,8 @@
                   "type": "string",
                   "minLength": 1
                 },
-                "minItems": 0
+                "minItems": 0,
+                "uniqueItems": true
               },
               "scientific_gates": {
                 "type": "object",

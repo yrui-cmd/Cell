@@ -32,12 +32,28 @@ python scripts/preflight.py check --manifest "work/package_manifest.json" --out 
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "root": "../deliverables",
   "journal": "目标期刊全名",
   "article_type": "实际文章类型",
   "stage": "initial",
   "rules_checked_at": "实际核验日期 YYYY-MM-DD",
+  "rules": [
+    {
+      "id": "JR-001",
+      "topic": "主稿文件",
+      "requirement": "以实际官方要求替换",
+      "strength": "required",
+      "source_kind": "journal_official",
+      "source_locator": "实际官方URL、编辑指示或官方文件定位",
+      "source_section": "实际页面标题、章节或段落定位",
+      "accessed_at": "实际访问日期 YYYY-MM-DD",
+      "applies_to": {"article_type": "实际文章类型", "stage": "实际投稿阶段"},
+      "status": "verified_applied",
+      "interpretation": "说明该规则如何落实，不能只抄原文",
+      "target_files": ["Manuscript.docx"]
+    }
+  ],
   "sources": [
     {"path": "../input/Manuscript.docx", "sha256": "源文件的64位SHA256"}
   ],
@@ -46,6 +62,7 @@ python scripts/preflight.py check --manifest "work/package_manifest.json" --out 
       "path": "Manuscript.docx",
       "role": "manuscript",
       "basis": "journal_required",
+      "rule_ids": ["JR-001"],
       "evidence": "官方URL和对应条款或编辑指示位置",
       "sha256": "最终文件的64位SHA256",
       "clean": true
@@ -64,7 +81,9 @@ python scripts/preflight.py check --manifest "work/package_manifest.json" --out 
 }
 ```
 
-`basis` 仅允许 `journal_required`、`conditional_required`、`author_requested`；条件性文件的 evidence 必须说明触发条件及证据。`clean:false` 只允许期刊要求的 `marked_manuscript`，不得用它放过普通提交稿的修订/批注。`not_applicable` 只允许 references/declarations/anonymity，且有真实理由；其余核心检查必须通过才可登记完成。
+新任务必须使用 manifest version 2；旧版只有自由文本规则说明，必须迁移后才能通过。`rules` 中每条规则都绑定本刊、本文章类型和当前阶段，记录真实来源、章节、访问日期、强制程度、解释和目标文件。`required` 规则只能是 `verified_applied`；`conditional` 可在条件不成立时记录 `verified_not_applicable` 及具体解释；`missing/unknown/conflict` 都是阻断状态。规则日期不设武断的固定有效期，但不得晚于任务核验日或当前日期；跨期刊、文章类型、阶段或来源变化必须重查。
+
+`basis` 仅允许 `journal_required`、`conditional_required`、`author_requested`。前两类文件必须用 `rule_ids` 链接到强制程度匹配、状态为 `verified_applied` 且 `target_files` 明确包含该文件的规则；作者明确要求的附加文件可以不绑定期刊规则。条件性文件的 evidence 必须说明触发条件及证据。`clean:false` 只允许期刊要求的 `marked_manuscript`，不得用它放过普通提交稿的修订/批注。`not_applicable` 只允许 references/declarations/anonymity，且有真实理由；其余核心检查必须通过才可登记完成。
 
 事实矛盾、必需字段缺失、未核验要求、无法渲染等写入 `blockers`；相关检查用 `blocked` 或 `unverified`。登记哈希之后如继续修改文件，必须重新完成受影响检查并更新哈希；不能只更新哈希掩盖未检查的变化。
 

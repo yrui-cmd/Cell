@@ -74,6 +74,33 @@ HTML可优先阅读正文与嵌入原图；PDF按章节连续读取，必要时�
   "reading_status": "partial",
   "limitations": [],
   "open_skill_tasks": ["继续获取并阅读其余对标全文；此示例不是完成状态"],
+  "design_review": {
+    "applicability": "required",
+    "reason": "示例任务包含组间比较；真实运行时替换为本课题的判断",
+    "designs": [
+      {
+        "id": "D01",
+        "task_ids": ["T01"],
+        "design_type": "以真实研究设计替换",
+        "experimental_unit": "以可独立接受处理或进入比较的单位替换",
+        "observation_unit": "以实际测量单位替换",
+        "analysis_unit": "以进入主要统计推断的单位替换",
+        "independence_basis": "说明为何这些单位相互独立及重复观测如何汇总",
+        "assignment": "observational",
+        "assignment_rationale": "以随机、非随机或观察性分组的实际理由替换",
+        "blocking_factors": [],
+        "blocking_rationale": "说明采用哪些区组因素；没有时写明核查依据",
+        "blinding": "说明谁在何阶段看不到分组；不适用时说明原因",
+        "biological_replication": "说明独立样本/批次怎样构成独立重复",
+        "technical_replication_role": "说明技术重复只用于何种测量质量判断",
+        "batch_run_order": "说明跨批次平衡、交错顺序或相应控制",
+        "sample_size_basis": "说明精度、效应范围、功效或资源约束依据",
+        "primary_outcomes": ["以预先定义的主要结局替换"],
+        "known_confounders": [],
+        "exclusion_stop_rules": "写明预先约定的排除、质量失败和停止规则"
+      }
+    ]
+  },
   "papers": [
     {
       "id": "R01",
@@ -130,6 +157,10 @@ HTML可优先阅读正文与嵌入原图；PDF按章节连续读取，必要时�
 - `target_paper_count`：默认20；其他值必须有 `target_count_instruction`，记录用户明确改变篇数的原始指令来源。不得为通过检查自造用户指令。
 - `limitations`：内部材料或条件记录；不要求因阅读不足填写“限制说明”，不自动输出到计划。
 - `open_skill_tasks`：尚未完成的检索、阅读、核验、选线与排程任务；正式交付前必须为空。实验室将来执行的研究任务写在 `tasks`，不要写入此字段。
+- `design_review`：正式交付必须存在。`applicability` 为 `required`、`not_applicable` 或草稿期的 `undetermined`；正式交付不能保留 `undetermined`。不适用时给出课题相关理由并令 `designs=[]`；适用时至少有一个设计对象，并用 `task_ids` 关联实际任务。
+- `experimental_unit`、`observation_unit` 与 `analysis_unit`：分别记录独立接受处理/进入比较的单位、产生单次观测的单位以及主要推断的分析单位。三者可以不同，但必须用 `independence_basis` 说明层级、汇总或聚类处理，不能把同一样本的技术重复当作独立样本。
+- `assignment`：只取 `randomized`、`nonrandomized`、`observational` 或 `not_applicable`。随机分配必须保存 `randomization_record`，说明方法、种子或分配表位置；其他类型用 `assignment_rationale` 说明原因，不能为了过检查假写随机化。
+- `blocking_factors` 与 `known_confounders`：均为字符串数组，可为空；是否为空都要用 `blocking_rationale` 写明本课题的核查和处理方式。`blinding`、`batch_run_order`、生物/技术重复、样本量依据与排除/停止规则使用可执行描述，不只写“已考虑”。
 - `read_receipts`：正文、全部主图、方法和必要补充的实际读取凭据数组。核心补充为 `read` 时必须有其凭据；`not_needed`时保留依据即可。
 - `evidence_file`：相对于状态文件目录的UTF-8笔记路径，限定在该目录内部。每篇独立笔记至少包含 `## 原文定位`、`## 主图`、`## 方法`、`## 补充材料`、`## 对计划的影响` 五节，各节有实质内容；同时记录真实文献标题与来源。正文、图表与方法必须根据实际已读材料记录。
 - `work_id`：同一工作的预印本与正式版共用标识；`source`保存核实后的真实来源，不能靠不同URL重复计数。

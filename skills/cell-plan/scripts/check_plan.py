@@ -60,6 +60,90 @@ def _source_key(source: str) -> str:
     return value
 
 
+def _validate_design_review(
+        value: Any, task_map: dict[str, dict[str, Any]], report: Report) -> None:
+    """Validate explicit study-design decisions without judging scientific truth."""
+    if not isinstance(value, dict):
+        message = "design_review必须是对象，并明确设计审查是否适用。"
+        if report.mode == "release":
+            report.errors.append(message)
+        else:
+            report.warnings.append(message)
+        return
+
+    applicability = value.get("applicability")
+    if applicability not in ("required", "not_applicable", "undetermined"):
+        report.errors.append(
+            "design_review.applicability必须为required、not_applicable或undetermined。")
+    if not _text(value.get("reason")):
+        report.errors.append("design_review.reason必须说明适用性判断。")
+
+    designs = value.get("designs")
+    if not isinstance(designs, list):
+        report.errors.append("design_review.designs必须为数组。")
+        return
+    if applicability == "undetermined":
+        message = "研究设计适用性仍为undetermined；正式交付前必须判定。"
+        if report.mode == "release":
+            report.errors.append(message)
+        else:
+            report.warnings.append(message)
+        return
+    if applicability == "not_applicable":
+        if designs:
+            report.errors.append("设计审查标为not_applicable时designs必须为空数组。")
+        return
+    if applicability != "required":
+        return
+    if not designs:
+        report.errors.append("设计审查适用时designs不能为空。")
+        return
+
+    design_ids: set[str] = set()
+    text_fields = (
+        "id", "design_type", "experimental_unit", "observation_unit",
+        "analysis_unit", "independence_basis", "assignment_rationale",
+        "blocking_rationale", "blinding", "biological_replication",
+        "technical_replication_role", "batch_run_order", "sample_size_basis",
+        "exclusion_stop_rules",
+    )
+    for index, design in enumerate(designs):
+        label = f"design_review.designs[{index}]"
+        if not isinstance(design, dict):
+            report.errors.append(f"{label}必须是对象。")
+            continue
+        for key in text_fields:
+            if not _text(design.get(key)):
+                report.errors.append(f"{label}.{key}必须是非空字符串。")
+        design_id = design.get("id")
+        if _text(design_id):
+            if design_id in design_ids:
+                report.errors.append(f"重复设计ID：{design_id}。")
+            design_ids.add(design_id)
+            label = design_id
+
+        task_ids = design.get("task_ids")
+        if not _strings(task_ids, allow_empty=False):
+            report.errors.append(f"{label}.task_ids必须是非空字符串数组。")
+        else:
+            for task_id in task_ids:
+                if task_id not in task_map:
+                    report.errors.append(f"{label}关联了不存在的任务：{task_id}。")
+
+        assignment = design.get("assignment")
+        if assignment not in ("randomized", "nonrandomized", "observational",
+                               "not_applicable"):
+            report.errors.append(f"{label}.assignment无效。")
+        if assignment == "randomized" and not _text(design.get("randomization_record")):
+            report.errors.append(
+                f"{label}采用随机分配但缺少randomization_record；记录方法、种子或分配表保存位置。")
+        for key in ("blocking_factors", "known_confounders"):
+            if not _strings(design.get(key)):
+                report.errors.append(f"{label}.{key}必须是字符串数组，可为空。")
+        if not _strings(design.get("primary_outcomes"), allow_empty=False):
+            report.errors.append(f"{label}.primary_outcomes必须是非空字符串数组。")
+
+
 def validate(data: Any, *, mode: str = "release") -> Report:
     """Return structural errors and warnings; never assert papers were read."""
     r = Report(mode=mode)
@@ -254,6 +338,7 @@ def validate(data: Any, *, mode: str = "release") -> Report:
     if visited < len(task_map):
         blocked = ", ".join(sorted(tid for tid, degree in indegree.items() if degree))
         r.errors.append(f"存在循环依赖或被循环阻塞的任务：{blocked}。")
+    _validate_design_review(data.get("design_review"), task_map, r)
     return r
 
 

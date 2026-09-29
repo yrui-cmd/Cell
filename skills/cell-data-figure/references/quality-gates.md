@@ -2,7 +2,7 @@
 
 本文件的 JSON、比较图和日志仅用于本次临时工作；不得复制进最终交付目录。
 脚本所在路径以宿主实际安装位置解析，以下 `<SKILL>` / `<WORK>` 是占位符，不是需要新建的目录名。
-Python 依赖：`python -m pip install pillow numpy pymupdf matplotlib`。数据分析另按实际需求安装。
+Python 依赖：在本 Skill 目录运行 `python -m pip install -r requirements.txt`。数据分析另按实际需求安装。
 优先复用已有兼容环境，不自动升级用户项目依赖、不修改其全局环境。
 
 ## 1. 比较实际参考与代码生成图
@@ -104,6 +104,14 @@ PDF 从同一 Figure 直接生成，非从 JPG 转换；源图没有的图层不
 组件不会把内存 PNG 保存到最终目录。它不负责画图设计，也不自动防止所有标签碰撞；仍须读图检查。
 颜色、字体等均由已核验实现设置；组件只统一导出规则。
 
+在最终调色板确定后运行诊断：
+
+```bash
+python "<SKILL>/scripts/figure_tools.py" palette --colors "#0072B2" "#D55E00" "#009E73" --background "#FFFFFF"
+```
+
+输出包含背景对比、正常视图及三类色觉缺陷近似模拟下的成对颜色距离，`automatic_accessibility_pass` 永远为 false。宿主必须结合实际字号、线宽、面积、背景和语义查看最终图，并确保颜色之外还有标签、点形、线型或位置编码。不要用固定距离阈值宣称“色盲安全”。
+
 ## 4. 孤立目录重跑与正式文件审核
 
 复制最终 plot.py 与必要 plot_data* 到全新的临时目录，实际重跑；不带参考图、Skill 文件、门槛记录或旧运行输出。
@@ -131,8 +139,10 @@ python "<SKILL>/scripts/figure_tools.py" audit --stage "<WORK>/staging" --data p
     "data_integrity": {"passed": false, "observation": ""},
     "statistics": {"passed": false, "observation": ""},
     "visual_layout": {"passed": false, "observation": ""},
+    "accessibility": {"passed": false, "observation": ""},
     "format_consistency": {"passed": false, "observation": ""},
     "vector_pdf": {"passed": false, "observation": ""},
+    "font_handling": {"passed": false, "observation": ""},
     "clean_rerun": {"passed": false, "observation": ""}
   },
   "rerun": {
@@ -148,6 +158,7 @@ python "<SKILL>/scripts/figure_tools.py" audit --stage "<WORK>/staging" --data p
 artifacts 必须等于最新 audit 返回的完整映射；不得自行编造哈希。
 全部实际检查后 actual_formats_inspected 为 `["tif", "jpg", "pdf"]`。
 没有推断统计时 statistics 可记录“仅描述性，无推断检验或显著性标注”，不需要为了填字段强行做检验。
+accessibility 记录颜色以外的编码、文字/符号可读性及调色板诊断后的实际观察。font_handling 对照 `audit.figures.<name>.pdf_fonts` 和实际 PDF 查看器，记录文字可搜索/复制、替换或期刊特定嵌入要求；脚本只列字体对象，不自动证明正确嵌入。
 
 ## 5. 发布仅三类最终产物
 
@@ -172,4 +183,5 @@ https://agentskills.io/specification
 https://developers.openai.com/codex/skills/
 https://matplotlib.org/stable/api/_as_gen/matplotlib.figure.Figure.savefig.html
 https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html
+https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html
 ```

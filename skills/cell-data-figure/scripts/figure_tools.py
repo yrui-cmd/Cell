@@ -2,7 +2,7 @@
 """Local evidence, gate and delivery checks. Never executes research code.
 
 Python >=3.10; pip install pillow numpy pymupdf
-Commands: compare, gate, check-gate, audit, publish. Run COMMAND --help.
+Commands: compare, gate, check-gate, palette, audit, publish. Run COMMAND --help.
 All comparison/review JSON and previews belong in temporary work, not final/.
 Metrics are diagnostic, NOT an automatic judgement of visual equivalence.
 Gate files record the host's review; they cannot prove that a model looked at a
@@ -22,9 +22,22 @@ from pathlib import Path
 
 NAME = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_-]*$')
 REF_CHECKS = ('layout', 'axes', 'marks', 'typography', 'data_geometry', 'annotations')
-FINAL_CHECKS = ('data_integrity', 'statistics', 'visual_layout', 'format_consistency',
-                'vector_pdf', 'clean_rerun')
+FINAL_CHECKS = ('data_integrity', 'statistics', 'visual_layout', 'accessibility',
+                'format_consistency', 'vector_pdf', 'font_handling', 'clean_rerun')
 DATA_EXTS = {'.csv', '.tsv', '.parquet', '.npz', '.npy', '.h5', '.h5ad', '.mtx'}
+CVD_MATRICES = {
+    # Full-severity diagnostic approximations in linear RGB. These previews help
+    # inspection; they are not a diagnosis or an automatic publication gate.
+    'protanopia': ((0.152286, 1.052583, -0.204868),
+                   (0.114503, 0.786281, 0.099216),
+                   (-0.003882, -0.048116, 1.051998)),
+    'deuteranopia': ((0.367322, 0.860646, -0.227968),
+                     (0.280085, 0.672501, 0.047413),
+                     (-0.011820, 0.042940, 0.968881)),
+    'tritanopia': ((1.255528, -0.076749, -0.178779),
+                   (-0.078411, 0.930809, 0.147602),
+                   (0.004733, 0.691367, 0.303900)),
+}
 
 
 def require(condition, message):
@@ -76,14 +89,102 @@ def check_observations(checks, names):
                 f'Missing concrete observation: {name}')
 
 
+def parse_hex_color(value):
+    require(isinstance(value, str), 'Color must be text')
+    text = value.strip().lstrip('#')
+    if len(text) == 3 and re.fullmatch(r'[0-9a-fA-F]{3}', text):
+        text = ''.join(char * 2 for char in text)
+    require(bool(re.fullmatch(r'[0-9a-fA-F]{6}', text)),
+            f'Use #RGB or #RRGGBB colors: {value}')
+    return tuple(int(text[i:i + 2], 16) / 255 for i in (0, 2, 4))
+
+
+def _linear(channel):
+    return channel / 12.92 if channel <= 0.04045 else ((channel + 0.055) / 1.055) ** 2.4
+
+
+def _srgb(channel):
+    channel = min(1.0, max(0.0, channel))
+    return 12.92 * channel if channel <= 0.0031308 else 1.055 * channel ** (1 / 2.4) - 0.055
+
+
+def _hex(rgb):
+    return '#' + ''.join(f'{round(min(1, max(0, channel)) * 255):02X}' for channel in rgb)
+
+
+def _simulate(rgb, matrix):
+    linear = tuple(_linear(channel) for channel in rgb)
+    transformed = tuple(sum(row[i] * linear[i] for i in range(3)) for row in matrix)
+    return tuple(_srgb(channel) for channel in transformed)
+
+
+def _luminance(rgb):
+    red, green, blue = (_linear(channel) for channel in rgb)
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+
+
+def _contrast(first, second):
+    bright, dark = sorted((_luminance(first), _luminance(second)), reverse=True)
+    return (bright + 0.05) / (dark + 0.05)
+
+
+def _lab(rgb):
+    red, green, blue = (_linear(channel) for channel in rgb)
+    x = (0.4124564 * red + 0.3575761 * green + 0.1804375 * blue) / 0.95047
+    y = 0.2126729 * red + 0.7151522 * green + 0.0721750 * blue
+    z = (0.0193339 * red + 0.1191920 * green + 0.9503041 * blue) / 1.08883
+
+    def f(value):
+        return value ** (1 / 3) if value > 216 / 24389 else (24389 / 27 * value + 16) / 116
+
+    fx, fy, fz = f(x), f(y), f(z)
+    return (116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz))
+
+
+def _delta_e(first, second):
+    return math.sqrt(sum((a - b) ** 2 for a, b in zip(_lab(first), _lab(second))))
+
+
+def analyze_palette(colors, background='#FFFFFF'):
+    """Return diagnostics only; no universal palette pass/fail is asserted."""
+    require(isinstance(colors, list) and len(colors) >= 2,
+            'Provide at least two palette colors')
+    parsed = [parse_hex_color(color) for color in colors]
+    bg = parse_hex_color(background)
+    profiles = {'normal': parsed}
+    profiles.update({name: [_simulate(rgb, matrix) for rgb in parsed]
+                     for name, matrix in CVD_MATRICES.items()})
+    items = []
+    for index, rgb in enumerate(parsed):
+        item = {'index': index, 'input': colors[index], 'normalized': _hex(rgb),
+                'contrast_against_background': round(_contrast(rgb, bg), 3),
+                'simulated': {name: _hex(values[index]) for name, values in profiles.items()
+                              if name != 'normal'}}
+        items.append(item)
+    pairs = []
+    for first in range(len(parsed)):
+        for second in range(first + 1, len(parsed)):
+            pairs.append({
+                'indices': [first, second],
+                'delta_e_76': {name: round(_delta_e(values[first], values[second]), 3)
+                               for name, values in profiles.items()},
+            })
+    return {
+        'kind': 'palette_diagnostic', 'background': _hex(bg), 'colors': items,
+        'pairs': pairs, 'automatic_accessibility_pass': False,
+        'note': ('Diagnostic contrast and simulated color distances only. Inspect the actual figure; '
+                 'use labels, markers or line styles so color is not the sole carrier of meaning.'),
+    }
+
+
 def open_rgb(path, page=1):
     from PIL import Image, ImageOps
     p = Path(path)
     if p.suffix.lower() == '.pdf':
-        import fitz
-        with fitz.open(p) as doc:
+        import pymupdf
+        with pymupdf.open(p) as doc:
             require(1 <= page <= len(doc), f'PDF page out of range: {page}')
-            pix = doc[page - 1].get_pixmap(dpi=160, alpha=False, colorspace=fitz.csRGB)
+            pix = doc[page - 1].get_pixmap(dpi=160, alpha=False, colorspace=pymupdf.csRGB)
             return Image.frombytes('RGB', (pix.width, pix.height), pix.samples)
     with Image.open(p) as image:
         image = ImageOps.exif_transpose(image).convert('RGBA')
@@ -192,7 +293,7 @@ def verify_gate(path):
 
 def inspect_stage(stage, data_names, figures, dpi):
     from PIL import Image
-    import fitz
+    import pymupdf
     stage = Path(stage).resolve(strict=True)
     require(stage.is_dir(), 'Staging path must be a directory')
     require(data_names and len(set(data_names)) == len(data_names), 'Missing/duplicate data names')
@@ -244,7 +345,7 @@ def inspect_stage(stage, data_names, figures, dpi):
                     require(int(im.tag_v2.get(259, 1)) in (1, 5, 8, 32946, 32773),
                             'TIFF is not in an accepted lossless encoding')
         require(sizes[0] == sizes[1], f'TIF/JPG dimensions differ: {stem}')
-        with fitz.open(stage / f'{stem}.pdf') as pdf:
+        with pymupdf.open(stage / f'{stem}.pdf') as pdf:
             require(len(pdf) == 1, 'Each PDF must contain one complete figure page')
             page = pdf[0]
             expected_inches = [sizes[0][0] / dpi, sizes[0][1] / dpi]
@@ -252,10 +353,15 @@ def inspect_stage(stage, data_names, figures, dpi):
             require(all(abs(a - b) <= max(0.005, 2 / dpi) for a, b in zip(expected_inches, observed_inches)),
                     f'PDF/raster physical sizes differ: {stem}')
             vectors, text = len(page.get_drawings()), page.get_text().strip()
+            fonts = [{"xref": row[0], "extension": row[1], "type": row[2],
+                      "basefont": row[3], "encoding": row[5]}
+                     for row in page.get_fonts(full=True)]
             require(vectors > 0, 'PDF has no vector paths; inspect for whole-page rasterization')
-            require(bool(text) or bool(page.get_fonts()), 'PDF lacks text/font objects; inspect label rasterization')
+            require(bool(text) or bool(fonts), 'PDF lacks text/font objects; inspect label rasterization')
             summaries[stem] = {'size_px': list(sizes[0]), 'dpi': dpi, 'pdf_vector_objects': vectors,
-                               'pdf_text_characters': len(text), 'pdf_embedded_image_count': len(page.get_images())}
+                               'pdf_text_characters': len(text),
+                               'pdf_embedded_image_count': len(page.get_images()),
+                               'pdf_fonts': fonts}
     return {'kind': 'delivery_audit', 'structural_valid': True, 'artifacts': artifacts,
             'figures': summaries, 'note': 'Semantic/data/visual validity still requires host inspection and rerun.'}
 
@@ -313,6 +419,9 @@ def build_parser():
         gate.add_argument('--' + n, type=Path, required=True)
     verify = sub.add_parser('check-gate', help='Invalidate gate when any reviewed input changes')
     verify.add_argument('--gate', type=Path, required=True)
+    palette = sub.add_parser('palette', help='Report color/contrast diagnostics; never auto-passes')
+    palette.add_argument('--colors', nargs='+', required=True, help='Hex colors, e.g. #0072B2 #D55E00')
+    palette.add_argument('--background', default='#FFFFFF')
     for command in ('audit', 'publish'):
         p = sub.add_parser(command)
         p.add_argument('--stage', type=Path, required=True)
@@ -336,6 +445,8 @@ def main():
         elif args.command == 'check-gate':
             gate = verify_gate(args.gate)
             result = {'passed': True, 'target_figures': gate['target_figures']}
+        elif args.command == 'palette':
+            result = analyze_palette(args.colors, args.background)
         elif args.command == 'audit':
             result = inspect_stage(args.stage, args.data, args.figures, args.dpi)
         else:

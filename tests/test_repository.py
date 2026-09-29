@@ -51,6 +51,10 @@ def check_repository() -> None:
             raise AssertionError(f"Installer mismatch: {installed}")
 
 
+def test_repository_contract() -> None:
+    check_repository()
+
+
 if __name__ == "__main__":
     check_repository()
     print("REPOSITORY_OK|skills=10|plugin=cell-ppt-edited|installer=verified|tracked_artifacts=clean")

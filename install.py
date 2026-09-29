@@ -21,20 +21,34 @@ def default_destination() -> Path:
 def install(destination: Path, force: bool) -> list[str]:
     destination = destination.expanduser().resolve()
     destination.mkdir(parents=True, exist_ok=True)
-    installed: list[str] = []
-    for source in sorted(SOURCE.iterdir()):
-        if not source.is_dir() or source.name == PLUGIN_SKILL:
-            continue
+    sources = [
+        source for source in sorted(SOURCE.iterdir())
+        if source.is_dir() and source.name != PLUGIN_SKILL
+    ]
+
+    # Validate the complete plan before copying anything. A conflict or unsafe
+    # target must not leave users with a partially installed Cell collection.
+    for source in sources:
         if not (source / "SKILL.md").is_file():
             raise RuntimeError(f"Missing SKILL.md: {source}")
-        target = destination / source.name
-        if target.exists():
-            if not force:
-                raise RuntimeError(f"Skill already exists: {target}; rerun with --force to replace it")
+    targets = [destination / source.name for source in sources]
+    existing = [target for target in targets if target.exists() or target.is_symlink()]
+    if existing and not force:
+        paths = ", ".join(str(path) for path in existing)
+        raise RuntimeError(f"Skill already exists: {paths}; rerun with --force to replace them")
+    if force:
+        for target in existing:
             resolved_target = target.resolve()
             if not resolved_target.is_relative_to(destination):
                 raise RuntimeError(f"Refusing to replace a path outside the destination: {target}")
-            shutil.rmtree(resolved_target)
+
+    installed: list[str] = []
+    for source, target in zip(sources, targets):
+        if target.exists() or target.is_symlink():
+            if target.is_dir() and not target.is_symlink():
+                shutil.rmtree(target)
+            else:
+                target.unlink()
         shutil.copytree(
             source,
             target,

@@ -5,7 +5,7 @@ description: >-
 metadata:
   compatibility: >-
     由具备文献搜索、网页或文件阅读、真正的 Word 生成与页面预览能力的宿主智能体运行；检索服务和模型不绑定厂商。随附本地辅助脚本使用 Python 3.10+ 标准库，不需要额外 API key。没有联网或全文权限时按已取得资料降级并披露限制。
-  version: "1.1.0"
+  version: "1.2.0"
   language: "zh-CN"
   execution: "single-host-with-local-audit"
 ---
@@ -133,6 +133,8 @@ python "<skill_dir>/scripts/review_tools.py" init --topic "<用户主题>" --roo
 
 元数据与发表状态分开核验。通过出版商、可靠索引或注册元数据核对标题、作者、年份和标识符；查阅更正、撤稿、关注声明和版本关系。一次查询未发现公告，不等于保证没有公告。被撤稿证据不能作为正常支持依据；需讨论学术史时明确状态与用途。
 
+对有 DOI 的候选，可用 `scripts/metadata_probe.py` 批量查询 Crossref/DataCite 作为身份核对线索。只把 `verified` 解释为注册机构返回匹配 DOI；`not_found` 是两个注册源均明确未找到，`unavailable` 是网络、限流或响应问题。后两者都不能写成已核验，且脚本结果不能替代题名/作者/年份比对、出版者页面、公告核查或主张内容核查。
+
 **内部产物：** `records`、`claims`，以及无法消除的限制。
 
 **完成条件：** 支撑正文主线的证据已核查；其余表述已按可得证据降级、删除或明确保留为未知。
@@ -173,6 +175,12 @@ python "<skill_dir>/scripts/review_tools.py" init --topic "<用户主题>" --roo
 ```bash
 python "<skill_dir>/scripts/review_tools.py" hash "<run_dir>/_work/review.md"
 python "<skill_dir>/scripts/review_tools.py" audit "<run_dir>"
+```
+
+需要辅助核对 DOI 注册元数据时可另行运行（联网命令，不属于离线 `audit`）：
+
+```bash
+python "<skill_dir>/scripts/metadata_probe.py" 10.xxxx/example --output "<run_dir>/_work/sources/doi-check.json"
 ```
 
 修复引用缺失、台账矛盾、未说明的访问限制与超出证据的表述后再检查。脚本输出 `RECORDS_CONSISTENT` 仅代表其检查范围内的记录一致，不代表科学正确、无遗漏、达到顶刊录用条件。没有运行就不得声称通过。

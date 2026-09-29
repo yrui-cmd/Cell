@@ -21,6 +21,11 @@ def fixture() -> dict:
         "reading_status": "complete",
         "limitations": [],
         "open_skill_tasks": [],
+        "design_review": {
+            "applicability": "not_applicable",
+            "reason": "Synthetic structure fixture does not represent a real study.",
+            "designs": [],
+        },
         "target_count_instruction": "Synthetic test: explicit requested target is one.",
         "papers": [{
             "id": "R01", "work_id": "synthetic-work-01",
@@ -160,6 +165,113 @@ class PlanCheckTests(unittest.TestCase):
         d = fixture()
         d["tasks"] = []
         self.assertFalse(validate(d).ok)
+
+    def test_design_review_required_for_release(self):
+        d = fixture()
+        del d["design_review"]
+        self.assertFalse(validate(d).ok)
+        draft = validate(d, mode="draft")
+        self.assertTrue(draft.ok)
+        self.assertTrue(any("design_review" in warning for warning in draft.warnings))
+
+    def test_undetermined_design_is_draft_only(self):
+        d = fixture()
+        d["design_review"].update(
+            applicability="undetermined",
+            reason="The actual research mode has not yet been classified.",
+        )
+        self.assertFalse(validate(d).ok)
+        self.assertTrue(validate(d, mode="draft").ok)
+
+    def test_required_design_checks_units_and_controls(self):
+        d = fixture()
+        d["design_review"] = {
+            "applicability": "required",
+            "reason": "The plan contains a synthetic intervention comparison.",
+            "designs": [{
+                "id": "D01",
+                "task_ids": ["T01"],
+                "design_type": "Synthetic parallel comparison",
+                "experimental_unit": "independently generated synthetic record",
+                "observation_unit": "one recorded measurement",
+                "analysis_unit": "independently generated synthetic record",
+                "independence_basis": "Measurements from one record are not counted as new records.",
+                "assignment": "randomized",
+                "assignment_rationale": "Random order limits position effects.",
+                "randomization_record": "Store the generated seed and assignment table.",
+                "blocking_factors": ["synthetic batch"],
+                "blocking_rationale": "Balance the only known nuisance factor.",
+                "blinding": "Use coded group labels during scoring.",
+                "biological_replication": "Use independently generated records as independent replicates.",
+                "technical_replication_role": "Repeated reads estimate measurement variation only.",
+                "batch_run_order": "Interleave groups within each synthetic batch.",
+                "sample_size_basis": "Choose before inspection using the stated precision target.",
+                "primary_outcomes": ["predeclared structural validation result"],
+                "known_confounders": [],
+                "exclusion_stop_rules": "Exclude only unreadable records using a logged rule.",
+            }],
+        }
+        self.assertTrue(validate(d).ok)
+
+        del d["design_review"]["designs"][0]["experimental_unit"]
+        self.assertTrue(any("experimental_unit" in error for error in validate(d).errors))
+
+    def test_randomized_design_requires_reproducible_record(self):
+        d = fixture()
+        design = {
+            "id": "D01", "task_ids": ["T01"], "design_type": "Parallel",
+            "experimental_unit": "sample", "observation_unit": "measurement",
+            "analysis_unit": "sample", "independence_basis": "one value per sample",
+            "assignment": "randomized", "assignment_rationale": "balance order effects",
+            "blocking_factors": [], "blocking_rationale": "no known blocking factor",
+            "blinding": "coded labels", "biological_replication": "independent samples",
+            "technical_replication_role": "measurement precision only",
+            "batch_run_order": "interleaved", "sample_size_basis": "precision target",
+            "primary_outcomes": ["outcome"], "known_confounders": [],
+            "exclusion_stop_rules": "predeclared quality failure only",
+        }
+        d["design_review"] = {"applicability": "required", "reason": "intervention",
+                              "designs": [design]}
+        self.assertTrue(any("randomization_record" in error for error in validate(d).errors))
+
+    def test_observational_design_does_not_require_randomization(self):
+        d = fixture()
+        design = {
+            "id": "D01", "task_ids": ["T01"], "design_type": "Observational",
+            "experimental_unit": "participant", "observation_unit": "visit",
+            "analysis_unit": "participant", "independence_basis": "participant-level analysis",
+            "assignment": "observational", "assignment_rationale": "exposure is observed",
+            "blocking_factors": [], "blocking_rationale": "adjust known confounders instead",
+            "blinding": "outcome coder sees masked identifiers",
+            "biological_replication": "independent participants",
+            "technical_replication_role": "repeat assays assess measurement error",
+            "batch_run_order": "mix exposure groups across assay batches",
+            "sample_size_basis": "precision and detectable association",
+            "primary_outcomes": ["predefined outcome"],
+            "known_confounders": ["age"],
+            "exclusion_stop_rules": "predeclared eligibility and data-quality rules",
+        }
+        d["design_review"] = {"applicability": "required", "reason": "observational comparison",
+                              "designs": [design]}
+        self.assertTrue(validate(d).ok)
+
+    def test_design_cannot_reference_unknown_task(self):
+        d = fixture()
+        d["design_review"] = {
+            "applicability": "required", "reason": "test link validation",
+            "designs": [{
+                "id": "D01", "task_ids": ["T99"], "design_type": "Observational",
+                "experimental_unit": "sample", "observation_unit": "measurement",
+                "analysis_unit": "sample", "independence_basis": "sample-level",
+                "assignment": "observational", "assignment_rationale": "observed groups",
+                "blocking_factors": [], "blocking_rationale": "none known",
+                "blinding": "coded labels", "biological_replication": "independent samples",
+                "technical_replication_role": "precision only", "batch_run_order": "interleaved",
+                "sample_size_basis": "precision", "primary_outcomes": ["outcome"],
+                "known_confounders": [], "exclusion_stop_rules": "predeclared QC",
+            }],
+        }
+        self.assertTrue(any("T99" in error for error in validate(d).errors))
 
     def test_malformed_values_do_not_crash(self):
         for data in (None, [], {}, {"papers": [None], "tasks": [None]},

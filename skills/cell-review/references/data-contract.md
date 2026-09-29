@@ -87,6 +87,8 @@ publication_status 可为 published、preprint、corrected、retracted、express
 
 metadata_check.status 可为 verified、pending、failed；引用文献必须完成身份核对。publication_check.status 可为 checked、limited、pending；limited 必须通过 issues 说明对稿件的影响。outcome 可为 no_notice_found、notice_found、unclear。“未发现公告”不是永远没有公告的保证。
 
+`metadata_probe.py` 的 `verified/not_found/unavailable` 是 DOI 注册查询状态，不可直接等同于这里的 `metadata_check.status=verified`。只有宿主实际对照记录中的题名、作者、年份、标识符并保存来源后，才能把元数据核验记为完成；出版公告仍由 `publication_check` 单独记录。
+
 ### claims[]
 
 ```json

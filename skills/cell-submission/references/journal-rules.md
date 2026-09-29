@@ -2,11 +2,13 @@
 
 ## 建立最小规则表
 
-任务内部记录 `journal、article_type、stage、review_model、checked_at`。每条规则记录：
+任务内部记录 `journal、article_type、stage、review_model、checked_at`。每条规则写入 version 2 manifest 的 `rules`，至少记录：
 
-`id | topic | requirement | required/optional/conditional | stage | source_url | source_section | accessed_at | interpretation | target_file | status`
+`id | topic | requirement | strength | source_kind | source_locator | source_section | accessed_at | applies_to | interpretation | target_files | status`
 
 状态为 `verified_applied / verified_not_applicable / missing / unknown / conflict`。`verified_not_applicable` 必须有理由。不要把“网页没写”当作“不要求”。
+
+`applies_to` 必须同时锁定本次 `article_type` 与 `stage`；同名期刊、出版社通则、其他文章类型或接收后说明不能混用。`source_locator` 可以是官方 URL、可定位的编辑指示或作者提供的官方指南副本；后两类仍要判断是否为当前版本。每个由期刊触发的交付文件通过 `rule_ids` 回链到对应规则，不能只写“按官网要求”。
 
 核心维度：
 - 主稿格式、章节顺序、摘要结构与限字口径、标题/短标题/关键词限制、参考文献上限。
