@@ -3,9 +3,15 @@
   "manuscript_id": "replace-with-a-local-manuscript-id",
   "default_edit_mode": "language_edit",
   "preferences": {
-    "sentence_style": ["direct", "moderate_length", "high_information_density"],
+    "sentence_style": [
+      "direct",
+      "short_or_moderate_length",
+      "one_core_judgment_when_practical"
+    ],
     "claim_strength": "match_evidence",
-    "voice": "prefer_active_when_clear"
+    "voice": "prefer_active_when_clear",
+    "grammar_review": "sentence_by_sentence_after_restructuring",
+    "tense": "match_action_time_and_sentence_function"
   },
   "locked_terms": [
     {
@@ -21,6 +27,11 @@
       "rule": "Keep conclusions concise and do not add promotional significance claims.",
       "source": "explicit",
       "scope": "discussion_and_conclusion"
+    },
+    {
+      "rule": "Split a sentence only when complexity impairs readability; preserve complete syntax and scientific relationships.",
+      "source": "explicit",
+      "scope": "whole_manuscript"
     }
   ]
 }

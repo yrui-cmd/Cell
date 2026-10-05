@@ -197,6 +197,10 @@ status 为 open 或 resolved；impact 为 core、scope 或 internal。core：关
 
 type 可包括 benchmark_unavailable、exemplar_unavailable、search_unavailable、full_text_unavailable、publication_status_limited、methods_incomplete 等。对 scope/core 的 open 项，manuscript_disclosure 必须真实出现在正文中。
 
+issue 的等级根据其对研究判断、综述方法及目标期刊要求满足情况的实际影响确定。已通过等价来源替代且不影响稿件的运行故障，可以记为 internal；影响覆盖、主线证据、方法完成度或重要格式合规判断的缺口如实保留。不能为缩短正文或减少谨慎措辞而改变问题等级。
+
+相关开放问题可以由同一段集中说明覆盖，但每项 `manuscript_disclosure` 必须指向确实涵盖该问题及其影响、并存在于源稿和最终 Word 正文的实际文字。重写或合并披露后同步更新记录和自查。不得把必须披露的内容只留在内部日志中；未完成的 core 问题继续阻止完成交付。工具或服务失败只有在造成资料缺失或方法缺口时才构成学术限制。
+
 ### host_self_review
 
 使用模板中的十项自查。只有宿主实际检查后才能全设为 true。status 改为 completed，checked_at 为真实日期；用 `hash` 子命令获得内部 `_work/review.md` 的 SHA-256 后写入 `review_sha256`，用 `context-hash` 子命令获得当前问题、范围、证据、主张与开放问题的语义上下文哈希，写入 `semantic_context_sha256`，并保留模板中的 `context_hash_version`。脚本不自动把这些字段设为已完成。
