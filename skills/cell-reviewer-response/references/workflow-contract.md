@@ -34,6 +34,8 @@ python scripts/test_reviewer_docs.py
 - `review_sources_complete`：所有来源是否完整读到，真实布尔值。为 false 时 `source_gaps` 必须指出具体缺页/缺审稿人/截断位置。第一阶段可继续，第二阶段不通过。
 - `current_manuscript_id`：最终已核对稿件的 artifact ID；稿件修改定位均指向它。第一阶段尚未收到可留空。
 - `opening`：第二份 Word 的简短开场；事实核对完成后填写。不要预填“全部建议均已采纳”。
+- `principal_revisions`：第二阶段必填的非空字符串列表，只概括真实完成且实质影响论文的主要修改；不得包含占位符。
+- `completion_status`：`draft_with_placeholders` / `needs_author_input` / `blocked` / `ready_to_submit`。存在 open issue 时不能写 `ready_to_submit`；第二阶段只接受 `ready_to_submit`。
 - `signature`：可选，仅作者提供署名时使用，不要求为生成回复而查找个人身份。
 
 ### artifacts
@@ -72,12 +74,22 @@ digest = hashlib.sha256(path.read_bytes()).hexdigest()
   "original_text": "从实际来源逐字提取的完整原文",
   "source_artifact_id": "review-transcript",
   "source_locator": "Reviewer 1, Comment 3",
+  "response_mode": "partial_agreement",
   "final_response": "第二阶段有证据后写入的完整正式答复",
-  "final_issue_ids": ["R1-C3a", "R1-C3b"]
+  "final_issue_ids": ["R1-C3a", "R1-C3b"],
+  "revised_text": "可选：当前修订稿中的逐字引文",
+  "revised_text_evidence": {
+    "artifact_id": "revised-manuscript",
+    "locator": "Discussion, paragraph 4",
+    "supports": "证明引文来自当前修订稿",
+    "excerpt": "必须与 revised_text 完全一致"
+  }
 }
 ```
 
 示例字段解释不是可直接用来生成用户文档的事实；真正运行时逐项替换为实际内容。无原编号时 `original_label` 留空，内部 ID 继续用于追踪；不能编造原编号。每条原文必须在来源中找到，允许读取时的换行/空格差异，不允许改写。
+
+`response_mode` 第二阶段必填：agree_and_change、partial_agreement、clarification、reasoned_disagreement、unable_with_alternative。详细选择规则和正式区块结构见 `response-writing-standard.md`。`revised_text` 仅在有帮助或期刊要求时填写；一旦填写，必须用 `revised_text_evidence` 绑定当前修订稿，且 excerpt 与引文逐字一致。
 
 ### issues
 
@@ -87,7 +99,9 @@ digest = hashlib.sha256(path.read_bytes()).hexdigest()
 - `primary_group`：仅一个主归属，如 `Figure 2`、`Supplementary Figure S1`、`General / Methods`。
 - `panel_refs`：原稿分图定位；`related_groups`：其他相关图或章节，不重复计数。
 - `question`：该原子问题要回答什么。处理稿默认中文。
-- `route`：reply_only / manuscript_edit / figure_fix / reanalysis / new_experiment / evidence_lookup / reasoned_disagreement。
+- `category`：clarification / methods / experiment / analysis / statistics / figure / table / references / reporting / formatting / data_or_code / scope_or_interpretation。
+- `severity`：high / medium / low，按其对可信回复和论文结论的影响判断，不按审稿人语气判断。
+- `route`：reply_only / manuscript_edit / figure_fix / reanalysis / new_experiment / evidence_lookup / reasoned_disagreement / alternative_resolution。
 - `status`：ready / open / resolved。
 - `draft_response`：第一阶段拟回复，能写好的先写；未来结果依赖部分明确待补，不写伪造完成时。
 - `evidence`：现有证据引用列表。
@@ -130,7 +144,7 @@ digest = hashlib.sha256(path.read_bytes()).hexdigest()
 }
 ```
 
-`disposition` 只能为 implemented / clarified / reasoned_disagreement；`evidence` 非空。`changes` 是引用最终稿真实修改位置的证据对象列表，由脚本汇总进对应父意见的正式回复。无稿件修改时明确理由，不为满足字段制造修改。`changes` 使用当前稿的 artifact ID；页码、行号和图号是否准确由宿主核对。
+`disposition` 只能为 implemented / clarified / reasoned_disagreement / limited_alternative；`evidence` 非空。`limited_alternative` 只用于原请求无法科学或数据上完成、但已实施有证据的替代处理，不能用经费或时间不足冒充科学理由。`changes` 是引用最终稿真实修改位置的证据对象列表，由脚本汇总进对应父意见的正式回复。无稿件修改时明确理由，不为满足字段制造修改。`changes` 使用当前稿的 artifact ID；页码、行号和图号是否准确由宿主核对。
 
 `final_response` 的覆盖列表必须包含该父意见所有子问题 ID，不能拿“其他地方已回复”代替当前 reviewer 的完整答复。脚本检查集合相同；宿主仍须逐句检查实际文字是否确实覆盖。
 
@@ -157,7 +171,7 @@ digest = hashlib.sha256(path.read_bytes()).hexdigest()
 
 ## 文档交付检查
 
-第一阶段必须看见红色待处理条目及具体方案；无待处理条目时不强行标红。第二阶段不能有作者待办、占位符、内部任务 ID、工作日志或虚构修改位置。审稿人原文中的问题或占位符是原始证据，不能被清理规则擅自改写。
+第一阶段必须看见红色待处理条目及具体方案，并显示问题类型与严重程度；无待处理条目时不强行标红。第二阶段在开场后显示主要修改摘要，每条意见按 Comment、Response、Changes made、可选 Revised manuscript text、Locations 构建。第二阶段不能有作者待办、占位符、内部任务 ID、工作日志或虚构修改位置。审稿人原文中的问题或占位符是原始证据，不能被清理规则擅自改写。
 
 将脚本生成的文件用宿主 Word 工具渲染，检查每一页；必要的字体/段落微调之后重新检查。Word 生成成功与科学核验通过是不同环节，二者均实际执行。
 

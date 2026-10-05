@@ -40,6 +40,7 @@ def fixture(root: Path) -> dict:
         "meta": {"title": "Synthetic document test", "manuscript_id": "TEST-ONLY",
                  "original_comment_count": 4, "review_sources_complete": True,
                  "current_manuscript_id": "manuscript",
+                 "completion_status": "needs_author_input",
                  "opening": "Thank you for reviewing the manuscript. We respond to each comment below."},
         "artifacts": [
             {"id": "reviews", "path": str(review), "sha256": sha256(review)},
@@ -69,6 +70,8 @@ def fixture(root: Path) -> dict:
                 "panel_refs": [group] if "Figure" in group else [],
                 "related_groups": ["General / Statistics"] if iid == "R1-C2a" else [],
                 "question": question, "route": "reanalysis" if pending else "reply_only",
+                "category": ("analysis" if pending else "clarification"),
+                "severity": ("high" if pending else "medium"),
                 "status": "open" if pending else "ready",
                 "draft_response": ("The additional analysis remains to be assessed before the response is finalized."
                                    if pending else "Each point represents one independent specimen, as described in the Methods."),
@@ -92,6 +95,11 @@ def fixture(root: Path) -> dict:
 
 def completed(data: dict) -> dict:
     data = copy.deepcopy(data)
+    data["meta"]["completion_status"] = "ready_to_submit"
+    data["meta"]["principal_revisions"] = [
+        "Clarified the experimental unit used in Figure 2.",
+        "Reported the group-specific distributions and limited the causal interpretation.",
+    ]
     for issue in data["issues"]:
         if issue["status"] == "open":
             causal = issue["id"].endswith("b")
@@ -106,6 +114,7 @@ def completed(data: dict) -> dict:
     for c in data["comments"]:
         kids = [i for i in data["issues"] if i["comment_id"] == c["id"]]
         c["final_issue_ids"] = [i["id"] for i in kids]
+        c["response_mode"] = "agree_and_change" if any(i["status"] == "resolved" for i in kids) else "clarification"
         if c["id"] == "E-C1":
             c["final_response"] = "The data availability statement specifies that the data are included in the supplementary material."
         elif c["id"] == "R1-C2":
@@ -113,6 +122,13 @@ def completed(data: dict) -> dict:
                                    "The Discussion clarifies that the study design does not establish causality.")
         else:
             c["final_response"] = "Each point represents one independent specimen, as described in the Methods."
+    method_text = "Each point represents one independent specimen."
+    data["comments"][1]["revised_text"] = method_text
+    data["comments"][1]["revised_text_evidence"] = {
+        "artifact_id": "manuscript", "locator": "Methods, paragraph 1",
+        "supports": "The quoted manuscript text states the experimental unit.",
+        "excerpt": method_text,
+    }
     data["checks"] = {key: True for key in CHECKS}
     seal(data)
     return data
@@ -160,7 +176,11 @@ class ReviewerDocsTests(unittest.TestCase):
         self.assertLess(texts.index("Editor"), texts.index("Reviewer 1"))
         self.assertLess(texts.index("Reviewer 1"), texts.index("Reviewer 2"))
         self.assertFalse(any(str(r.font.color.rgb) == "C00000" for p in doc.paragraphs for r in p.runs))
-        self.assertTrue(any("Changes in the manuscript:" in s for s in texts))
+        self.assertIn("Summary of principal revisions", texts)
+        self.assertIn("Comment", texts)
+        self.assertIn("Changes made", texts)
+        self.assertIn("Revised manuscript text", texts)
+        self.assertIn("Locations", texts)
         self.assertFalse(any("R1-C2a" in s for s in texts))
 
     def test_missing_subquestion_fails(self):
@@ -248,6 +268,12 @@ class ReviewerDocsTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             validate(data, self.root, "stage2")
 
+    def test_placeholder_in_change_summary_fails(self):
+        data = completed(self.data)
+        data["issues"][2]["resolution"]["summary"] = "Analysis complete; add result TODO."
+        with self.assertRaisesRegex(ValidationError, "final resolution contains a placeholder"):
+            validate(data, self.root, "stage2")
+
     def test_duplicate_issue_fails(self):
         self.data["issues"].append(copy.deepcopy(self.data["issues"][0]))
         with self.assertRaises(ValidationError):
@@ -261,6 +287,57 @@ class ReviewerDocsTests(unittest.TestCase):
         self.data["meta"]["original_comment_count"] = 5
         with self.assertRaises(ValidationError):
             validate(self.data, self.root, "stage1")
+
+    def test_ready_status_cannot_hide_open_issue(self):
+        self.data["meta"]["completion_status"] = "ready_to_submit"
+        with self.assertRaisesRegex(ValidationError, "incompatible with unresolved issues"):
+            validate(self.data, self.root, "stage1")
+
+    def test_final_response_mode_required(self):
+        data = completed(self.data)
+        data["comments"][0].pop("response_mode")
+        with self.assertRaisesRegex(ValidationError, "response_mode"):
+            validate(data, self.root, "stage2")
+
+    def test_revised_text_must_match_current_manuscript(self):
+        data = completed(self.data)
+        data["comments"][1]["revised_text"] = "A sentence that is not in the manuscript."
+        with self.assertRaisesRegex(ValidationError, "exactly match"):
+            validate(data, self.root, "stage2")
+
+    def test_category_and_severity_required(self):
+        self.data["issues"][0].pop("category")
+        self.data["issues"][1]["severity"] = "urgent"
+        with self.assertRaisesRegex(ValidationError, "category"):
+            validate(self.data, self.root, "stage1")
+
+    def test_stage2_requires_principal_revision_summary(self):
+        data = completed(self.data)
+        data["meta"]["principal_revisions"] = []
+        with self.assertRaisesRegex(ValidationError, "principal_revisions"):
+            validate(data, self.root, "stage2")
+
+    def test_unable_mode_requires_verified_alternative(self):
+        data = completed(self.data)
+        data["comments"][0]["response_mode"] = "unable_with_alternative"
+        with self.assertRaisesRegex(ValidationError, "verified alternative resolution"):
+            validate(data, self.root, "stage2")
+
+    def test_verified_limited_alternative_is_allowed(self):
+        data = completed(self.data)
+        issue = data["issues"][0]
+        issue["route"] = "alternative_resolution"
+        issue["status"] = "resolved"
+        issue["resolution"] = {
+            "disposition": "limited_alternative",
+            "summary": "The existing data-availability statement is retained as the supported alternative.",
+            "evidence": copy.deepcopy(issue["evidence"]),
+            "changes": [],
+            "no_change_reason": "The current statement already reports the supported availability boundary.",
+        }
+        data["comments"][0]["response_mode"] = "unable_with_alternative"
+        seal(data)
+        validate(data, self.root, "stage2")
 
 
 if __name__ == "__main__":
