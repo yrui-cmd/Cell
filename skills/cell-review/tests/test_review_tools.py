@@ -23,6 +23,20 @@ class ReviewAuditTests(unittest.TestCase):
         self.run = rt.init_review("SYNTHETIC TEST TOPIC — NOT A REAL REVIEW", Path(self.tmp.name))
         self.protocol = rt.read_json(self.run / "_work" / "protocol.json")
         self.protocol.update(question="Synthetic test question", added_value="Test-only value", last_search_date="2026-09-27")
+        self.protocol["capabilities"].update(
+            web_search=True, full_text_access=True, local_execution=True,
+            document_export=["docx", "page_preview"],
+        )
+        self.protocol["article_count_feasibility"].update(
+            status="feasible", assessed_at="2026-09-27", note="Synthetic fixture can create the required records.",
+        )
+        self.protocol["load_bearing_questions"] = [{
+            "id": "LQ001", "question": "What does the synthetic fixture show?",
+            "needed_information": "A traceable synthetic observation", "search_ids": ["Q001"],
+            "current_judgment": "The fixture supports only a test assertion.",
+            "remaining_unknowns": [], "impact_on_conclusion": "Limits all conclusions to testing.",
+            "status": "answerable",
+        }]
         self.ledger = rt.read_json(self.run / "_work" / "evidence.json")
         self.text = "# Synthetic test only\n\n## Evidence\nA synthetic observation is limited to the test fixture.[1]\n\n## Limitations\nThis is not a real review.\n\n## References\n[1] Test Author. Synthetic test reference. 2024. TEST-ONLY-ID.\n"
         self.ledger["searches"] = [{
@@ -39,7 +53,16 @@ class ReviewAuditTests(unittest.TestCase):
             "reading": {"abstract_read": True, "full_text_read": True, "key_figures_checked": False, "supplements_checked": False},
             "metadata_check": {"status": "verified", "checked_at": "2026-09-27", "source": "synthetic fixture", "fields_checked": ["title", "authors", "year", "identifier"]},
             "publication_check": {"status": "checked", "checked_at": "2026-09-27", "source": "synthetic fixture", "outcome": "no_notice_found"},
-            "extraction": {"question": "test", "object_and_conditions": "test", "design": "test", "role_in_review": "test"},
+            "extraction": {
+                "question": "test", "object_and_conditions": "test", "design": "test",
+                "observed_result": "A synthetic observation was recorded.",
+                "author_interpretation": "The synthetic author labels it a test result.",
+                "review_inference": "No inference beyond the synthetic fixture.",
+                "result_state": "descriptive_or_not_applicable",
+                "comparability": {"status": "comparable_with_limits", "dimensions": ["test design"], "limits": ["synthetic only"]},
+                "role_in_review": "test",
+            },
+            "evidence_dependency": {"independence_status": "independent", "related_record_ids": [], "basis": "Synthetic unique fixture"},
         }]
         self.ledger["claims"] = [{
             "id": "C001", "text": "A synthetic observation is limited to the test fixture.",
@@ -57,6 +80,10 @@ class ReviewAuditTests(unittest.TestCase):
         (self.run / "_work" / "review.md").write_text(self.text, encoding="utf-8")
         if refresh_hash:
             self.ledger["host_self_review"]["review_sha256"] = rt.file_hash(self.run / "_work" / "review.md")
+            self.ledger["host_self_review"]["context_hash_version"] = rt.CONTEXT_HASH_VERSION
+            self.ledger["host_self_review"]["semantic_context_sha256"] = rt.semantic_context_hash(
+                self.protocol, self.ledger
+            )
         rt.write_json(self.run / "_work" / "protocol.json", self.protocol)
         rt.write_json(self.run / "_work" / "evidence.json", self.ledger)
 
@@ -191,6 +218,49 @@ class ReviewAuditTests(unittest.TestCase):
             f.write("\nChanged after self-review.\n")
         result = rt.audit_review(self.run)
         self.assertTrue(any("hash does not match" in e for e in result["errors"]))
+
+    def test_scope_change_invalidates_semantic_review(self):
+        self.save()
+        self.protocol["scope"]["conditions"] = "Changed after self-review"
+        rt.write_json(self.run / "_work" / "protocol.json", self.protocol)
+        result = rt.audit_review(self.run)
+        self.assertTrue(any("semantic context hash" in e for e in result["errors"]))
+
+    def test_extraction_change_invalidates_semantic_review(self):
+        self.save()
+        self.ledger["records"][0]["extraction"]["role_in_review"] = "Changed after self-review"
+        rt.write_json(self.run / "_work" / "evidence.json", self.ledger)
+        result = rt.audit_review(self.run)
+        self.assertTrue(any("semantic context hash" in e for e in result["errors"]))
+
+    def test_operational_log_does_not_invalidate_semantic_review(self):
+        self.save()
+        before = self.ledger["host_self_review"]["semantic_context_sha256"]
+        self.ledger["runtime_log"] = {"checked_at": "2099-01-01", "message": "non-semantic"}
+        self.protocol["article_count_feasibility"]["assessed_at"] = "2099-01-01"
+        self.assertEqual(before, rt.semantic_context_hash(self.protocol, self.ledger))
+
+    def test_missing_load_bearing_coverage_blocked(self):
+        self.protocol["load_bearing_questions"] = []
+        self.assert_error("No load-bearing question coverage table")
+
+    def test_unassessed_capability_blocked(self):
+        self.protocol["capabilities"]["web_search"] = None
+        self.assert_error("capabilities.web_search")
+
+    def test_dependency_status_is_validated(self):
+        self.ledger["records"][0]["evidence_dependency"] = {
+            "independence_status": "probably independent", "related_record_ids": [], "basis": "test"
+        }
+        self.assert_error("invalid independence_status")
+
+    def test_cited_record_requires_dependency_assessment(self):
+        self.ledger["records"][0].pop("evidence_dependency")
+        self.assert_error("explicit independence assessment required")
+
+    def test_direct_support_requires_layered_extraction(self):
+        self.ledger["records"][0]["extraction"].pop("observed_result")
+        self.assert_error("extraction.observed_result required")
 
     def test_malformed_json(self):
         self.save()

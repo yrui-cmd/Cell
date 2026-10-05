@@ -33,6 +33,17 @@ READ_FLAGS = {
 }
 KINDS = {"descriptive", "association", "intervention", "mechanism", "prediction", "synthesis", "hypothesis"}
 REVIEW_TYPES = {"critical_narrative", "scoping", "systematic", "meta_analysis"}
+CONTEXT_HASH_VERSION = "1"
+QUESTION_STATES = {
+    "search_failed", "no_eligible_evidence", "material_unavailable",
+    "answerable_with_limits", "unresolved_conflict", "answerable",
+}
+INDEPENDENCE_STATES = {"independent", "partly_overlapping", "dependent", "unclear"}
+COMPARABILITY_STATES = {"comparable", "comparable_with_limits", "not_comparable"}
+RESULT_STATES = {
+    "observed_effect", "no_effect_observed", "insufficient_precision",
+    "equivalence_or_noninferiority", "opposite_direction", "descriptive_or_not_applicable",
+}
 
 
 def configure_utf8_stdio() -> None:
@@ -94,6 +105,54 @@ def valid_date(value: Any) -> bool:
 
 def normalize(text: str) -> str:
     return re.sub(r"\s+", "", text)
+
+
+def _canonical_semantic_value(value: Any) -> Any:
+    """Canonicalize semantic state while excluding known operational timestamps."""
+    if isinstance(value, dict):
+        return {
+            key: _canonical_semantic_value(item)
+            for key, item in sorted(value.items())
+            if key not in {"checked_at", "searched_at", "assessed_at", "created_at", "word_excerpt"}
+        }
+    if isinstance(value, list):
+        items = [_canonical_semantic_value(item) for item in value]
+        if items and all(isinstance(item, dict) and has_text(item.get("id")) for item in items):
+            return sorted(items, key=lambda item: item["id"])
+        return items
+    return value
+
+
+def semantic_context_payload(protocol: dict[str, Any], ledger: dict[str, Any]) -> dict[str, Any]:
+    """Return the evidence context whose change invalidates scientific self-review.
+
+    Delivery-only fields, generated hashes, and operational timestamps are omitted.
+    Unknown semantic fields are retained conservatively instead of silently ignored.
+    """
+    protocol_ignored = {
+        "schema_version", "skill_version", "created_at", "output_format",
+        "output_file", "output_citation_style", "reference_count_policy",
+    }
+    ledger_ignored = {
+        "schema_version", "host_self_review", "delivery_review", "runtime_log",
+    }
+    return {
+        "context_hash_version": CONTEXT_HASH_VERSION,
+        "protocol": _canonical_semantic_value({
+            key: value for key, value in protocol.items() if key not in protocol_ignored
+        }),
+        "evidence": _canonical_semantic_value({
+            key: value for key, value in ledger.items() if key not in ledger_ignored
+        }),
+    }
+
+
+def semantic_context_hash(protocol: dict[str, Any], ledger: dict[str, Any]) -> str:
+    encoded = json.dumps(
+        semantic_context_payload(protocol, ledger), ensure_ascii=False,
+        sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def init_review(topic: str, root: Path, language: str = "zh-CN") -> Path:
@@ -194,6 +253,47 @@ def audit_review(run_dir: Path) -> dict[str, Any]:
     for key in ("topic", "question", "added_value"):
         if not has_text(protocol.get(key)):
             error(f"protocol.{key}: required")
+    capabilities = obj(protocol.get("capabilities"), "protocol.capabilities")
+    for key in ("web_search", "full_text_access", "local_execution"):
+        if type(capabilities.get(key)) is not bool:
+            error(f"protocol.capabilities.{key}: explicit boolean required")
+    exports = capabilities.get("document_export")
+    if not isinstance(exports, list) or not all(has_text(item) for item in exports):
+        error("protocol.capabilities.document_export: explicit capability list required")
+    feasibility = obj(protocol.get("article_count_feasibility"), "protocol.article_count_feasibility")
+    feasibility_status = feasibility.get("status")
+    if not one_of(feasibility_status, {"feasible", "at_risk", "insufficient"}):
+        error("protocol.article_count_feasibility: assessment is pending or invalid")
+    if not valid_date(feasibility.get("assessed_at")) or not has_text(feasibility.get("note")):
+        error("protocol.article_count_feasibility: actual assessment date and note required")
+    if feasibility_status == "at_risk":
+        warning("Article-count feasibility remains at risk; do not pad references")
+    elif feasibility_status == "insufficient":
+        error("Article-count feasibility is insufficient for final delivery")
+    questions = rows(protocol.get("load_bearing_questions"), "protocol.load_bearing_questions")
+    if not questions:
+        error("No load-bearing question coverage table")
+    question_ids: set[str] = set()
+    for item in questions:
+        qid = item.get("id")
+        label = f"load-bearing question {qid or '?'}"
+        if not isinstance(qid, str) or not re.fullmatch(r"LQ\d+", qid):
+            error(f"{label}: invalid id; use LQ followed by digits")
+        elif qid in question_ids:
+            error(f"{label}: duplicate id")
+        else:
+            question_ids.add(qid)
+        for key in ("question", "needed_information", "current_judgment", "impact_on_conclusion"):
+            if not has_text(item.get(key)):
+                error(f"{label}: {key} required")
+        search_ids_value = item.get("search_ids")
+        if not isinstance(search_ids_value, list) or not all(has_text(x) for x in search_ids_value):
+            error(f"{label}: search_ids must be an explicit list")
+        if not one_of(item.get("status"), QUESTION_STATES):
+            error(f"{label}: pending or invalid status")
+        unknowns = item.get("remaining_unknowns")
+        if not isinstance(unknowns, list) or not all(has_text(x) for x in unknowns):
+            error(f"{label}: remaining_unknowns must be an explicit list")
     review_type = protocol.get("review_type")
     if not one_of(review_type, REVIEW_TYPES):
         error("protocol.review_type: invalid")
@@ -249,6 +349,12 @@ def audit_review(run_dir: Path) -> dict[str, Any]:
             value = q.get(key)
             if value is not None and (type(value) is not int or value < 0):
                 error(f"{label}: {key} must be nonnegative integer or null")
+    search_ids = {q.get("id") for q in searches if has_text(q.get("id"))}
+    for item in questions:
+        item_search_ids = item.get("search_ids") if isinstance(item.get("search_ids"), list) else []
+        for search_id in item_search_ids:
+            if search_id not in search_ids:
+                error(f"load-bearing question {item.get('id', '?')}: unknown search_id {search_id}")
     if not usable_searches and "search_unavailable" not in open_types:
         error("No completed/partial search or disclosed search_unavailable issue")
     if usable_searches and not valid_date(protocol.get("last_search_date")):
@@ -279,9 +385,21 @@ def audit_review(run_dir: Path) -> dict[str, Any]:
                 error(f"{rid}.reading.{flag}: explicit boolean required")
         if screening == "awaiting_full_text" and reading.get("full_text_read") is True:
             error(f"{rid}: awaiting_full_text conflicts with full_text_read")
+        dependency = r.get("evidence_dependency")
+        if dependency is not None:
+            dependency = obj(dependency, f"{rid}.evidence_dependency")
+            if not one_of(dependency.get("independence_status"), INDEPENDENCE_STATES):
+                error(f"{rid}.evidence_dependency: invalid independence_status")
+            related = dependency.get("related_record_ids")
+            if not isinstance(related, list) or not all(isinstance(x, str) and re.fullmatch(r"R\d+", x) for x in related):
+                error(f"{rid}.evidence_dependency: related_record_ids must contain record ids")
+            if not has_text(dependency.get("basis")):
+                error(f"{rid}.evidence_dependency: basis required")
         num = r.get("citation_number")
         if num is None:
             continue
+        if dependency is None:
+            error(f"{rid}.evidence_dependency: explicit independence assessment required for cited records")
         if type(num) is not int or num < 1:
             error(f"{rid}: citation_number must be positive integer or null")
             continue
@@ -310,6 +428,15 @@ def audit_review(run_dir: Path) -> dict[str, Any]:
             error(f"{rid}: invalid publication_status")
         if one_of(r.get("publication_status"), {"preprint", "retracted", "expression_of_concern", "unknown"}):
             warning(f"{rid}: host must ensure publication status is explicit in the relevant prose")
+    for rid, record in record_map.items():
+        dependency = record.get("evidence_dependency")
+        if not isinstance(dependency, dict) or not isinstance(dependency.get("related_record_ids"), list):
+            continue
+        for related_id in dependency["related_record_ids"]:
+            if related_id == rid:
+                error(f"{rid}.evidence_dependency: a record cannot depend on itself")
+            elif related_id not in record_map:
+                error(f"{rid}.evidence_dependency: unknown related record {related_id}")
     counts["cited_records"] = len(numbered)
     if not numbered:
         error("No cited records; cannot claim a verified literature review")
@@ -393,9 +520,23 @@ def audit_review(run_dir: Path) -> dict[str, Any]:
                 error(f"{cid}->{rid}: invalid support type")
             if link.get("support") == "direct":
                 extraction = obj(r.get("extraction"), f"{rid}.extraction")
-                for key in ("question", "object_and_conditions", "design", "role_in_review"):
+                for key in (
+                    "question", "object_and_conditions", "design", "observed_result",
+                    "author_interpretation", "review_inference", "role_in_review",
+                ):
                     if not has_text(extraction.get(key)):
                         error(f"{cid}->{rid}: extraction.{key} required for directly supporting evidence")
+                if not one_of(extraction.get("result_state"), RESULT_STATES):
+                    error(f"{cid}->{rid}: extraction.result_state is missing or invalid")
+                comparability = obj(extraction.get("comparability"), f"{rid}.extraction.comparability")
+                if not one_of(comparability.get("status"), COMPARABILITY_STATES):
+                    error(f"{cid}->{rid}: extraction.comparability.status is missing or invalid")
+                dimensions = comparability.get("dimensions")
+                limits = comparability.get("limits")
+                if not isinstance(dimensions, list) or not all(has_text(x) for x in dimensions):
+                    error(f"{cid}->{rid}: extraction.comparability.dimensions must be explicit")
+                if not isinstance(limits, list) or not all(has_text(x) for x in limits):
+                    error(f"{cid}->{rid}: extraction.comparability.limits must be an explicit list")
                 if r.get("publication_status") == "retracted":
                     error(f"{cid}->{rid}: retracted work cannot provide normal direct support")
                 if r.get("screening_status") == "excluded":
@@ -438,6 +579,11 @@ def audit_review(run_dir: Path) -> dict[str, Any]:
             error(f"Host self-review item incomplete: {key}")
     if manuscript.is_file() and self_review.get("review_sha256") != file_hash(manuscript):
         error("Host self-review hash does not match the current manuscript")
+    if self_review.get("context_hash_version") != CONTEXT_HASH_VERSION:
+        error("Host self-review semantic context hash version is missing or obsolete")
+    expected_context_hash = semantic_context_hash(protocol, ledger)
+    if self_review.get("semantic_context_sha256") != expected_context_hash:
+        error("Host self-review semantic context hash does not match current scope/evidence/claims")
     if one_of(review_type, {"systematic", "scoping", "meta_analysis"}):
         formal = obj(protocol.get("formal_methods"), "formal_methods")
         if formal.get("completed") is not True:
@@ -464,6 +610,8 @@ def main(argv: list[str] | None = None) -> int:
     p_init.add_argument("--language", default="zh-CN")
     p_hash = sub.add_parser("hash", help="Print SHA-256; does not mark any self-review complete")
     p_hash.add_argument("file", type=Path)
+    p_context = sub.add_parser("context-hash", help="Print the semantic evidence-context hash")
+    p_context.add_argument("run_dir", type=Path)
     p_audit = sub.add_parser("audit", help="Check local record consistency; no network")
     p_audit.add_argument("run_dir", type=Path)
     args = parser.parse_args(argv)
@@ -474,6 +622,10 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "hash":
             print(file_hash(args.file))
+            return 0
+        if args.command == "context-hash":
+            work = args.run_dir.expanduser().resolve() / "_work"
+            print(semantic_context_hash(read_json(work / "protocol.json"), read_json(work / "evidence.json")))
             return 0
         result = audit_review(args.run_dir)
         # Avoid creating a misleading workspace when the requested path is invalid.

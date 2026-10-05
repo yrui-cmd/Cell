@@ -227,6 +227,14 @@ def validate_delivery(run_dir: Path) -> dict[str, Any]:
 
     body_compact = compact(body)
     bib_compact = compact(bibliography)
+    for issue in rows(ledger.get('issues')):
+        if issue.get('status') != 'open' or issue.get('impact') not in {'scope', 'core'}:
+            continue
+        disclosure = issue.get('manuscript_disclosure')
+        if not rt.has_text(disclosure) or compact(disclosure) not in body_compact:
+            errors.append(
+                f'{issue.get("id", "?")}: unresolved scope/core disclosure is missing from final Word.'
+            )
     records = rows(ledger.get('records'))
     cited = [r for r in records if type(r.get('citation_number')) is int and r['citation_number'] > 0]
     expected = {r['citation_number'] for r in cited}
@@ -294,8 +302,15 @@ def validate_delivery(run_dir: Path) -> dict[str, Any]:
                 if record is None or record.get('citation_number') not in rt.citation_numbers(word_excerpt):
                     errors.append(f'{claim.get("id")}/{rid}: Word excerpt does not contain this reference marker.')
                     continue
-            elif style == 'custom' and compact(text) not in compact(str(custom_map.get(rid, {}).get('body_excerpt', ''))):
-                continue
+            elif style == 'custom':
+                mapping = custom_map.get(rid, {})
+                marker = mapping.get('marker')
+                mapped_excerpt = mapping.get('body_excerpt')
+                if (not rt.has_text(marker) or compact(marker) not in compact(word_excerpt)
+                        or not rt.has_text(mapped_excerpt)
+                        or compact(text) not in compact(mapped_excerpt)):
+                    errors.append(f'{claim.get("id")}/{rid}: Word excerpt does not contain this custom reference marker.')
+                    continue
             if isinstance(rid, str):
                 supported_ids.add(rid)
     eligible = []

@@ -87,6 +87,21 @@ class DeliveryGateTests(unittest.TestCase):
         rt.write_json(self.run / '_work' / 'protocol.json', self.protocol)
         rt.write_json(self.run / '_work' / 'evidence.json', self.ledger)
 
+    def prepare_custom_style(self):
+        self.protocol['output_citation_style'] = 'custom'
+        markers = [f'(Test Author, 2024, item {i:03})' for i in range(1, 31)]
+        body_excerpt = self.claim_text + ' ' + ' '.join(markers)
+        body = self.body.replace(self.claim_text + '[1–30]', body_excerpt)
+        self.save(body=body)
+        refs = self.refs.splitlines()
+        self.ledger['delivery_review']['citation_map'] = [
+            {'ref_id': f'R{i:03}', 'marker': markers[i-1], 'body_excerpt': body_excerpt,
+             'reference_excerpt': refs[i-1]} for i in range(1, 31)]
+        for link in self.ledger['claims'][0]['links']:
+            link['word_excerpt'] = body_excerpt
+        self.flush()
+        return markers, body_excerpt
+
     def check(self, fragment):
         result = gate.validate_delivery(self.run)
         self.assertEqual(result['status'], 'NEEDS_REVISION', result)
@@ -253,20 +268,32 @@ class DeliveryGateTests(unittest.TestCase):
         self.check('one exact citation map')
 
     def test_custom_style_with_actual_anchors_passes(self):
-        self.protocol['output_citation_style'] = 'custom'
-        markers = [f'(Test Author, 2024, item {i:03})' for i in range(1, 31)]
-        body_excerpt = self.claim_text + ' ' + ' '.join(markers)
-        body = self.body.replace(self.claim_text + '[1–30]', body_excerpt)
-        self.save(body=body)
-        refs = self.refs.splitlines()
-        self.ledger['delivery_review']['citation_map'] = [
-            {'ref_id': f'R{i:03}', 'marker': markers[i-1], 'body_excerpt': body_excerpt,
-             'reference_excerpt': refs[i-1]} for i in range(1, 31)]
-        for link in self.ledger['claims'][0]['links']:
-            link['word_excerpt'] = body_excerpt
-        self.flush()
+        self.prepare_custom_style()
         result = gate.validate_delivery(self.run)
         self.assertEqual(result['status'], 'DELIVERY_CHECKS_PASSED', result)
+
+    def test_custom_claim_link_requires_its_own_marker(self):
+        markers, _ = self.prepare_custom_style()
+        self.ledger['claims'][0]['links'][1]['word_excerpt'] = self.claim_text + ' ' + markers[0]
+        self.flush()
+        self.check('R002: Word excerpt does not contain this custom reference marker')
+
+    def test_open_scope_disclosure_must_reach_final_word(self):
+        disclosure = 'This is not a real review.'
+        self.ledger['issues'] = [{
+            'id': 'I001', 'type': 'full_text_unavailable', 'status': 'open',
+            'impact': 'scope', 'manuscript_disclosure': disclosure,
+        }]
+        self.save(body=self.body.replace(disclosure, 'The final file silently omitted the disclosure.'))
+        self.check('unresolved scope/core disclosure is missing from final Word')
+
+    def test_open_scope_disclosure_in_source_and_word_passes(self):
+        self.ledger['issues'] = [{
+            'id': 'I001', 'type': 'full_text_unavailable', 'status': 'open',
+            'impact': 'scope', 'manuscript_disclosure': 'This is not a real review.',
+        }]
+        self.save()
+        self.assertEqual(gate.validate_delivery(self.run)['status'], 'DELIVERY_CHECKS_PASSED')
 
     def test_no_fake_scientific_or_visual_certification(self):
         self.save()
