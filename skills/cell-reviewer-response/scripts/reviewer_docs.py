@@ -12,8 +12,11 @@ import json
 import re
 import sys
 import tempfile
+import zipfile
+from datetime import date
 from pathlib import Path
 from typing import Any
+from xml.etree import ElementTree as ET
 
 from docx import Document
 from docx.oxml import OxmlElement
@@ -23,7 +26,16 @@ from docx.shared import Inches, Pt, RGBColor
 RED = "C00000"
 BLACK = "000000"
 ROUTES = {"reply_only", "manuscript_edit", "figure_fix", "reanalysis",
-          "new_experiment", "evidence_lookup", "reasoned_disagreement"}
+          "new_experiment", "evidence_lookup", "reasoned_disagreement",
+          "alternative_resolution"}
+CATEGORIES = {"clarification", "methods", "experiment", "analysis", "statistics",
+              "figure", "table", "references", "reporting", "formatting",
+              "data_or_code", "scope_or_interpretation"}
+SEVERITIES = {"high", "medium", "low"}
+RESPONSE_MODES = {"agree_and_change", "partial_agreement", "clarification",
+                  "reasoned_disagreement", "unable_with_alternative"}
+COMPLETION_STATUSES = {"draft_with_placeholders", "needs_author_input", "blocked",
+                       "ready_to_submit"}
 CHECKS = ("coverage", "evidence", "locations", "figures",
           "humanizer", "facts_after_humanizer")
 PLACEHOLDER = re.compile(
@@ -70,6 +82,51 @@ def artifact_text(path: Path) -> str | None:
     return None  # Figures/PDFs must be read by the host; never silently OCR.
 
 
+def artifact_object_types(path: Path) -> list[str]:
+    """Report DOCX content classes that plain paragraph extraction cannot verify."""
+    if path.suffix.lower() != ".docx":
+        return []
+    tags = {
+        "oMath": "equation", "oMathPara": "equation",
+        "drawing": "drawing_or_image", "pict": "legacy_drawing_or_image",
+        "object": "embedded_object", "txbxContent": "text_box",
+        "altChunk": "external_content_chunk",
+    }
+    found: set[str] = set()
+    with zipfile.ZipFile(path) as package:
+        for info in package.infolist():
+            if not info.filename.startswith("word/") or not info.filename.endswith(".xml"):
+                continue
+            if info.file_size > 32 * 1024 * 1024:
+                raise ValueError(f"DOCX XML part is too large to inspect: {info.filename}")
+            root = ET.fromstring(package.read(info))
+            for node in root.iter():
+                kind = tags.get(node.tag.rsplit("}", 1)[-1])
+                if kind:
+                    found.add(kind)
+    return sorted(found)
+
+
+def verification_fingerprint(data: dict[str, Any]) -> str:
+    """Bind final human checks to the exact response/manuscript content snapshot."""
+    artifacts = []
+    for artifact in data.get("artifacts", []):
+        if isinstance(artifact, dict):
+            artifacts.append({key: artifact.get(key) for key in ("id", "sha256")})
+    payload = {
+        "schema_version": data.get("schema_version"),
+        "meta": data.get("meta"),
+        "artifacts": artifacts,
+        "reviewers": data.get("reviewers"),
+        "comments": data.get("comments"),
+        "issues": data.get("issues"),
+        "figure_map": data.get("figure_map", []),
+    }
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True,
+                     separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
 def resolve_path(raw: str, base: Path) -> Path:
     path = Path(raw).expanduser()
     return (path if path.is_absolute() else base / path).resolve()
@@ -90,9 +147,13 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
     errors: list[str] = []
     artifacts: dict[str, dict[str, Any]] = {}
     source_texts: dict[str, str | None] = {}
+    object_types: dict[str, list[str]] = {}
     if data.get("schema_version") != 1:
         errors.append("schema_version must be 1")
     meta = data.get("meta", {})
+    completion_status = meta.get("completion_status")
+    if completion_status not in COMPLETION_STATUSES:
+        errors.append("meta.completion_status is missing or invalid")
     for a in data.get("artifacts", []):
         aid = text(a.get("id"))
         if not aid or aid in artifacts:
@@ -110,8 +171,25 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
             errors.append(f"{aid}: source version changed; re-read and reverify")
         try:
             source_texts[aid] = artifact_text(path)
+            object_types[aid] = artifact_object_types(path)
         except Exception as exc:
             errors.append(f"{aid}: source unreadable ({exc})")
+        if stage == "stage2" and object_types.get(aid):
+            review = a.get("object_review")
+            if not isinstance(review, dict):
+                errors.append(
+                    f"{aid}: DOCX contains content not covered by plain-text extraction "
+                    f"({', '.join(object_types[aid])}); record object_review after inspecting it")
+            else:
+                if review.get("source_sha256") != a.get("sha256"):
+                    errors.append(f"{aid}: object_review is not bound to the current source hash")
+                inspected = review.get("inspected_types")
+                if (not isinstance(inspected, list)
+                        or any(not text(item) for item in inspected)
+                        or not set(object_types[aid]).issubset(set(inspected))):
+                    errors.append(f"{aid}: object_review does not cover all detected object types")
+                if not text(review.get("notes")):
+                    errors.append(f"{aid}: object_review needs concrete inspection notes")
 
     def reference(ref: Any, label: str) -> None:
         if not isinstance(ref, dict):
@@ -167,6 +245,17 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
             errors.append(f"{cid}: use a readable original text/DOCX or a source-linked transcript")
         elif original and norm(original) not in norm(content):
             errors.append(f"{cid}: original comment does not match source verbatim")
+        revised = text(c.get("revised_text"))
+        if revised:
+            if stage == "stage2" and PLACEHOLDER.search(revised):
+                errors.append(f"{cid}: revised text contains a placeholder")
+            revised_ref = c.get("revised_text_evidence")
+            reference(revised_ref, f"{cid} revised text")
+            if isinstance(revised_ref, dict):
+                if revised_ref.get("artifact_id") != meta.get("current_manuscript_id"):
+                    errors.append(f"{cid}: revised text must refer to the current manuscript")
+                if norm(text(revised_ref.get("excerpt"))) != norm(revised):
+                    errors.append(f"{cid}: revised text must exactly match its source excerpt")
     if not comments:
         errors.append("no reviewer comments supplied")
     expected = meta.get("original_comment_count")
@@ -195,6 +284,10 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
         for key in ("primary_group", "question", "draft_response"):
             if not text(issue.get(key)):
                 errors.append(f"{iid}: {key} missing")
+        if issue.get("category") not in CATEGORIES:
+            errors.append(f"{iid}: invalid or missing category")
+        if issue.get("severity") not in SEVERITIES:
+            errors.append(f"{iid}: invalid or missing severity")
         route, status = issue.get("route"), issue.get("status")
         if route not in ROUTES:
             errors.append(f"{iid}: invalid route")
@@ -216,7 +309,12 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
             resolution = issue.get("resolution", {})
             if not text(resolution.get("summary")) or not resolution.get("evidence"):
                 errors.append(f"{iid}: resolution summary/evidence missing")
-            if resolution.get("disposition") not in {"implemented", "clarified", "reasoned_disagreement"}:
+            if stage == "stage2" and (
+                    PLACEHOLDER.search(text(resolution.get("summary")))
+                    or PLACEHOLDER.search(text(resolution.get("no_change_reason")))):
+                errors.append(f"{iid}: final resolution contains a placeholder")
+            if resolution.get("disposition") not in {
+                    "implemented", "clarified", "reasoned_disagreement", "limited_alternative"}:
                 errors.append(f"{iid}: resolution disposition missing")
             for ref in resolution.get("evidence", []):
                 reference(ref, iid + " resolution")
@@ -230,6 +328,8 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
     for cid, kids in children.items():
         if not kids:
             errors.append(f"{cid}: no issue covers this comment")
+    if completion_status == "ready_to_submit" and open_ids:
+        errors.append("ready_to_submit is incompatible with unresolved issues")
 
     for mapping in data.get("figure_map", []):
         if not text(mapping.get("original")) or not text(mapping.get("revised")):
@@ -237,6 +337,8 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
         reference(mapping.get("evidence", {}), "figure_map")
 
     if stage == "stage2":
+        if completion_status != "ready_to_submit":
+            errors.append("stage2 requires meta.completion_status=ready_to_submit")
         if meta.get("review_sources_complete") is not True:
             errors.append("review sources are incomplete")
         if open_ids:
@@ -248,19 +350,49 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
             answer = text(c.get("final_response"))
             if not answer or PLACEHOLDER.search(answer):
                 errors.append(f"{cid}: final response is missing or contains a placeholder")
+            mode = c.get("response_mode")
+            if mode not in RESPONSE_MODES:
+                errors.append(f"{cid}: final response_mode is missing or invalid")
             covered = c.get("final_issue_ids", [])
             expected_ids = {i["id"] for i in children.get(cid, [])}
             if not isinstance(covered, list) or len(covered) != len(set(covered)) or set(covered) != expected_ids:
                 errors.append(f"{cid}: final response coverage does not match all subquestions")
+            dispositions = {
+                i.get("resolution", {}).get("disposition") for i in children.get(cid, [])
+            }
+            has_change = any(i.get("resolution", {}).get("changes") for i in children.get(cid, []))
+            if mode == "agree_and_change" and not has_change:
+                errors.append(f"{cid}: agree_and_change requires a verified manuscript change")
+            if mode == "reasoned_disagreement" and "reasoned_disagreement" not in dispositions:
+                errors.append(f"{cid}: reasoned_disagreement mode lacks a matching resolution")
+            if mode == "unable_with_alternative" and "limited_alternative" not in dispositions:
+                errors.append(f"{cid}: unable_with_alternative mode lacks a verified alternative resolution")
         for key in ("title", "manuscript_id", "opening", "signature"):
             if PLACEHOLDER.search(text(meta.get(key))):
                 errors.append(f"meta.{key}: final placeholder detected")
         if not text(meta.get("opening")):
             errors.append("a fact-checked short opening is required for stage2")
+        principal = meta.get("principal_revisions")
+        if (not isinstance(principal, list) or not principal
+                or any(not text(item) or PLACEHOLDER.search(text(item)) for item in principal)):
+            errors.append("meta.principal_revisions needs a verified nonempty summary list")
+        verification = data.get("verification")
+        if not isinstance(verification, dict):
+            errors.append("stage2 verification must bind the final checks to current content")
+        else:
+            if verification.get("content_sha256") != verification_fingerprint(data):
+                errors.append("stage2 verification is stale; recheck the final response and reseal it")
+            try:
+                checked_at = date.fromisoformat(text(verification.get("checked_at")))
+                if checked_at > date.today():
+                    errors.append("stage2 verification.checked_at cannot be in the future")
+            except ValueError:
+                errors.append("stage2 verification.checked_at must be a real YYYY-MM-DD date")
     if errors:
         raise ValidationError("\n".join(dict.fromkeys(errors)))
     return {"comments": len(comments), "issues": len(issue_ids),
-            "open": open_ids, "stage2_ready": stage == "stage2"}
+            "open": open_ids, "object_review_required": object_types,
+            "stage2_ready": stage == "stage2"}
 
 
 def font(run: Any, red: bool = False, bold: bool = False, italic: bool = False) -> None:
@@ -387,6 +519,7 @@ def stage1_doc(data: dict[str, Any]) -> Any:
             red = i["status"] == "open"
             state = "待解决" if red else "已可据实回复"
             paragraph(doc, f'{i["id"]} | {state} | {i["question"]}', red=red, bold=True, style="Heading 3")
+            paragraph(doc, f'类型：{i["category"]}；严重程度：{i["severity"]}', red=red)
             panels = i.get("panel_refs", [])
             related = i.get("related_groups", [])
             if panels or related:
@@ -412,6 +545,9 @@ def stage2_doc(data: dict[str, Any]) -> Any:
         if text(meta.get(key)):
             paragraph(doc, prefix + meta[key])
     paragraph(doc, meta["opening"])
+    paragraph(doc, "Summary of principal revisions", style="Heading 1", bold=True)
+    for item in meta["principal_revisions"]:
+        paragraph(doc, item, style="List Bullet")
     reviewers = sorted(data["reviewers"], key=lambda r: (0 if r["kind"] == "editor" else 1, r["order"]))
     for reviewer in reviewers:
         comments = sorted([c for c in data["comments"] if c["reviewer_id"] == reviewer["id"]], key=lambda c: c["order"])
@@ -421,14 +557,38 @@ def stage2_doc(data: dict[str, Any]) -> Any:
         for c in comments:
             label = text(c.get("original_label")) or "Unnumbered comment"
             paragraph(doc, label, style="Heading 2", bold=True)
+            paragraph(doc, "Comment", style="Heading 3", bold=True)
             paragraph(doc, c["original_text"], italic=True)
             paragraph(doc, "Response", style="Heading 3", bold=True)
             paragraph(doc, c["final_response"])
             kids = [i for i in data["issues"] if i["comment_id"] == c["id"]]
-            refs = [ref for i in kids for ref in i.get("resolution", {}).get("changes", [])]
-            if refs:
-                locators = "; ".join(dict.fromkeys(ref["locator"] for ref in refs))
-                paragraph(doc, "Changes in the manuscript: " + locators)
+            change_refs = [ref for i in kids for ref in i.get("resolution", {}).get("changes", [])]
+            change_notes = [
+                text(i.get("resolution", {}).get("summary"))
+                for i in kids if text(i.get("resolution", {}).get("summary"))
+            ]
+            no_change_notes = [
+                text(i.get("resolution", {}).get("no_change_reason"))
+                for i in kids if text(i.get("resolution", {}).get("no_change_reason"))
+            ]
+            paragraph(doc, "Changes made", style="Heading 3", bold=True)
+            if change_refs and change_notes:
+                paragraph(doc, " ".join(dict.fromkeys(change_notes)))
+            elif no_change_notes:
+                paragraph(doc, " ".join(dict.fromkeys(no_change_notes)))
+            else:
+                paragraph(doc, "No manuscript change was required for this comment.")
+            if text(c.get("revised_text")):
+                paragraph(doc, "Revised manuscript text", style="Heading 3", bold=True)
+                paragraph(doc, c["revised_text"], italic=True)
+            all_refs = change_refs or [
+                ref for i in kids
+                for ref in (i.get("resolution", {}).get("evidence", []) or i.get("evidence", []))
+            ]
+            if all_refs:
+                locators = "; ".join(dict.fromkeys(ref["locator"] for ref in all_refs))
+                paragraph(doc, "Locations", style="Heading 3", bold=True)
+                paragraph(doc, locators)
     if text(meta.get("signature")):
         paragraph(doc, meta["signature"])
     return doc
@@ -456,12 +616,15 @@ def build(data: dict[str, Any], base: Path, stage: str, output: Path) -> dict[st
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("stage", choices=["stage1", "stage2", "check1", "check2"])
+    parser.add_argument("stage", choices=["stage1", "stage2", "check1", "check2", "fingerprint"])
     parser.add_argument("ledger", type=Path)
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
     try:
         data = json.loads(args.ledger.read_text(encoding="utf-8-sig"))
+        if args.stage == "fingerprint":
+            print(json.dumps({"content_sha256": verification_fingerprint(data)}, ensure_ascii=False))
+            return 0
         stage = "stage2" if args.stage in {"stage2", "check2"} else "stage1"
         if args.stage.startswith("check"):
             result = validate(data, args.ledger.resolve().parent, stage)

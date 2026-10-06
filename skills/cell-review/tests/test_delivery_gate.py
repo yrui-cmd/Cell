@@ -44,6 +44,9 @@ class DeliveryGateTests(unittest.TestCase):
         self.ledger['claims'][0]['links'] = links
         self.body = f'Synthetic test only\nEvidence\n{self.claim_text}[1–{n}]\nLimitations\nThis is not a real review.'
         self.refs = '\n'.join(refs)
+        word_excerpt = f'{self.claim_text}[1–{n}]'
+        for link in links:
+            link['word_excerpt'] = word_excerpt
         self.base.text = f'# Synthetic test only\n\n## Evidence\n{self.claim_text}[1–{n}]\n\n## Limitations\nThis is not a real review.\n\n## References\n{self.refs}\n'
 
     def word(self, body=None, refs=None):
@@ -83,6 +86,21 @@ class DeliveryGateTests(unittest.TestCase):
     def flush(self):
         rt.write_json(self.run / '_work' / 'protocol.json', self.protocol)
         rt.write_json(self.run / '_work' / 'evidence.json', self.ledger)
+
+    def prepare_custom_style(self):
+        self.protocol['output_citation_style'] = 'custom'
+        markers = [f'(Test Author, 2024, item {i:03})' for i in range(1, 31)]
+        body_excerpt = self.claim_text + ' ' + ' '.join(markers)
+        body = self.body.replace(self.claim_text + '[1–30]', body_excerpt)
+        self.save(body=body)
+        refs = self.refs.splitlines()
+        self.ledger['delivery_review']['citation_map'] = [
+            {'ref_id': f'R{i:03}', 'marker': markers[i-1], 'body_excerpt': body_excerpt,
+             'reference_excerpt': refs[i-1]} for i in range(1, 31)]
+        for link in self.ledger['claims'][0]['links']:
+            link['word_excerpt'] = body_excerpt
+        self.flush()
+        return markers, body_excerpt
 
     def check(self, fragment):
         result = gate.validate_delivery(self.run)
@@ -154,12 +172,19 @@ class DeliveryGateTests(unittest.TestCase):
         self.save()
         self.check('found 29')
 
-    def test_title_duplicate_counts_once(self):
+    def test_same_title_conflicting_ids_are_not_silently_merged(self):
         self.ledger['records'][-1]['title'] = 'Synthetic test reference 001'
         self.refs = self.refs.replace('Synthetic test reference 030', 'Synthetic test reference 001')
         self.base.text = self.base.text.replace('Synthetic test reference 030', 'Synthetic test reference 001')
         self.save()
-        self.check('found 29')
+        result = self.check('conflicting article identifiers')
+        self.assertEqual(result['counts']['unique_eligible_articles'], 30)
+        self.assertTrue(result['identity_conflicts'])
+
+    def test_claim_link_requires_final_word_range(self):
+        self.ledger['claims'][0]['links'][0]['word_excerpt'] = 'Unrelated sentence [1].'
+        self.save()
+        self.check('final Word excerpt containing the claim')
 
     def test_different_articles_same_study_family_can_count(self):
         for r in self.ledger['records']:
@@ -185,6 +210,9 @@ class DeliveryGateTests(unittest.TestCase):
         self.check('found 29')
 
     def test_uncited_word_entry_not_counted(self):
+        excerpt = f'{self.claim_text}[1–29]'
+        for link in self.ledger['claims'][0]['links']:
+            link['word_excerpt'] = excerpt
         self.save(body=self.body.replace('[1–30]', '[1–29]'))
         self.check('found 29')
 
@@ -240,18 +268,32 @@ class DeliveryGateTests(unittest.TestCase):
         self.check('one exact citation map')
 
     def test_custom_style_with_actual_anchors_passes(self):
-        self.protocol['output_citation_style'] = 'custom'
-        markers = [f'(Test Author, 2024, item {i:03})' for i in range(1, 31)]
-        body_excerpt = self.claim_text + ' ' + ' '.join(markers)
-        body = self.body.replace(self.claim_text + '[1–30]', body_excerpt)
-        self.save(body=body)
-        refs = self.refs.splitlines()
-        self.ledger['delivery_review']['citation_map'] = [
-            {'ref_id': f'R{i:03}', 'marker': markers[i-1], 'body_excerpt': body_excerpt,
-             'reference_excerpt': refs[i-1]} for i in range(1, 31)]
-        self.flush()
+        self.prepare_custom_style()
         result = gate.validate_delivery(self.run)
         self.assertEqual(result['status'], 'DELIVERY_CHECKS_PASSED', result)
+
+    def test_custom_claim_link_requires_its_own_marker(self):
+        markers, _ = self.prepare_custom_style()
+        self.ledger['claims'][0]['links'][1]['word_excerpt'] = self.claim_text + ' ' + markers[0]
+        self.flush()
+        self.check('R002: Word excerpt does not contain this custom reference marker')
+
+    def test_open_scope_disclosure_must_reach_final_word(self):
+        disclosure = 'This is not a real review.'
+        self.ledger['issues'] = [{
+            'id': 'I001', 'type': 'full_text_unavailable', 'status': 'open',
+            'impact': 'scope', 'manuscript_disclosure': disclosure,
+        }]
+        self.save(body=self.body.replace(disclosure, 'The final file silently omitted the disclosure.'))
+        self.check('unresolved scope/core disclosure is missing from final Word')
+
+    def test_open_scope_disclosure_in_source_and_word_passes(self):
+        self.ledger['issues'] = [{
+            'id': 'I001', 'type': 'full_text_unavailable', 'status': 'open',
+            'impact': 'scope', 'manuscript_disclosure': 'This is not a real review.',
+        }]
+        self.save()
+        self.assertEqual(gate.validate_delivery(self.run)['status'], 'DELIVERY_CHECKS_PASSED')
 
     def test_no_fake_scientific_or_visual_certification(self):
         self.save()

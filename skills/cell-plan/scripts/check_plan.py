@@ -14,6 +14,17 @@ from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 
+def configure_utf8_stdio() -> None:
+    """Keep redirected CLI output Unicode-safe on legacy Windows locales."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8")
+            except (OSError, ValueError):
+                pass
+
+
 @dataclass
 class Report:
     mode: str = "release"
@@ -33,6 +44,10 @@ def _text(value: Any) -> bool:
 
 def _positive_int(value: Any) -> bool:
     return type(value) is int and value > 0
+
+
+def _positive_number(value: Any) -> bool:
+    return type(value) in (int, float) and value > 0
 
 
 def _strings(value: Any, allow_empty: bool = True) -> bool:
@@ -58,6 +73,203 @@ def _source_key(source: str) -> str:
     except ValueError:
         pass
     return value
+
+
+def _validate_design_review(
+        value: Any, task_map: dict[str, dict[str, Any]], report: Report) -> None:
+    """Validate explicit study-design decisions without judging scientific truth."""
+    if not isinstance(value, dict):
+        message = "design_review必须是对象，并明确设计审查是否适用。"
+        if report.mode == "release":
+            report.errors.append(message)
+        else:
+            report.warnings.append(message)
+        return
+
+    applicability = value.get("applicability")
+    if applicability not in ("required", "not_applicable", "undetermined"):
+        report.errors.append(
+            "design_review.applicability必须为required、not_applicable或undetermined。")
+    if not _text(value.get("reason")):
+        report.errors.append("design_review.reason必须说明适用性判断。")
+
+    designs = value.get("designs")
+    if not isinstance(designs, list):
+        report.errors.append("design_review.designs必须为数组。")
+        return
+    if applicability == "undetermined":
+        message = "研究设计适用性仍为undetermined；正式交付前必须判定。"
+        if report.mode == "release":
+            report.errors.append(message)
+        else:
+            report.warnings.append(message)
+        return
+    if applicability == "not_applicable":
+        if designs:
+            report.errors.append("设计审查标为not_applicable时designs必须为空数组。")
+        return
+    if applicability != "required":
+        return
+    if not designs:
+        report.errors.append("设计审查适用时designs不能为空。")
+        return
+
+    design_ids: set[str] = set()
+    text_fields = (
+        "id", "design_type", "experimental_unit", "observation_unit",
+        "analysis_unit", "independence_basis", "assignment_rationale",
+        "blocking_rationale", "blinding", "biological_replication",
+        "technical_replication_role", "batch_run_order", "sample_size_basis",
+        "exclusion_stop_rules",
+    )
+    for index, design in enumerate(designs):
+        label = f"design_review.designs[{index}]"
+        if not isinstance(design, dict):
+            report.errors.append(f"{label}必须是对象。")
+            continue
+        for key in text_fields:
+            if not _text(design.get(key)):
+                report.errors.append(f"{label}.{key}必须是非空字符串。")
+        design_id = design.get("id")
+        if _text(design_id):
+            if design_id in design_ids:
+                report.errors.append(f"重复设计ID：{design_id}。")
+            design_ids.add(design_id)
+            label = design_id
+
+        task_ids = design.get("task_ids")
+        if not _strings(task_ids, allow_empty=False):
+            report.errors.append(f"{label}.task_ids必须是非空字符串数组。")
+        else:
+            for task_id in task_ids:
+                if task_id not in task_map:
+                    report.errors.append(f"{label}关联了不存在的任务：{task_id}。")
+
+        assignment = design.get("assignment")
+        if assignment not in ("randomized", "nonrandomized", "observational",
+                               "not_applicable"):
+            report.errors.append(f"{label}.assignment无效。")
+        if assignment == "randomized" and not _text(design.get("randomization_record")):
+            report.errors.append(
+                f"{label}采用随机分配但缺少randomization_record；记录方法、种子或分配表保存位置。")
+        for key in ("blocking_factors", "known_confounders"):
+            if not _strings(design.get(key)):
+                report.errors.append(f"{label}.{key}必须是字符串数组，可为空。")
+        if not _strings(design.get("primary_outcomes"), allow_empty=False):
+            report.errors.append(f"{label}.primary_outcomes必须是非空字符串数组。")
+
+
+def _validate_resource_review(
+        value: Any, task_map: dict[str, dict[str, Any]], report: Report) -> None:
+    """Detect explicit capacity conflicts without pretending to optimize a schedule."""
+    if not isinstance(value, dict):
+        message = "resource_review必须是对象，并明确资源审查是否适用。"
+        (report.errors if report.mode == "release" else report.warnings).append(message)
+        return
+    applicability = value.get("applicability")
+    if applicability not in ("required", "not_applicable", "undetermined"):
+        report.errors.append(
+            "resource_review.applicability必须为required、not_applicable或undetermined。")
+    if not _text(value.get("reason")):
+        report.errors.append("resource_review.reason必须说明适用性判断。")
+    resources = value.get("resources")
+    allocations = value.get("allocations")
+    if not isinstance(resources, list) or not isinstance(allocations, list):
+        report.errors.append("resource_review.resources和allocations必须为数组。")
+        return
+    if applicability == "undetermined":
+        message = "资源审查仍为undetermined；正式交付前必须判定。"
+        (report.errors if report.mode == "release" else report.warnings).append(message)
+        return
+    if applicability == "not_applicable":
+        if resources or allocations:
+            report.errors.append("资源审查标为not_applicable时resources和allocations必须为空。")
+        return
+    if applicability != "required":
+        return
+    if not resources:
+        report.errors.append("资源审查适用时resources不能为空。")
+        return
+
+    resource_map: dict[str, dict[str, Any]] = {}
+    for index, resource in enumerate(resources):
+        label = f"resource_review.resources[{index}]"
+        if not isinstance(resource, dict):
+            report.errors.append(f"{label}必须是对象。")
+            continue
+        rid = resource.get("id")
+        for key in ("id", "name", "unit", "availability_note"):
+            if not _text(resource.get(key)):
+                report.errors.append(f"{label}.{key}必须是非空字符串。")
+        if resource.get("kind") not in ("person", "equipment", "facility", "external", "material"):
+            report.errors.append(f"{label}.kind无效。")
+        if _text(rid):
+            if rid in resource_map:
+                report.errors.append(f"重复资源ID：{rid}。")
+            resource_map[rid] = resource
+        capacity = resource.get("capacity")
+        if capacity is not None and not _positive_number(capacity):
+            report.errors.append(f"{label}.capacity必须为正数或null。")
+
+    use_by_resource_week: dict[tuple[str, int], list[tuple[str, float]]] = {}
+    used_by_task: dict[str, set[str]] = {tid: set() for tid in task_map}
+    for index, allocation in enumerate(allocations):
+        label = f"resource_review.allocations[{index}]"
+        if not isinstance(allocation, dict):
+            report.errors.append(f"{label}必须是对象。")
+            continue
+        rid, tid = allocation.get("resource_id"), allocation.get("task_id")
+        if rid not in resource_map:
+            report.errors.append(f"{label}引用了不存在的资源：{rid}。")
+        if tid not in task_map:
+            report.errors.append(f"{label}引用了不存在的任务：{tid}。")
+        if tid in used_by_task and isinstance(rid, str):
+            used_by_task[tid].add(rid)
+        start, end, amount = (allocation.get("start_week"), allocation.get("end_week"),
+                              allocation.get("amount"))
+        if not _positive_int(start) or not _positive_int(end) or start > end:
+            report.errors.append(f"{label}必须提供有效的start_week/end_week。")
+            continue
+        if not _positive_number(amount):
+            report.errors.append(f"{label}.amount必须为正数。")
+            continue
+        occupancy = allocation.get("occupancy")
+        if occupancy not in ("active", "exclusive", "passive_wait"):
+            report.errors.append(f"{label}.occupancy无效。")
+        if type(allocation.get("holds_capacity")) is not bool:
+            report.errors.append(f"{label}.holds_capacity必须为布尔值。")
+        if not _text(allocation.get("note")):
+            report.errors.append(f"{label}.note必须说明投入或等待性质。")
+        task = task_map.get(tid, {})
+        if (_positive_int(task.get("start_week")) and _positive_int(task.get("end_week"))
+                and (start < task["start_week"] or end > task["end_week"])):
+            report.errors.append(f"{label}的占用窗口超出任务{tid}的时间窗口。")
+        consumes = occupancy in ("active", "exclusive") or allocation.get("holds_capacity") is True
+        if consumes and isinstance(rid, str):
+            for week in range(start, end + 1):
+                use_by_resource_week.setdefault((rid, week), []).append((str(tid), float(amount)))
+
+    for tid, task in task_map.items():
+        declared = task.get("resources")
+        if _strings(declared, allow_empty=False):
+            unknown = sorted(set(declared) - resource_map.keys())
+            if unknown:
+                report.errors.append(f"{tid}.resources含未登记资源：{', '.join(unknown)}。")
+            missing = sorted(set(declared) - used_by_task.get(tid, set()))
+            if missing:
+                report.errors.append(f"{tid}缺少资源分配记录：{', '.join(missing)}。")
+
+    for (rid, week), uses in sorted(use_by_resource_week.items()):
+        resource = resource_map.get(rid, {})
+        capacity = resource.get("capacity")
+        total = sum(amount for _, amount in uses)
+        if _positive_number(capacity) and total > float(capacity) + 1e-9:
+            report.errors.append(
+                f"资源{rid}第{week}周需求{total:g}超过容量{float(capacity):g}。")
+        elif capacity is None and len({tid for tid, _ in uses}) > 1:
+            if not _text(resource.get("overlap_resolution")):
+                report.errors.append(
+                    f"资源{rid}容量未知且第{week}周有重叠任务；不得默认容量无限，需核实或记录overlap_resolution。")
 
 
 def validate(data: Any, *, mode: str = "release") -> Report:
@@ -254,10 +466,13 @@ def validate(data: Any, *, mode: str = "release") -> Report:
     if visited < len(task_map):
         blocked = ", ".join(sorted(tid for tid, degree in indegree.items() if degree))
         r.errors.append(f"存在循环依赖或被循环阻塞的任务：{blocked}。")
+    _validate_design_review(data.get("design_review"), task_map, r)
+    _validate_resource_review(data.get("resource_review"), task_map, r)
     return r
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_utf8_stdio()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("state", type=Path, help="Path to plan_state.json")
     parser.add_argument("--mode", choices=("release", "draft"), default="release",

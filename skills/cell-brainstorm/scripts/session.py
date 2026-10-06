@@ -12,6 +12,17 @@ from pathlib import Path
 from typing import Any
 
 
+def configure_utf8_stdio() -> None:
+    """Keep redirected CLI output Unicode-safe on legacy Windows locales."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8")
+            except (OSError, ValueError):
+                pass
+
+
 def atomic_json(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.is_symlink():
@@ -93,6 +104,7 @@ def record(path: Path, stage: str, artifact: Path, model_id: str) -> None:
 
 
 def main() -> int:
+    configure_utf8_stdio()
     parser=argparse.ArgumentParser(description=__doc__)
     sub=parser.add_subparsers(dest='command',required=True)
     p=sub.add_parser('init');p.add_argument('--run-dir',type=Path,required=True)

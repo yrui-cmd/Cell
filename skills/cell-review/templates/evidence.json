@@ -9,6 +9,8 @@
     "status": "pending",
     "checked_at": null,
     "review_sha256": null,
+    "context_hash_version": "1",
+    "semantic_context_sha256": null,
     "checks": {
       "question_answered": false,
       "added_value_explained": false,

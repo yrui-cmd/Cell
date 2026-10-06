@@ -43,6 +43,17 @@ def inspect_enhancement(candidate: dict[str, Any], bundle: dict[str, Any]) -> di
         conditional.append('当前候选版本尚未完成重新查新。')
         gates['knowledge_gain'] = 'conditional' if gates['knowledge_gain'] != 'fail' else 'fail'
         cap('N', 1)
+    assumption_statements = [assumption['statement'].strip() for assumption in e['assumptions']]
+    if len(assumption_statements) != len(set(assumption_statements)):
+        raise ValueError('Assumption statements must be unique stable identifiers within a candidate.')
+    assumption_map = {assumption['statement'].strip(): assumption for assumption in e['assumptions']}
+    essential_ids = e['essential_assumption_ids']
+    if len(essential_ids) != len(set(essential_ids)):
+        raise ValueError('essential_assumption_ids must not contain duplicates.')
+    unknown_essential = sorted(set(essential_ids) - assumption_map.keys())
+    if unknown_essential:
+        raise ValueError('Essential assumptions are not present in the assumption ledger: '
+                         + ', '.join(unknown_essential))
     for assumption in e['assumptions']:
         sources.update(assumption['source_ids'])
         if assumption['status'] == 'supported' and not assumption['source_ids']:

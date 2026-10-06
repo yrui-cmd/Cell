@@ -1,0 +1,7 @@
+# Test dependencies for the free, locally executable Cell skills.
+# Paid/API-backed skills and the Windows PowerPoint plugin keep their own
+# runtime requirements and are intentionally not part of this file.
+pytest>=8,<10
+-r skills/cell-brainstorm/requirements.txt
+-r skills/cell-data-figure/requirements.txt
+-r skills/cell-reviewer-response/requirements.txt

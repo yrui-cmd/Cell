@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "id": "ieee-transactions-general",
+  "publisher": "IEEE",
+  "scope": "publisher_general",
+  "verified_on": "2026-09-28",
+  "journal_specific_override_required": true,
+  "source_urls": [
+    "https://journals.ieeeauthorcenter.ieee.org/create-your-ieee-journal-article/create-graphics-for-your-article/resolution-and-size/",
+    "https://journals.ieeeauthorcenter.ieee.org/create-your-ieee-journal-article/create-graphics-for-your-article/file-formatting/"
+  ],
+  "placements": {
+    "single_column": {"width_cm": 8.89},
+    "double_column": {"width_cm": 18.2}
+  },
+  "font_families": ["Times New Roman", "Times", "STIXGeneral", "serif"],
+  "typography": {
+    "title_pt": 10.0,
+    "axis_label_pt": 9.0,
+    "tick_pt": 9.0,
+    "legend_pt": 9.0,
+    "annotation_pt": 9.0
+  },
+  "strokes": {
+    "main_pt": 1.25,
+    "secondary_pt": 1.0,
+    "axes_pt": 0.8,
+    "grid_pt": 0.5,
+    "marker_pt": 3.5
+  },
+  "raster_dpi": {
+    "color_grayscale": 600,
+    "combination": 600,
+    "line_art": 1200
+  },
+  "vector_formats": ["pdf", "eps"]
+}
