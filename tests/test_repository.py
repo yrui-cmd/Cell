@@ -12,6 +12,7 @@ EXPECTED_SKILLS = {
     "cell-brainstorm",
     "cell-plan",
     "cell-review",
+    "cell-reviewer",
     "cell-manuscript-editing",
     "cell-reviewer-response",
     "cell-submission",
@@ -65,6 +66,17 @@ def test_readme_documents_every_skill() -> None:
     assert documented == EXPECTED_SKILLS
 
 
+def test_cell_reviewer_preserves_upstream_license_and_notice() -> None:
+    skill = ROOT / "skills" / "cell-reviewer"
+    license_text = (skill / "LICENSE").read_text(encoding="utf-8")
+    notice = (skill / "NOTICE").read_text(encoding="utf-8")
+
+    assert "Apache License" in license_text
+    assert "Version 2.0" in license_text
+    assert "Yuan1z0825/nature-skills" in notice
+    assert "no endorsement" in notice
+
+
 if __name__ == "__main__":
     check_repository()
-    print("REPOSITORY_OK|skills=12|plugin=cell-ppt-edited|installer=verified|tracked_artifacts=clean")
+    print("REPOSITORY_OK|skills=13|plugin=cell-ppt-edited|installer=verified|tracked_artifacts=clean")

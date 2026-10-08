@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Final editable-DOCX and >=30 unique cited article gate; Python 3.10+, no network.
+"""Final editable-DOCX and user-confirmed cited article gate; Python 3.10+, no network.
 
 Checks file structure, citation anchors, deduplication and host attestations.
 It does not retrieve/verify papers, render Word, or certify scientific correctness.
@@ -19,7 +19,6 @@ from xml.etree import ElementTree as ET
 
 import review_tools as rt
 
-MINIMUM_ARTICLES = 30
 ARTICLE_TYPES = {
     'original_research', 'research_article', 'review', 'systematic_review',
     'scoping_review', 'meta_analysis', 'methods_article', 'conference_paper',
@@ -161,7 +160,9 @@ def validate_delivery(run_dir: Path) -> dict[str, Any]:
     run = run_dir.expanduser().resolve()
     errors: list[str] = []
     warnings: list[str] = []
-    counts: dict[str, int] = {'minimum_articles': MINIMUM_ARTICLES, 'unique_eligible_articles': 0}
+    counts: dict[str, int | None] = {
+        'minimum_articles': None, 'maximum_articles': None, 'unique_eligible_articles': 0,
+    }
     duplicate_groups: list[list[str]] = []
     excluded: dict[str, str] = {}
     result: dict[str, Any] = {
@@ -185,11 +186,12 @@ def validate_delivery(run_dir: Path) -> dict[str, Any]:
         errors.append('protocol.output_format must be docx.')
     if protocol.get('citation_style') != 'numeric_draft':
         errors.append('Internal manuscript must retain numeric_draft for deterministic citation checks.')
-    minimum = protocol.get('minimum_article_count')
-    if type(minimum) is not int or minimum < MINIMUM_ARTICLES:
-        errors.append('minimum_article_count must be an integer >=30; lowering the gate is not allowed.')
-        minimum = MINIMUM_ARTICLES
+    minimum, maximum, count_errors = rt.reference_count_contract(protocol)
+    if count_errors:
+        errors.extend('Reference-count gate: ' + message for message in count_errors)
+        return result
     counts['minimum_articles'] = minimum
+    counts['maximum_articles'] = maximum
     filename = protocol.get('output_file', 'review.docx')
     if (not isinstance(filename, str) or '/' in filename or '\\' in filename
             or ':' in filename or Path(filename).suffix.lower() != '.docx'):
@@ -353,6 +355,8 @@ def validate_delivery(run_dir: Path) -> dict[str, Any]:
         errors.append('Same-title records have conflicting article identifiers; verify the records or versions before delivery.')
     if count < minimum:
         errors.append(f'At least {minimum} unique verified relevant articles actually cited in Word are required; found {count}. Continue evidence work or label as incomplete; never pad or fabricate.')
+    if maximum is not None and count > maximum:
+        errors.append(f'At most {maximum} unique verified relevant articles actually cited in Word are permitted by the user-confirmed requirement; found {count}. Revise the selection or obtain a revised user requirement.')
     if not errors:
         result['status'] = 'DELIVERY_CHECKS_PASSED'
     return result

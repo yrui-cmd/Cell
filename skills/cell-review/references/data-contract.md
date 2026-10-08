@@ -6,6 +6,12 @@
 
 由初始化模板生成。补充明确 question、scope、added_value、实际 last_search_date 和 evidence_cutoff。review_type 可选 `critical_narrative`、`scoping`、`systematic`、`meta_analysis`。
 
+开始主题检索与写作前，必须从用户原话取得参考文献数量。`reference_count_confirmation.confirmed` 只有取得明确要求，或用户明确授权代定并已告知所选数值后，才能设为 `true`；`user_request` 保存对应的真实用户原话。模板的 `confirmed=false`、空原话以及上下限 `null` 是待询问状态，不能当作用户同意默认篇数。
+
+`minimum_article_count` 确认后为正整数；`maximum_article_count` 为不小于下限的整数或 `null`（无上限），布尔值不算整数。具体 N 篇为 `min=max=N`，至少 N 篇为 `min=N/max=null`，A—B 篇为 `min=A/max=B`。数量以正文实际引用且核验、去重的合格学术文章计。仅有旧版 `minimum_article_count=30` 不足以证明用户确认，须回查会话；找不到用户要求时先询问，不自动迁移为 `confirmed`。
+
+数量、上限或确认记录变更属于语义上下文变更，会使旧自查失效。用户改变要求时保留 amendments，再更新可行性及相关自查。脚本校验记录格式而不证明用户原话真实，宿主不得伪填。
+
 在进入正式写作前填写 `capabilities` 的显式布尔值及 `document_export` 能力列表，并完成 `article_count_feasibility`：status 为 `feasible`、`at_risk` 或 `insufficient`，同时记录真实 assessed_at 和判断依据。`null` 表示尚未检查，不能通过最终 audit；`insufficient` 表示不能按完成稿交付。
 
 `load_bearing_questions` 是承重问题覆盖表：
@@ -209,13 +215,13 @@ issue 的等级根据其对研究判断、综述方法及目标期刊要求满�
 
 ## v1.1.0 最终交付字段（向后兼容的数据契约扩展）
 
-`protocol.output_format` 固定为 `docx`；`output_file` 为任务根目录下单个 `.docx` 文件名，不得包含目录跳转。`minimum_article_count` 默认 30，可以提高但不能低于 30。`output_citation_style` 为 `numeric` 或 `custom`。内部正文统一保存在 `_work/review.md`。
+`protocol.output_format` 固定为 `docx`；`output_file` 为任务根目录下单个 `.docx` 文件名，不得包含目录跳转。自 v1.5.0 起数量必须先经用户确认，按本文件开头的上下限契约验收，不再默认 30。`output_citation_style` 为 `numeric` 或 `custom`。内部正文统一保存在 `_work/review.md`。
 
 `records[].article_id` 将同一文章的预印本、正式版等版本关联，不能与 `study_id` 混淆。计数仍会用规范化稳定标识和标题交叉去重；不同 `article_id` 不能让同一文章重复计数。`publication_type` 使用真实类型；允许计数的值见最终门槛规范。文章应有明确相关性（`extraction.role_in_review`）和指向正文实际主张的已核验 `claims[].links`，不能仅附一个书目编号。
 
 `delivery_review` 使用模板中的新对象。只有真实完成 Word 内容与排版复核后才能把 checks 标为 true；source_sha256 绑定当前内部稿，docx_sha256 绑定当前 Word。记录真实 checked_at、page_count、pages_inspected 和实际 preview_locator，预览所有页面而不是只看首页。`citation_map` 仅在最终样式非数值型时必需：每项包含 `ref_id`、`marker`、`body_excerpt`、`reference_excerpt`；后二者必须逐字存在于 Word 正文和参考文献部分，body_excerpt 包含真实 marker 和至少一句登记的主张；reference_excerpt 包含文章完整标题。详见 `word-and-reference-gate.md`。
 
-文献数不足 30 的情形通过 issues 记录为 core（例如 `insufficient_articles`），并在稿件/交付语句明确未完成。不能靠删除问题记录让 final gate 放行；final gate 独立重数。
+文献数不足确认下限或超过确认上限的情形通过 issues 记录为 core（例如 `article_count_mismatch`），并在稿件/交付语句明确未完成。不能靠删除问题记录让 final gate 放行；final gate 独立重数。用户明确修改数量后，再按新要求更新记录和复核，不得由宿主擅自调门槛。
 
 ## v1.3.0 证据上下文与最终 Word 扩展
 

@@ -24,6 +24,10 @@ class DeliveryGateTests(unittest.TestCase):
         self.base.setUp()
         self.addCleanup(self.base.doCleanups)
         self.run, self.protocol, self.ledger = self.base.run, self.base.protocol, self.base.ledger
+        self.protocol.update(
+            minimum_article_count=30, maximum_article_count=None,
+            reference_count_confirmation={'confirmed': True, 'user_request': 'At least 30 references (synthetic fixture).'},
+        )
         self.source_record = copy.deepcopy(self.ledger['records'][0])
         self.claim_text = self.ledger['claims'][0]['text']
         self.make_articles(30)
@@ -126,15 +130,94 @@ class DeliveryGateTests(unittest.TestCase):
         self.save()
         self.check('found 29')
 
-    def test_floor_cannot_be_lowered(self):
-        self.protocol['minimum_article_count'] = 1
+    def test_legacy_default_without_user_confirmation_is_blocked(self):
+        self.protocol.pop('reference_count_confirmation')
         self.save()
-        self.check('lowering the gate')
+        result = self.check('explicit user confirmation required')
+        self.assertIsNone(result['counts']['minimum_articles'])
 
-    def test_boolean_is_not_article_floor(self):
-        self.protocol['minimum_article_count'] = True
+    def test_pending_or_empty_user_confirmation_is_blocked(self):
+        for confirmation in (None, [], {'confirmed': False, 'user_request': ''},
+                             {'confirmed': 1, 'user_request': '30 references'},
+                             {'confirmed': True, 'user_request': '  '},
+                             {'confirmed': True, 'user_request': 30}):
+            with self.subTest(confirmation=confirmation):
+                self.protocol['reference_count_confirmation'] = confirmation
+                self.save()
+                result = self.check('reference_count_confirmation')
+                self.assertIsNone(result['counts']['minimum_articles'])
+
+    def test_invalid_reference_count_bounds_do_not_fall_back_to_30(self):
+        for minimum, maximum in ((None, None), (True, None), (False, None),
+                                 (0, None), (-1, None), ('30', None), (1.5, None),
+                                 (1, True), (1, False), (1, 0), (1, -1),
+                                 (1, '5'), (1, 1.5), (5, 4)):
+            with self.subTest(minimum=minimum, maximum=maximum):
+                self.protocol.update(minimum_article_count=minimum, maximum_article_count=maximum)
+                self.save()
+                result = self.check('article_count')
+                self.assertIsNone(result['counts']['minimum_articles'])
+                self.assertIsNone(result['counts']['maximum_articles'])
+
+    def test_explicit_one_article_requirement_passes(self):
+        self.protocol.update(
+            minimum_article_count=1, maximum_article_count=1,
+            reference_count_confirmation={'confirmed': True, 'user_request': 'Exactly 1 reference.'},
+        )
+        self.make_articles(1)
         self.save()
-        self.check('integer >=30')
+        result = gate.validate_delivery(self.run)
+        self.assertEqual(result['status'], 'DELIVERY_CHECKS_PASSED', result)
+        self.assertEqual(result['counts']['unique_eligible_articles'], 1)
+
+    def test_exact_requirement_rejects_excess_articles(self):
+        self.protocol.update(
+            minimum_article_count=10, maximum_article_count=10,
+            reference_count_confirmation={'confirmed': True, 'user_request': 'Exactly 10 references.'},
+        )
+        self.make_articles(11)
+        self.save()
+        self.check('At most 10')
+
+    def test_range_boundaries_are_enforced(self):
+        self.protocol.update(
+            minimum_article_count=10, maximum_article_count=12,
+            reference_count_confirmation={'confirmed': True, 'user_request': '10 to 12 references.'},
+        )
+        for count in (9, 10, 11, 12, 13):
+            with self.subTest(count=count):
+                self.make_articles(count)
+                self.save()
+                result = gate.validate_delivery(self.run)
+                if 10 <= count <= 12:
+                    self.assertEqual(result['status'], 'DELIVERY_CHECKS_PASSED', result)
+                else:
+                    self.check('At least 10' if count < 10 else 'At most 12')
+
+    def test_at_least_requirement_allows_excess_articles(self):
+        self.protocol.update(
+            minimum_article_count=5, maximum_article_count=None,
+            reference_count_confirmation={'confirmed': True, 'user_request': 'At least 5 references.'},
+        )
+        self.make_articles(7)
+        self.save()
+        result = gate.validate_delivery(self.run)
+        self.assertEqual(result['status'], 'DELIVERY_CHECKS_PASSED', result)
+        self.assertIsNone(result['counts']['maximum_articles'])
+
+    def test_changed_count_or_confirmation_invalidates_previous_self_review(self):
+        original = copy.deepcopy(self.protocol)
+        for field, value in (
+            ('minimum_article_count', 20), ('maximum_article_count', 35),
+            ('reference_count_confirmation', {'confirmed': True, 'user_request': 'Reconfirmed at least 30 references.'}),
+        ):
+            with self.subTest(field=field):
+                self.protocol.clear()
+                self.protocol.update(copy.deepcopy(original))
+                self.save()
+                self.protocol[field] = value
+                self.flush()
+                self.check('semantic context hash')
 
     def test_higher_user_minimum_honored(self):
         self.protocol['minimum_article_count'] = 40

@@ -15,6 +15,7 @@ FREE_SKILLS = {
     "cell-brainstorm",
     "cell-plan",
     "cell-review",
+    "cell-reviewer",
     "cell-reviewer-response",
     "cell-submission",
     "cell-data-figure",

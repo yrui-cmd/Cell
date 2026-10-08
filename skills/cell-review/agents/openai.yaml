@@ -1,6 +1,6 @@
 interface:
   display_name: "Cell · 顶刊文献综述"
-  short_description: "按领域顶刊标准交付 Word 综述，至少 30 篇经核验有效引用"
-  default_prompt: "使用 $cell-review，围绕我提供的主题，参考所属领域顶级期刊与同类综述，完成一篇证据可追溯的完整文献综述。运行时只显示当前步骤，最终只交付可编辑 Word（.docx）综述，正文实际引用至少 30 篇真实、相关、经核验且去重的学术文章。"
+  short_description: "先确认参考文献篇数，再按领域顶刊标准撰写并交付完整 Word 综述"
+  default_prompt: "使用 $cell-review，先询问我希望引用多少篇参考文献（已明确时无需重复），再围绕我的主题按确认数量完成经核验的完整 Word 综述。"
 policy:
   allow_implicit_invocation: true

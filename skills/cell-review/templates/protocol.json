@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "skill_version": "1.4.0",
+  "skill_version": "1.5.0",
   "topic": "",
   "question": "",
   "review_type": "critical_narrative",
@@ -34,7 +34,7 @@
   "article_count_feasibility": {
     "status": "pending",
     "assessed_at": null,
-    "note": "在正式写作前评估是否能在不凑数的前提下实际引用至少30篇独立文章。"
+    "note": "用户确认参考文献篇数后，在正式写作前评估能否在不凑数的前提下满足其数量要求。"
   },
   "load_bearing_questions": [],
   "formal_methods": {
@@ -47,7 +47,12 @@
   },
   "output_file": "review.docx",
   "output_citation_style": "numeric",
-  "minimum_article_count": 30,
+  "minimum_article_count": null,
+  "maximum_article_count": null,
+  "reference_count_confirmation": {
+    "confirmed": false,
+    "user_request": ""
+  },
   "reference_count_policy": {
     "unit": "unique_article_actually_cited",
     "same_article_versions_count_once": true,

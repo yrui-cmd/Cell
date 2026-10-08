@@ -89,6 +89,35 @@ def has_text(value: Any) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
+def reference_count_contract(protocol: dict[str, Any]) -> tuple[int | None, int | None, list[str]]:
+    """Validate the recorded user requirement without inventing a default count.
+
+    Confirmation is a host attestation of actual user input, not a replacement
+    for asking the user. An invalid or unconfirmed contract has no usable bounds.
+    """
+    errors: list[str] = []
+    confirmation = protocol.get("reference_count_confirmation")
+    if not isinstance(confirmation, dict):
+        errors.append("protocol.reference_count_confirmation: explicit user confirmation required")
+    else:
+        if confirmation.get("confirmed") is not True:
+            errors.append("protocol.reference_count_confirmation.confirmed must be true after actual user confirmation")
+        if not has_text(confirmation.get("user_request")):
+            errors.append("protocol.reference_count_confirmation.user_request: non-empty actual user request required")
+    minimum = protocol.get("minimum_article_count")
+    maximum = protocol.get("maximum_article_count")
+    if type(minimum) is not int or minimum < 1:
+        errors.append("protocol.minimum_article_count must be a positive integer confirmed by the user")
+    if maximum is not None:
+        if type(maximum) is not int or maximum < 1:
+            errors.append("protocol.maximum_article_count must be null or a positive integer confirmed by the user")
+        elif type(minimum) is int and minimum >= 1 and maximum < minimum:
+            errors.append("protocol.maximum_article_count must be greater than or equal to minimum_article_count")
+    if errors:
+        return None, None, errors
+    return minimum, maximum, errors
+
+
 def one_of(value: Any, values: set[str] | dict[str, Any]) -> bool:
     return isinstance(value, str) and value in values
 
@@ -237,7 +266,7 @@ def audit_review(run_dir: Path) -> dict[str, Any]:
             "status": "RECORDS_CONSISTENT" if not errors else "NEEDS_REVISION",
             "checked_at": now_iso(), "run_dir": str(run),
             "errors": errors, "warnings": warnings, "counts": counts,
-            "scope": "Local record consistency only; no network or scientific/semantic verification. Final DOCX and >=30 article checks require delivery_gate.py.",
+            "scope": "Local record consistency only; no network or scientific/semantic verification. Final DOCX and user-confirmed article-count checks require delivery_gate.py.",
             "scientific_quality_certified": False,
             "independent_peer_review_performed": False,
         }
@@ -253,6 +282,8 @@ def audit_review(run_dir: Path) -> dict[str, Any]:
     for key in ("topic", "question", "added_value"):
         if not has_text(protocol.get(key)):
             error(f"protocol.{key}: required")
+    _, _, count_errors = reference_count_contract(protocol)
+    errors.extend(count_errors)
     capabilities = obj(protocol.get("capabilities"), "protocol.capabilities")
     for key in ("web_search", "full_text_access", "local_execution"):
         if type(capabilities.get(key)) is not bool:

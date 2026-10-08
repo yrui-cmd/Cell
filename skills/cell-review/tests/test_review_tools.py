@@ -23,6 +23,10 @@ class ReviewAuditTests(unittest.TestCase):
         self.run = rt.init_review("SYNTHETIC TEST TOPIC — NOT A REAL REVIEW", Path(self.tmp.name))
         self.protocol = rt.read_json(self.run / "_work" / "protocol.json")
         self.protocol.update(question="Synthetic test question", added_value="Test-only value", last_search_date="2026-09-27")
+        self.protocol.update(
+            minimum_article_count=1, maximum_article_count=None,
+            reference_count_confirmation={"confirmed": True, "user_request": "At least 1 reference (synthetic fixture)."},
+        )
         self.protocol["capabilities"].update(
             web_search=True, full_text_access=True, local_execution=True,
             document_export=["docx", "page_preview"],
@@ -107,6 +111,55 @@ class ReviewAuditTests(unittest.TestCase):
         result = rt.audit_review(fresh)
         self.assertEqual(result["status"], "NEEDS_REVISION")
         self.assertFalse((fresh / "_work" / "review.md").exists())
+        protocol = rt.read_json(fresh / "_work" / "protocol.json")
+        self.assertIsNone(protocol["minimum_article_count"])
+        self.assertIsNone(protocol["maximum_article_count"])
+        self.assertIs(protocol["reference_count_confirmation"]["confirmed"], False)
+
+    def test_legacy_count_without_confirmation_is_not_authorized(self):
+        self.protocol["minimum_article_count"] = 30
+        self.protocol.pop("reference_count_confirmation")
+        self.assert_error("explicit user confirmation required")
+
+    def test_reference_count_confirmation_must_be_explicit(self):
+        for confirmation in (None, [], {"confirmed": False, "user_request": ""},
+                             {"confirmed": 1, "user_request": "At least 1"},
+                             {"confirmed": True, "user_request": "  "},
+                             {"confirmed": True, "user_request": 1}):
+            with self.subTest(confirmation=confirmation):
+                self.protocol["reference_count_confirmation"] = confirmation
+                self.assert_error("reference_count_confirmation")
+
+    def test_invalid_reference_count_bounds_block_audit(self):
+        for minimum, maximum in ((None, None), (True, None), (False, None),
+                                 (0, None), (-1, None), ("30", None), (1.5, None),
+                                 (1, True), (1, False), (1, 0), (1, -1),
+                                 (1, "5"), (1, 1.5), (5, 4)):
+            with self.subTest(minimum=minimum, maximum=maximum):
+                self.protocol.update(minimum_article_count=minimum, maximum_article_count=maximum)
+                self.assert_error("article_count")
+
+    def test_confirmed_reference_bounds_do_not_have_global_30_floor(self):
+        for minimum, maximum in ((1, 1), (5, 8), (2, None), (30, None)):
+            with self.subTest(minimum=minimum, maximum=maximum):
+                self.protocol.update(minimum_article_count=minimum, maximum_article_count=maximum)
+                self.assertEqual(self.audit()["errors"], [])
+
+    def test_reference_count_and_confirmation_changes_invalidate_semantic_review(self):
+        mutations = (
+            ("minimum_article_count", 2), ("maximum_article_count", 3),
+            ("reference_count_confirmation", {"confirmed": True, "user_request": "Reconfirmed at least 1 reference."}),
+            ("reference_count_confirmation", {"confirmed": False, "user_request": "At least 1 reference."}),
+        )
+        original = copy.deepcopy(self.protocol)
+        for field, value in mutations:
+            with self.subTest(field=field, value=value):
+                self.protocol = copy.deepcopy(original)
+                self.save()
+                self.protocol[field] = value
+                self.save(refresh_hash=False)
+                result = rt.audit_review(self.run)
+                self.assertTrue(any("semantic context hash" in e for e in result["errors"]), result)
 
     def test_empty_topic_rejected(self):
         with self.assertRaises(ValueError):

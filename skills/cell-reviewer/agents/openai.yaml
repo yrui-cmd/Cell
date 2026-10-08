@@ -1,0 +1,6 @@
+interface:
+  display_name: "Cell · 论文审稿人"
+  short_description: "综述与实验性论文的独立模拟审稿、证据核查与修订优先级建议"
+  default_prompt: "使用 $cell-reviewer 审阅我提供的稿件，先判断综述或实验性论文类型，再给出有证据定位的审稿意见与修订优先级。"
+policy:
+  allow_implicit_invocation: true

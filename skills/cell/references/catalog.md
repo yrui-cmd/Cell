@@ -3,6 +3,7 @@
 - `cell-brainstorm`
 - `cell-plan`
 - `cell-review`
+- `cell-reviewer`
 - `cell-manuscript-editing`
 - `cell-reviewer-response`
 - `cell-submission`
