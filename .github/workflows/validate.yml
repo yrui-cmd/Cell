@@ -49,3 +49,19 @@ jobs:
         run: python -m pip install pytest -r plugins/cell-ppt-edited/requirements-dev.txt
       - name: Test cell-ppt-edited
         run: python -m pytest -q plugins/cell-ppt-edited/tests
+
+  cns-client:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install CNS dependencies
+        run: python -m pip install -r skills/cell-cns-figure/requirements.txt
+      - name: Test CNS option 1
+        run: python -X utf8 -m unittest discover -s skills/cell-cns-figure/backends/fig1/tests -v
+      - name: Test CNS option 2
+        run: python -X utf8 -m unittest discover -s skills/cell-cns-figure/backends/fig2/tests -v
+      - name: Test CNS native layout
+        run: python -X utf8 -m unittest discover -s skills/cell-cns-figure/native/tests -v

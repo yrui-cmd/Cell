@@ -20,6 +20,8 @@ FREE_SKILLS = {
     "cell-data-figure",
 }
 ENTRYPOINTS = (
+    ("cell-cns-figure", "backends/fig1/scripts/client.py"),
+    ("cell-cns-figure", "backends/fig2/scripts/client.py"),
     ("cell-brainstorm", "scripts/quality_gate.py"),
     ("cell-plan", "scripts/check_plan.py"),
     ("cell-plan", "scripts/check_delivery.py"),

@@ -17,3 +17,7 @@ xiaomiao_api.txt
 *.pem
 .env
 .env.*
+
+# Public credential-handling source, not customer secrets.
+!skills/cell-cns-figure/backends/*/scripts/credentials.py
+!skills/cell-cns-figure/backends/*/tests/test_credentials.py
