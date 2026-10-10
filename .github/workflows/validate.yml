@@ -63,5 +63,3 @@ jobs:
         run: python -X utf8 -m unittest discover -s skills/cell-cns-figure/backends/fig1/tests -v
       - name: Test CNS option 2
         run: python -X utf8 -m unittest discover -s skills/cell-cns-figure/backends/fig2/tests -v
-      - name: Test CNS native layout
-        run: python -X utf8 -m unittest discover -s skills/cell-cns-figure/native/tests -v

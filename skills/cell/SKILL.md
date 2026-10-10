@@ -23,7 +23,7 @@ metadata:
 | 生成、重构或审核 Python/MATLAB 科研可视化代码 | `cell-visualization-code` |
 | 用代码复现论文数据图，再替换为用户数据 | `cell-data-figure` |
 | 把参考科研图重建为可编辑 PPT 或 Illustrator 图形 | `cell_su7` |
-| 提交文字或图片，选择1号/2号方案生成可编辑PPT或Illustrator文件 | `cell-cns-figure` |
+| 提交文字或图片，选择1号/2号方案返回可编辑SVG或导入Adobe Illustrator | `cell-cns-figure` |
 | 快速编辑已打开 PowerPoint 中的原生对象 | `cell-ppt-edited` 插件 |
 
 ## 选择规则
@@ -31,7 +31,7 @@ metadata:
 1. 先判断用户要的实际产物、当前阶段以及动作是新建、更新还是分析已有成果，再选择一个主成员。局部更新不得静默升级为从零重做；只有用户的目标确实横跨阶段时才按工作依赖依次调用多个成员。
 2. 研究内容与可行性尚未定型时，先选题，再安排研究计划；已经有明确题目时直接进入研究计划。
 3. 已有英文论文需要正文润色、逻辑调整或忠实学术转写时使用 `cell-manuscript-editing`；正文定稿后需要投稿格式与材料时使用投稿整理；收到审稿意见后使用审稿回复。三者不能互相代替。
-4. `cell-visualization-code` 处理一般 Python/MATLAB 科研绘图代码规范、重构与验收；只有任务明确要求先复现参考论文图并通过门槛再换研究数据时才使用 `cell-data-figure`。`cell_su7` 处理参考图的可编辑重建；`cell-cns-figure` 接收文字、图片或图文，选择20/45额度方案并接收SVG（仅2号Pro需要一次性邀请码，具体使用规则读取成员Skill），最终生成可编辑PPT或Illustrator文件；`cell-ppt-edited` 编辑现有 PPT 原生对象。
+4. `cell-visualization-code` 处理一般 Python/MATLAB 科研绘图代码规范、重构与验收；只有任务明确要求先复现参考论文图并通过门槛再换研究数据时才使用 `cell-data-figure`。`cell_su7` 处理参考图的可编辑重建；`cell-cns-figure` 接收文字、图片或图文，选择20/45额度方案并接收SVG（仅2号Pro需要一次性邀请码，具体使用规则读取成员Skill），最终返回可编辑SVG，或按用户选择导入Adobe Illustrator；`cell-ppt-edited` 编辑现有 PPT 原生对象。
 5. 成员要求余额确认、费用授权、软件环境或文件输入时，遵循成员自身规则。总入口不替用户确认收费，也不宣称未完成的安装、生成或交付已经成功。
 
 用户明确点名成员时尊重选择；若输入与目标明显不匹配，说明具体冲突，只澄清会改变产物的部分，不静默换成员。跨阶段交接只传递必要信息：用户目标、已确认约束、当前成果路径与版本、未决事实、下一阶段启动条件。完成上一步不等于授权执行下一步、使用付费服务、上传或投稿。

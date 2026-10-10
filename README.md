@@ -74,7 +74,7 @@ python install.py
 | `cell-visualization-code` | 需要生成、重构或审核 Python Matplotlib/Seaborn 或 MATLAB 绘图代码，统一多图风格，适配 IEEE Transactions、Elsevier 等版式，或检查最终物理尺寸、矢量导出和可复现性时使用 | 不用于反向复现某篇论文的数据图、机制示意图、图片编辑或描摹矢量化 | 实际运行过的绘图代码、必要输入或输入合同、样式 profile 和目标图件 |
 | `cell-data-figure` | 有参考论文数据图，希望先用代码复现其视觉与结构，通过核验后再替换为自己的真实数据时使用 | 一般绘图代码任务使用 `cell-visualization-code`；不用于机制图、图形摘要、照片编辑或图片描摹 | 最终绘图代码、绘图前数据及 TIF/JPG/PDF 图件 |
 | `cell_su7` | 已有科研图片或获准 SVG，需要重建为可继续修改的 PowerPoint 或 Adobe Illustrator 原生图形，并恢复可编辑文字时使用 | 不用于根据摘要从零设计期刊图，也不用于普通数据绘图；识别及可选处理可能依赖外部服务、凭据和额度 | 可编辑 PPTX 或 Illustrator 图形，以及必要的矢量中间结果 |
-| `cell-cns-figure` | 提交文字、图片或图文，选择1号（20额度）或2号（45额度）制作科研图时使用 | 外部付费服务；1号适合日常使用，2号适合高嵌套文件、更注重美观 | 可编辑 PPT 或 Adobe Illustrator 文件 |
+| `cell-cns-figure` | 提交文字、图片或图文，选择1号（20额度）或2号（45额度）制作科研图时使用 | 外部付费服务；1号适合日常使用，2号适合高嵌套文件、更注重美观 | 可编辑 SVG，可选导入 Adobe Illustrator |
 | `cell-ppt-edited` | 需要快速批量修改已打开的 Windows PowerPoint 中的原生对象，包括填充、线条、字体、几何、组合、渐变、富文本和贝塞尔节点时使用 | 当前版本要求 Windows 桌面版 PowerPoint；不用于把位图重建成矢量图，也不支持 WPS/macOS PowerPoint | 保持文字、路径和版式可编辑的 PPTX |
 
 ---
@@ -107,7 +107,7 @@ Cell 不要求从第一步走到最后一步。用户在哪个阶段遇到问题
 | --- | --- |
 | 有数据或现有脚本，要编写、重构或规范 Python/MATLAB 绘图代码 | `cell-visualization-code` |
 | 有一张论文数据图，要先代码复现，再换成自己的数据 | `cell-data-figure` |
-| 有文字、图片或图文，要通过1号/2号方案制作可编辑科研图 | `cell-cns-figure` |
+| 有文字、图片或图文，要通过1号/2号方案制作SVG或导入Illustrator | `cell-cns-figure` |
 | 有现成科研图片，要重建成可编辑 PPT/Illustrator 图形 | `cell_su7` |
 | 已有 PowerPoint，要修改其中的原生文字、形状、路径或版式 | `cell-ppt-edited` |
 
