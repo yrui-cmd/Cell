@@ -1,0 +1,9 @@
+{
+  "schema_version": "synthesis-1.0",
+  "run": {
+    "as_of": "YYYY-MM-DD",
+    "mode": "live",
+    "final_checked_at": null
+  },
+  "candidates": []
+}

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "skill_version": "1.5.0",
+  "skill_version": "1.6.0",
   "topic": "",
   "question": "",
   "review_type": "critical_narrative",
@@ -23,6 +23,13 @@
     "exclusion": []
   },
   "added_value": "",
+  "argument_skeleton": {
+    "core_answer": "",
+    "difference_from_nearest_reviews": "",
+    "key_comparisons": [],
+    "competing_explanations": [],
+    "boundaries": []
+  },
   "assumptions": [],
   "amendments": [],
   "capabilities": {

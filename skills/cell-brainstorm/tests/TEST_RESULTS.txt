@@ -102,6 +102,15 @@ test_target_perturbation (test_single_model.SingleModelTests.test_target_perturb
 test_weights_normalized (test_single_model.SingleModelTests.test_weights_normalized) ... ok
 
 ----------------------------------------------------------------------
-Ran 102 tests in 11.184s
+Ran 102 v2.0 regression tests in 11.184s
 
 OK
+
+v2.1.0 delta (pytest, Conda dl, 2026-10-12):
+test_valid_synthesis_contract_passes ... ok
+test_nearest_reviews_and_primary_evidence_are_distinct_required_roles ... ok
+test_conditional_candidate_scopes_its_open_issue ... ok
+test_search_success_does_not_replace_novelty_completion ... ok
+test_five_unique_slots_are_required ... ok
+
+Full cell-brainstorm result: 109 passed in 3.28s

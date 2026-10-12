@@ -6,6 +6,8 @@
 
 由初始化模板生成。补充明确 question、scope、added_value、实际 last_search_date 和 evidence_cutoff。review_type 可选 `critical_narrative`、`scoping`、`systematic`、`meta_analysis`。
 
+`argument_skeleton` 保存可修订的 `core_answer`、`difference_from_nearest_reviews`、`key_comparisons`、`competing_explanations` 和 `boundaries`。它属于语义上下文；新证据改变其中任何判断后，旧宿主自查哈希失效。字段用于保持主线，不是预设结论或允许跳过反证检索。
+
 开始主题检索与写作前，必须从用户原话取得参考文献数量。`reference_count_confirmation.confirmed` 只有取得明确要求，或用户明确授权代定并已告知所选数值后，才能设为 `true`；`user_request` 保存对应的真实用户原话。模板的 `confirmed=false`、空原话以及上下限 `null` 是待询问状态，不能当作用户同意默认篇数。
 
 `minimum_article_count` 确认后为正整数；`maximum_article_count` 为不小于下限的整数或 `null`（无上限），布尔值不算整数。具体 N 篇为 `min=max=N`，至少 N 篇为 `min=N/max=null`，A—B 篇为 `min=A/max=B`。数量以正文实际引用且核验、去重的合格学术文章计。仅有旧版 `minimum_article_count=30` 不足以证明用户确认，须回查会话；找不到用户要求时先询问，不自动迁移为 `confirmed`。
@@ -35,7 +37,7 @@
 
 ## evidence.json
 
-顶层必须有 searches、records、claims、benchmarks、issues 五个数组和 host_self_review 对象。以下是字段说明，不是真实研究数据。不要将例子当成文献证据。
+顶层必须有 searches、records、claims、benchmarks、issues 五个数组和 host_self_review 对象。`workflow_status` 分别记录 `evidence_verification`、`benchmark_execution`、`synthesis_assessment` 和 `delivery` 的 `complete` / `partial` / `pending` 状态及一句依据；它是状态摘要，不能覆盖下方实质门槛。以下是字段说明，不是真实研究数据。不要将例子当成文献证据。
 
 ### searches[]
 

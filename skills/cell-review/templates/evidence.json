@@ -5,6 +5,12 @@
   "claims": [],
   "benchmarks": [],
   "issues": [],
+  "workflow_status": {
+    "evidence_verification": {"status": "pending", "basis": ""},
+    "benchmark_execution": {"status": "pending", "basis": ""},
+    "synthesis_assessment": {"status": "pending", "basis": ""},
+    "delivery": {"status": "pending", "basis": ""}
+  },
   "host_self_review": {
     "status": "pending",
     "checked_at": null,
