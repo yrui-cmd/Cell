@@ -1,0 +1,6 @@
+interface:
+  display_name: "Cell · 论文 PDF 翻译"
+  short_description: "保留论文版式、图表和公式的中文 PDF 翻译"
+  default_prompt: "使用 $cell-paper-translation 将我提供的英文论文指定页或全文翻译为中文图片型 PDF，并逐页检查明显内容与版式问题。"
+policy:
+  allow_implicit_invocation: true

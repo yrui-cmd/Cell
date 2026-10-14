@@ -16,6 +16,7 @@ FREE_SKILLS = {
     "cell-plan",
     "cell-review",
     "cell-reviewer",
+    "cell-paper-translation",
     "cell-reviewer-response",
     "cell-submission",
     "cell-data-figure",
@@ -26,6 +27,7 @@ ENTRYPOINTS = (
     ("cell-plan", "scripts/check_delivery.py"),
     ("cell-review", "scripts/review_tools.py"),
     ("cell-review", "scripts/delivery_gate.py"),
+    ("cell-paper-translation", "scripts/pages.py"),
     ("cell-reviewer-response", "scripts/reviewer_docs.py"),
     ("cell-submission", "scripts/preflight.py"),
     ("cell-data-figure", "scripts/figure_tools.py"),
@@ -72,4 +74,11 @@ def test_installed_data_figure_has_runtime_requirements(installed_root):
     requirements = installed_root / "cell-data-figure" / "requirements.txt"
     text = requirements.read_text(encoding="utf-8")
     for package in ("matplotlib", "numpy", "Pillow", "PyMuPDF"):
+        assert re.search(rf"(?mi)^{re.escape(package)}(?:[<>=!~].*)?$", text)
+
+
+def test_installed_paper_translation_has_runtime_requirements(installed_root):
+    requirements = installed_root / "cell-paper-translation" / "requirements.txt"
+    text = requirements.read_text(encoding="utf-8")
+    for package in ("Pillow", "PyMuPDF"):
         assert re.search(rf"(?mi)^{re.escape(package)}(?:[<>=!~].*)?$", text)

@@ -4,6 +4,7 @@
 - `cell-plan`
 - `cell-review`
 - `cell-reviewer`
+- `cell-paper-translation`
 - `cell-manuscript-editing`
 - `cell-reviewer-response`
 - `cell-submission`
