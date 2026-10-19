@@ -1,0 +1,26 @@
+{
+  "rule_id": "natal-analysis-v2",
+  "school": "月令格局线索与扶抑估算分层，不混称古籍完整公式",
+  "status": "enabled_by_default",
+  "stem_weights": [0.8, 1.0, 0.0, 0.8],
+  "branch_weights": [1.0, 2.0, 1.3, 1.0],
+  "hidden_weights": {"1": [1.0], "2": [0.7, 0.3], "3": [0.6, 0.25, 0.15]},
+  "season_factors": [1.6, 1.3, 1.0, 0.7, 0.5],
+  "weak_below": 0.42,
+  "strong_above": 0.58,
+  "sensitivity": [[0.8, 0.85], [1.0, 1.0], [1.2, 1.15]],
+  "context_weights": {"dayun": 0.6, "year": 0.35, "month": 0.25},
+  "yong_preferences": {
+    "偏弱": {"印": 2.0, "比劫": 1.0, "食伤": -1.0, "财": -1.5, "官杀": -2.0},
+    "偏强": {"印": -2.0, "比劫": -1.5, "食伤": 2.0, "财": 1.0, "官杀": 0.5},
+    "中和区间": {"印": 0.0, "比劫": 0.0, "食伤": 0.0, "财": 0.0, "官杀": 0.0}
+  },
+  "interaction_weight": 0.2,
+  "imbalance_pressure_multiplier": 2.0,
+  "element_share_adjustment": 1.0,
+  "yun_sect": 2,
+  "yun_cycles": 12,
+  "yun_convention": "实际出生瞬间至顺逆相邻节，库sect2折算起运；以起运实际时刻每十周年换运",
+  "review_flags": ["possible_special_pattern", "full_branch_formation", "stem_combination", "unstable_strength", "mixed_month_exposure"],
+  "meaning": "命盘与运势上下文的可复算民俗估算，不是流派共识或经验证预测模型"
+}

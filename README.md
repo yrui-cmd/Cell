@@ -2,7 +2,7 @@
 
 面向科研工作者的可复用 Skill 集合：从选题、研究计划和文献综述，到英文论文润色、科研绘图、投稿与返修，让每一步都基于真实材料、形成可继续使用的交付物。
 
-仓库当前包含 **1 个总入口 + 11 个成员 Skill**。不知道该选哪个时，直接使用 `cell`；目标明确时，也可以点名对应成员。
+仓库当前包含 **1 个总入口 + 12 个成员 Skill**。不知道该选哪个时，直接使用 `cell`；目标明确时，也可以点名对应成员。
 
 [快速开始](#快速开始) · [功能索引](#cell-功能索引) · [任务衔接](#skills-如何衔接) · [安装与更新](#安装与更新) · [开发与测试](#开发与测试) · [参与贡献](#参与贡献) · [联系方式](#联系方式与社区)
 
@@ -76,6 +76,7 @@ python install.py
 | `cell_su7` | 已有科研图片或获准 SVG，需要重建为可继续修改的 PowerPoint 或 Adobe Illustrator 原生图形，并恢复可编辑文字时使用 | 不用于根据摘要从零设计期刊图，也不用于普通数据绘图；识别及可选处理可能依赖外部服务、凭据和额度 | 可编辑 PPTX 或 Illustrator 图形，以及必要的矢量中间结果 |
 | `cell-cns-figure` | 提交文字、图片或图文，选择1号（20额度）或2号（45额度）制作科研图时使用 | 外部付费服务；1号适合日常使用，2号适合高嵌套文件、更注重美观 | 识别路径，可选 SVG / PowerPoint（PPTX）/ Adobe Illustrator（AI）展示 |
 | `cell-ppt-edited` | 需要快速批量修改已打开的 Windows PowerPoint 中的原生对象，包括填充、线条、字体、几何、组合、渐变、富文本和贝塞尔节点时使用 | 当前版本要求 Windows 桌面版 PowerPoint；不用于把位图重建成矢量图，也不支持 WPS/macOS PowerPoint | 保持文字、路径和版式可编辑的 PPTX |
+| `cell_sci_magic` | 科研玄学娱乐：根据出生资料排四柱，分析旺衰、格局与喜用候选、起运和大运，结合流年流月比较投稿时窗；也支持通用择时 | 民俗娱乐，不预测录用；个人资料不足时不以通用结果替代，复杂或不稳定命局标记待复核；材料完备和正式截止优先 | 个人八字与大运分析、候选时窗，或通用日期/时辰/方位；可导出 Markdown/JSON |
 
 ---
 
@@ -143,6 +144,21 @@ codex plugin add cell-ppt-edited@cell
 ```
 
 该插件当前要求 Windows 桌面版 Microsoft PowerPoint。Windows 用户也可以使用它的[独立发布版](https://github.com/yrui-cmd/cell_ppt_edited/releases)。
+
+### cell_sci_magic 独立使用
+
+`cell_sci_magic` 随 Cell 安装，也可单独复制完整的 [`skills/cell_sci_magic`](skills/cell_sci_magic) 目录到 Codex 的 skills 目录，不依赖其他 Cell 成员。首次使用先在该技能目录安装固定版本的历法依赖并检查环境：
+
+```bash
+python -m pip install -r requirements.txt
+python -X utf8 scripts/oracle.py doctor
+```
+
+```text
+使用 cell_sci_magic，给我明天的通用投稿时间，按日期、星期、时辰、时间段和位置展示。
+```
+
+需要个人八字与大运分析时，可按[独立技能说明](skills/cell_sci_magic/README.md)提供出生日期、时间、地点和排运参数。通用查询默认只给北京时间明天一天，个人未来七天查询默认从明天开始；指定日期时按用户范围执行。结果属于民俗娱乐，不代表录用概率，也不替代材料准备和正式截止。
 
 ### 外部服务与费用
 

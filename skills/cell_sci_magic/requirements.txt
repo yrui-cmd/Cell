@@ -1,0 +1,3 @@
+cnlunar==0.2.5
+lunar_python==1.4.8
+tzdata==2026.5

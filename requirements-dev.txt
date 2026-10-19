@@ -5,3 +5,4 @@ pytest>=8,<10
 -r skills/cell-brainstorm/requirements.txt
 -r skills/cell-data-figure/requirements.txt
 -r skills/cell-reviewer-response/requirements.txt
+-r skills/cell_sci_magic/requirements.txt

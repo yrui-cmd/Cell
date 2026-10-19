@@ -11,5 +11,6 @@
 - `cell_su7`
 - `cell-cns-figure`
 - `cell-ppt-edited`
+- `cell_sci_magic`
 
 此清单用于维护总入口。成员的真实能力、输入、费用、平台和完成条件以各自 `SKILL.md` 或插件说明为准。

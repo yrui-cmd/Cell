@@ -1,0 +1,26 @@
+{
+  "rule_id": "personal-bazi-v1",
+  "version": "1.0.0",
+  "status": "enabled_by_default",
+  "pillar_sect": 1,
+  "year_month": "actual_instant_CST_exact_solar_terms",
+  "day_hour": "local_apparent_solar_clock_23_day_rollover",
+  "solar_error_buffer_minutes": 2,
+  "natal_pillar_weights": [
+    1,
+    2,
+    3,
+    1
+  ],
+  "clash_penalty": 3,
+  "branch_combine_bonus": 1,
+  "stem_combine_bonus": 1,
+  "writing_god_bonus": {},
+  "exclude_candidate_day_clash_natal_day": true,
+  "order": [
+    "personal_score_desc",
+    "almanac_score_desc",
+    "datetime_asc"
+  ],
+  "meaning": "兼容冲合辅助层；主排序须结合analysis-v2的旺衰、取用与大运流年流月，不再固定奖励印星。"
+}

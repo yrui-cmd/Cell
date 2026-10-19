@@ -20,6 +20,7 @@ EXPECTED_SKILLS = {
     "cell_su7",
     "cell-cns-figure",
     "cell-ppt-edited",
+    "cell_sci_magic",
 }
 
 
@@ -67,4 +68,4 @@ def test_readme_documents_every_skill() -> None:
 
 if __name__ == "__main__":
     check_repository()
-    print("REPOSITORY_OK|skills=12|plugin=cell-ppt-edited|installer=verified|tracked_artifacts=clean")
+    print(f"REPOSITORY_OK|skills={len(EXPECTED_SKILLS)}|plugin=cell-ppt-edited|installer=verified|tracked_artifacts=clean")

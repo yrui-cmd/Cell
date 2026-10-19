@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import subprocess
@@ -18,6 +19,7 @@ FREE_SKILLS = {
     "cell-reviewer-response",
     "cell-submission",
     "cell-data-figure",
+    "cell_sci_magic",
 }
 ENTRYPOINTS = (
     ("cell-cns-figure", "backends/fig1/scripts/client.py"),
@@ -30,6 +32,9 @@ ENTRYPOINTS = (
     ("cell-reviewer-response", "scripts/reviewer_docs.py"),
     ("cell-submission", "scripts/preflight.py"),
     ("cell-data-figure", "scripts/figure_tools.py"),
+    ("cell_sci_magic", "scripts/oracle.py"),
+    ("cell_sci_magic", "scripts/personal.py"),
+    ("cell_sci_magic", "scripts/regional.py"),
 )
 LOCAL_PREFIXES = ("assets/", "config/", "prompts/", "references/", "schemas/", "scripts/", "templates/")
 
@@ -74,3 +79,15 @@ def test_installed_data_figure_has_runtime_requirements(installed_root):
     text = requirements.read_text(encoding="utf-8")
     for package in ("matplotlib", "numpy", "Pillow", "PyMuPDF"):
         assert re.search(rf"(?mi)^{re.escape(package)}(?:[<>=!~].*)?$", text)
+
+
+def test_installed_sci_magic_loads_bundled_rules_and_calendar_dependencies(installed_root):
+    script = installed_root / "cell_sci_magic" / "scripts" / "oracle.py"
+    result = subprocess.run(
+        [sys.executable, str(script), "doctor"],
+        text=True, encoding="utf-8", capture_output=True, timeout=20, check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    status = json.loads(result.stdout)
+    assert status["runtime_ready"] is True
+    assert all(dependency["ok"] for dependency in status["dependencies"].values())

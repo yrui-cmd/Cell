@@ -1,0 +1,143 @@
+{
+  "rule_id": "regions-v1",
+  "status": "enabled_by_default",
+  "version": "1.0.0",
+  "base_rule_id": "submission-v1",
+  "calendar_timezone": "Asia/Shanghai",
+  "mode": "public_event_timing_no_birth_chart",
+  "default_days": 1,
+  "local_window": [
+    "09:00",
+    "21:00"
+  ],
+  "region_order": [
+    "east",
+    "south",
+    "west",
+    "north",
+    "center"
+  ],
+  "regions": {
+    "east": {
+      "label": "东方",
+      "element": "木",
+      "provinces": [
+        "上海",
+        "江苏",
+        "浙江",
+        "安徽",
+        "福建",
+        "江西",
+        "山东",
+        "台湾"
+      ]
+    },
+    "south": {
+      "label": "南方",
+      "element": "火",
+      "provinces": [
+        "广东",
+        "广西",
+        "海南",
+        "香港",
+        "澳门"
+      ]
+    },
+    "west": {
+      "label": "西方",
+      "element": "金",
+      "provinces": [
+        "重庆",
+        "四川",
+        "贵州",
+        "云南",
+        "西藏",
+        "陕西",
+        "甘肃",
+        "青海",
+        "宁夏",
+        "新疆"
+      ]
+    },
+    "north": {
+      "label": "北方",
+      "element": "水",
+      "provinces": [
+        "北京",
+        "天津",
+        "河北",
+        "山西",
+        "内蒙古",
+        "辽宁",
+        "吉林",
+        "黑龙江"
+      ]
+    },
+    "center": {
+      "label": "中部",
+      "element": "土",
+      "provinces": [
+        "河南",
+        "湖北",
+        "湖南"
+      ]
+    }
+  },
+  "partition_origin": "project_publishing_partition_not_official_geographic_or_metaphysical_boundary",
+  "region_basis": "current_submission_location_not_birthplace_homeplace_or_journal_server",
+  "hour_element_source": "actual_hour_ganzhi_first_stem",
+  "stem_elements": {
+    "甲": "木",
+    "乙": "木",
+    "丙": "火",
+    "丁": "火",
+    "戊": "土",
+    "己": "土",
+    "庚": "金",
+    "辛": "金",
+    "壬": "水",
+    "癸": "水"
+  },
+  "generates": {
+    "木": "火",
+    "火": "土",
+    "土": "金",
+    "金": "水",
+    "水": "木"
+  },
+  "controls": {
+    "木": "土",
+    "土": "水",
+    "水": "火",
+    "火": "金",
+    "金": "木"
+  },
+  "relation_tiers": {
+    "hour_generates_region": 2,
+    "same_element": 2,
+    "region_generates_hour": 1,
+    "region_controls_hour": 1,
+    "hour_controls_region": 0
+  },
+  "qualification": {
+    "event_fit": "favorable",
+    "hour_luck": "吉",
+    "eligible": true
+  },
+  "selection": {
+    "primary": "base_window_score_desc",
+    "secondary": "regional_relation_tier_desc",
+    "display_order": "datetime_asc",
+    "retain_ties": true,
+    "add_points_to_base": false,
+    "national_list": "same_qualified_candidates_without_regional_tiebreak"
+  },
+  "precision": "two_hour_branches_clipped_only_by_explicit_real_constraints",
+  "scope_note": "通用=不结合个人生辰；不保证对所有个体都吉，不预测录用。",
+  "origin_note": "方位/干支五行对应与生克关系有传统来源；省域栏目分组及2/1/0同分排序是本包制定，非古籍投稿算法。",
+  "sources": [
+    "S6",
+    "S7",
+    "S8"
+  ]
+}

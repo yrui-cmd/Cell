@@ -1,0 +1,4 @@
+interface:
+  display_name: "cell_sci_magic｜Cell 科研玄学"
+  short_description: "实排四柱，分层估算旺衰格局与喜用，结合大运流年流月比较投稿；复杂命局存疑不强判。"
+  default_prompt: "使用 $cell_sci_magic，先补齐出生资料、传统排运参数或明确顺逆，分析旺衰、格局与喜用候选和大运，再比较未来七天投稿时间，列依据与不确定项。"

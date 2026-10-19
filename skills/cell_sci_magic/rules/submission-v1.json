@@ -1,0 +1,118 @@
+{
+  "rule_id": "submission-v1",
+  "status": "enabled_by_default",
+  "name": "Cell 科研玄学·通书取象规则",
+  "engine": "almanac-not-qimen",
+  "version": "1.0.0",
+  "calendar_timezone": "Asia/Shanghai",
+  "day_boundary": "23:00",
+  "god_type": "cnlunar",
+  "year_boundary": "lunar_new_year",
+  "hour_source": "lunar-python:getTimeTianShenLuck",
+  "local_window": [
+    "09:00",
+    "21:00"
+  ],
+  "candidate_limit_days": 93,
+  "weights": {
+    "event": {
+      "favorable": 60,
+      "neutral": 30,
+      "unfavorable": 0
+    },
+    "day": {
+      "黄道日": 15,
+      "黑道日": 0
+    },
+    "hour": {
+      "吉": 25,
+      "凶": 0
+    }
+  },
+  "events": {
+    "submission": {
+      "label": "论文投稿",
+      "proxy": "上表章",
+      "mapping": "modern_analogy",
+      "action": "核对作者、图表与附件后，完成投稿系统的最终提交"
+    },
+    "revision": {
+      "label": "提交修回",
+      "proxy": "上表章",
+      "mapping": "modern_analogy",
+      "action": "核对逐条回复、修订稿与补充材料后，完成修回提交"
+    },
+    "grant": {
+      "label": "提交基金申请",
+      "proxy": "上表章",
+      "mapping": "modern_analogy",
+      "action": "确认依托单位、预算、附件和机构内部截止，再正式提交"
+    },
+    "defense": {
+      "label": "答辩择时",
+      "proxy": "入学",
+      "mapping": "indirect_modern_analogy",
+      "action": "在委员会确认的时间内安排，备齐主张、对照和原始依据"
+    },
+    "meeting": {
+      "label": "合作会谈",
+      "proxy": "会亲友",
+      "mapping": "indirect_modern_analogy",
+      "action": "以双方可用时间为前提，带着清楚的问题和材料沟通"
+    },
+    "contract": {
+      "label": "签约择时",
+      "proxy": "立券交易",
+      "mapping": "modern_analogy",
+      "action": "先核实条款和签署权限，择时不能替代专业审查"
+    },
+    "travel": {
+      "label": "出行择时",
+      "proxy": "出行",
+      "mapping": "same_traditional_activity",
+      "action": "以交通、天气、证件与安全条件为先"
+    },
+    "moving": {
+      "label": "搬家择日",
+      "proxy": "搬移",
+      "mapping": "same_traditional_activity",
+      "action": "以交接、搬运和现实可用时间为先"
+    },
+    "experiment": {
+      "label": "实验安排取象",
+      "proxy": null,
+      "mapping": "generic_no_classical_experiment_proxy",
+      "action": "只辅助安排准备和记录；实验步骤、剂量与时长一律服从既定规程"
+    },
+    "general": {
+      "label": "一般问事择时",
+      "proxy": null,
+      "mapping": "generic_only",
+      "action": "先满足现实约束，再选一个可用时段推进事情"
+    }
+  },
+  "selection": {
+    "exclude_event_unfavorable_from_recommendations": true,
+    "order": [
+      "window_score_desc",
+      "datetime_asc"
+    ],
+    "day_score_definition": "max_of_feasible_non_unfavorable_window_scores_not_independent_day_score",
+    "retain_ties": true,
+    "default_top_dates": 3,
+    "minimum_window_minutes": 20,
+    "deadline_buffer_minutes": 30
+  },
+  "evidence_policy": {
+    "numbers_are": "fixed_project_specific_cultural_ranking_not_acceptance_probability",
+    "classical_proxy_source": "references/sources.md#s1",
+    "no_random_or_date_hash_scoring": true,
+    "no_qimen_claims_without_qimen_data": true,
+    "no_automatic_birth_chart_inference": true
+  },
+  "dependencies": {
+    "cnlunar": "0.2.5",
+    "lunar_python": "1.4.8",
+    "tzdata": "2026.5"
+  }
+}
