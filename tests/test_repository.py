@@ -18,6 +18,7 @@ EXPECTED_SKILLS = {
     "cell-visualization-code",
     "cell-data-figure",
     "cell_su7",
+    "cell_su8",
     "cell-cns-figure",
     "cell-ppt-edited",
     "cell_sci_magic",

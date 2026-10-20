@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cell · SU8 可编辑科研图"
+  short_description: "沿用 SU7 科研图重建与文字恢复，去 AI 水印改接 Pro 接口，自选 PPT 或 Illustrator"
+  default_prompt: "Use $cell_su8 to reconstruct my scientific figure with editable text in PPT or Illustrator, using the no-ai-pro API when I choose AI-watermark treatment."
