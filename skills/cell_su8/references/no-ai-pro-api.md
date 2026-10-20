@@ -10,7 +10,7 @@ Origin: `https://xiaomiao-ai.com`. Authentication: customer `Authorization: Bear
 | Live balance | GET `/api/balance` | HTTP200, `ok:true`, valid nonnegative numeric `available_credits`; at least 3 before every new upload |
 | Submit | POST `/api/no-ai-pro-jobs` | multipart single `image`; HTTP201, actual `job_id`, frozen `cost`, `source_sha256`, `canvas_px`, `expires_at` |
 | Status | GET `/api/no-ai-pro-jobs/<job_id>` | `received`, `processing`, `completed`, `failed` or `cancelled`; includes frozen `cost`; completed includes `result_sha256` |
-| Download | GET `/api/no-ai-pro-jobs/<job_id>/result` | Valid PNG bytes; `X-Xiaomiao-Charged` 1 for first settlement, 0 for repeated downloads |
+| Download | GET `/api/no-ai-pro-jobs/<job_id>/result` | Valid PNG bytes; HTTP download filename is fixed as `final.png`; `X-Xiaomiao-Charged` 1 for first settlement, 0 for repeated downloads |
 | Cancel | DELETE `/api/no-ai-pro-jobs/<job_id>` | Only for an explicit cancellation request; not automatic cleanup |
 
 The bundled CLI exposes health, balance, process and resume. Cancellation is a documented API operation, not a CLI subcommand.
@@ -19,7 +19,7 @@ IDs use `wm_` plus20 lowercase hexadecimal characters. Construct the same job's 
 
 Input: valid single-frame PNG/JPEG/WebP, at most32MiB and40,000,000pixels. Result: valid single-frame PNG, at most64MiB and40,000,000pixels, SHA matching `result_sha256`, width/height equal to the EXIF-corrected visible input dimensions. Verify the returned PNG's actual dimensions and full layout before continuing. A successful response or download does not verify removal of every hidden watermark.
 
-Billing for new jobs is 3 credits: reserved at upload, settled on first customer result download. Unconsumed reservations are released on failure, cancellation or expiry. Queue retention is24hours; claim updates processing expiry to20minutes; completion updates result expiry to15minutes. Read the latest `expires_at` while receiving. Missing/invalid balances are unavailable, never inferred. Downloaded result billing headers and real balance responses are recorded separately.
+Billing for new jobs is 3 credits: reserved at upload, settled on first customer result download. Unconsumed reservations are released on failure, cancellation or expiry. Each stage has its own 24-hour validity window: queue expiry is calculated from submission, processing lease expiry is recalculated from claim, and result download expiry is recalculated from completion. Repeated downloads and repeated result returns with the same SHA do not extend the existing expiry. Read the latest `expires_at` while receiving. Missing/invalid balances are unavailable, never inferred. Downloaded result billing headers and real balance responses are recorded separately.
 
 `X-Xiaomiao-Charged: 1` is a first-settlement flag, not the number of credits. It means this job's frozen cost was settled; `0` means a repeat download with no new settlement. Historical 1-credit and 5-credit jobs keep their original cost and reservation when resumed or downloaded. The client records the actual job cost in its state, receipt and summary and does not rewrite an existing completed receipt.
 
