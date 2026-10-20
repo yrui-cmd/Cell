@@ -137,7 +137,9 @@ def fetch(url):
         raise UpdateError("unsupported_release_origin")
     request = urllib.request.Request(url, headers={"User-Agent": "cell-su8-updater",
                                                   "Accept": "application/vnd.github+json"})
-    for proxy in (urllib.request.ProxyHandler(), urllib.request.ProxyHandler({})):
+    proxies = (urllib.request.ProxyHandler(), urllib.request.ProxyHandler({}),
+               urllib.request.ProxyHandler({}))
+    for attempt, proxy in enumerate(proxies):
         try:
             opener = urllib.request.build_opener(proxy, _NoRedirect())
             with opener.open(request, timeout=15) as response:
@@ -146,6 +148,8 @@ def fetch(url):
                 raise UpdateError("release_download_too_large")
             return data
         except (OSError, urllib.error.URLError):
+            if attempt == 0:
+                time.sleep(0.2)
             continue
     raise UpdateError("release_network_unavailable")
 

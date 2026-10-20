@@ -12,7 +12,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, call, patch
+import urllib.error
 import zipfile
 
 SOURCE = Path(__file__).resolve().parents[1] / "scripts/auto_update.py"
@@ -20,6 +21,7 @@ SPEC = importlib.util.spec_from_file_location("su8_auto_update_under_test", SOUR
 api = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(api)
 A, B = "a" * 40, "b" * 40
+REAL_FETCH = api.fetch
 
 
 def contents(label="new"):
@@ -157,6 +159,55 @@ class UpdaterTests(unittest.TestCase):
             result = self.assert_unavailable_unchanged(before)
         self.assertNotIn("private body", json.dumps(result))
         self.assertEqual(api.load_previous(self.root, self.state)["commit"], B)
+
+    def test_fetch_third_get_succeeds_after_default_and_first_direct_tls_failures(self):
+        class Response:
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                pass
+            def read(self, limit):
+                self.limit = limit
+                return b"verified fake response"
+        response = Response()
+        handlers = [object(), object(), object()]
+        openers = [Mock(), Mock(), Mock()]
+        openers[0].open.side_effect = urllib.error.URLError("simulated TLS failure")
+        openers[1].open.side_effect = OSError("simulated connection failure")
+        openers[2].open.return_value = response
+        with patch.object(api.urllib.request, "ProxyHandler", side_effect=handlers) as proxy, \
+             patch.object(api.urllib.request, "build_opener", side_effect=openers) as build, \
+             patch.object(api.time, "sleep") as sleep:
+            actual = REAL_FETCH(f"https://api.github.com/repos/{api.REPO}/commits?sha=main")
+        self.assertEqual(actual, b"verified fake response")
+        self.assertEqual(proxy.call_args_list, [call(), call({}), call({})])
+        self.assertEqual(build.call_count, 3)
+        for index, opener in enumerate(openers):
+            self.assertIs(build.call_args_list[index].args[0], handlers[index])
+            self.assertIsInstance(build.call_args_list[index].args[1], api._NoRedirect)
+            self.assertEqual(opener.open.call_count, 1)
+            self.assertEqual(opener.open.call_args.kwargs, {"timeout": 15})
+            self.assertTrue(opener.open.call_args.args[0].full_url.startswith("https://api.github.com/"))
+        sleep.assert_called_once_with(0.2)
+        self.assertEqual(response.limit, api.LIMIT + 1)
+
+    def test_three_failed_gets_fail_closed_and_preserve_installed_version(self):
+        self.seed_installed(contents("old"), B)
+        before = self.snapshot()
+        manifest = (self.state / "installed.json").read_bytes()
+        openers = [Mock(), Mock(), Mock()]
+        for opener in openers:
+            opener.open.side_effect = urllib.error.URLError("private TLS body must not be printed")
+        with patch.object(api, "fetch", side_effect=REAL_FETCH), \
+             patch.object(api.urllib.request, "build_opener", side_effect=openers) as build, \
+             patch.object(api.time, "sleep") as sleep:
+            result = self.assert_unavailable_unchanged(before)
+        self.assertEqual(build.call_count, 3)
+        self.assertTrue(all(opener.open.call_count == 1 for opener in openers))
+        self.assertEqual(result["error"], "release_network_unavailable")
+        self.assertNotIn("private TLS body", json.dumps(result))
+        self.assertEqual(manifest, (self.state / "installed.json").read_bytes())
+        sleep.assert_called_once_with(0.2)
 
     def test_corrupt_state_cannot_delete_jobs_or_any_other_user_file(self):
         self.put(contents("old"))
