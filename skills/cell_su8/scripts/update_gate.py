@@ -29,9 +29,9 @@ def enforce_latest(entry, argv=None):
     if not updater.is_file():
         raise UpdateGateError("The required Skill updater is missing; processing stopped before authentication or upload.")
     try:
-        check = subprocess.run([sys.executable, "-B", str(updater)],
+        check = subprocess.run([sys.executable, "-X", "utf8", "-B", str(updater)],
             capture_output=True, text=True, encoding="utf-8", timeout=300)
-    except (OSError, subprocess.SubprocessError):
+    except (OSError, subprocess.SubprocessError, UnicodeError):
         raise UpdateGateError("The Skill update check could not complete; processing stopped before authentication or upload.") from None
     try:
         if len(check.stdout) > 1024 * 1024:
@@ -55,7 +55,7 @@ def enforce_latest(entry, argv=None):
     environment = os.environ.copy()
     environment[RESTART_COUNT] = str(count + 1)
     try:
-        result = subprocess.run([sys.executable, "-B", str(entry), *arguments], env=environment)
-    except OSError:
+        result = subprocess.run([sys.executable, "-X", "utf8", "-B", str(entry), *arguments], env=environment)
+    except (OSError, UnicodeError):
         raise UpdateGateError("The updated Skill could not restart; processing stopped before authentication or upload.") from None
     return result.returncode

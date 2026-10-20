@@ -451,7 +451,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     root = Path(__file__).absolute().parents[1]
     result = update(root, state_directory(root), args.check)
-    print(json.dumps(result, ensure_ascii=False))
+    print(json.dumps(result, ensure_ascii=True))
     return 0 if result["status"] in {"up_to_date", "updated", "update_available"} else 1
 
 

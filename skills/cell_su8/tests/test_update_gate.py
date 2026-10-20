@@ -43,7 +43,7 @@ class GateTests(unittest.TestCase):
         with patch.object(gate.subprocess, "run", return_value=completed()) as run:
             self.assertIsNone(gate.enforce_latest(self.entry, ["--input", "图 1.png"]))
         command = run.call_args.args[0]
-        self.assertEqual(command, [sys.executable, "-B", str(SCRIPTS / "auto_update.py")])
+        self.assertEqual(command, [sys.executable, "-X", "utf8", "-B", str(SCRIPTS / "auto_update.py")])
         self.assertNotIn("--check", command)
         self.assertTrue(run.call_args.kwargs["capture_output"])
         self.assertEqual(run.call_count, 1)
@@ -71,6 +71,32 @@ class GateTests(unittest.TestCase):
                  self.assertRaises(gate.UpdateGateError):
                 gate.enforce_latest(self.entry)
 
+    def test_updater_decode_failure_is_a_fixed_closed_gate_error(self):
+        error = UnicodeDecodeError("utf-8", b"\xd6\xd0", 0, 1, "fake non-UTF locale output")
+        with patch.object(gate.subprocess, "run", side_effect=error) as run, \
+             self.assertRaisesRegex(gate.UpdateGateError, "processing stopped before authentication or upload"):
+            gate.enforce_latest(self.entry)
+        self.assertEqual(run.call_count, 1)
+
+    def test_real_updater_with_non_utf_parent_mode_can_emit_actual_chinese_json(self):
+        shutil.copy2(SCRIPTS / "update_gate.py", self.base / "update_gate.py")
+        (self.base / "auto_update.py").write_text(
+            "import json, sys\nfrom pathlib import Path\n"
+            "Path(__file__).with_name('encoding.json').write_text(json.dumps({'stdout_encoding':sys.stdout.encoding,'utf8_mode':sys.flags.utf8_mode}),encoding='utf-8')\n"
+            "print(json.dumps({'status':'up_to_date','note':'中文版本已确认'},ensure_ascii=False))\n",
+            encoding="utf-8")
+        spec = importlib.util.spec_from_file_location("su8_locale_gate", self.base / "update_gate.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        environment = os.environ.copy()
+        environment.pop("PYTHONIOENCODING", None)
+        environment["PYTHONUTF8"] = "0"
+        with patch.dict(os.environ, environment, clear=True):
+            self.assertIsNone(module.enforce_latest(self.entry, ["--image", "中文 图.png"]))
+        actual = json.loads((self.base / "encoding.json").read_text(encoding="utf-8"))
+        self.assertEqual(actual["utf8_mode"], 1)
+        self.assertEqual(actual["stdout_encoding"].lower().replace("-", ""), "utf8")
+
     def test_missing_updater_fails_before_any_child(self):
         with patch.object(gate.Path, "is_file", return_value=False), \
              patch.object(gate.subprocess, "run") as run, self.assertRaises(gate.UpdateGateError):
@@ -84,7 +110,7 @@ class GateTests(unittest.TestCase):
                  subprocess.CompletedProcess([], 19)]) as run:
             self.assertEqual(gate.enforce_latest(self.entry, arguments), 19)
         self.assertEqual(run.call_count, 2)
-        self.assertEqual(run.call_args_list[1].args[0], [sys.executable, "-B", str(self.entry), *arguments])
+        self.assertEqual(run.call_args_list[1].args[0], [sys.executable, "-X", "utf8", "-B", str(self.entry), *arguments])
         self.assertEqual(run.call_args_list[1].kwargs["env"][gate.RESTART_COUNT], "1")
 
     def test_restart_count_bounds_repeated_updates_but_never_skips_the_check(self):
