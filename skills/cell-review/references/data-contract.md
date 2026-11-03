@@ -4,7 +4,17 @@
 
 ## protocol.json
 
-由初始化模板生成。补充明确 question、scope、added_value、实际 last_search_date 和 evidence_cutoff。review_type 可选 `critical_narrative`、`scoping`、`systematic`、`meta_analysis`。
+由初始化模板生成。补充明确 question、scope、added_value、实际 last_search_date 和 evidence_cutoff。新任务的 review_type 可选 `critical`、`narrative`、`systematic`、`scoping`、`meta_analysis`；`critical_narrative` 只为读取旧任务保留，继续执行前必须澄清并迁移。
+
+开始检索与写作前，必须从用户原话取得综述类型。`review_type_confirmation.confirmed` 只有取得明确选择，或用户明确授权代定并已告知所选类型后，才能设为 `true`；`user_request` 保存对应的真实用户原话。模板的 `review_type=null`、`confirmed=false` 和空原话是待询问状态，不能当作默认采用批判性综述。类型或确认记录变化属于语义上下文变更，会使旧宿主自查哈希失效。
+
+`argument_skeleton` 保存可修订的 `core_answer`、`difference_from_nearest_reviews`、`key_comparisons`、`competing_explanations` 和 `boundaries`。它属于语义上下文；新证据改变其中任何判断后，旧宿主自查哈希失效。字段用于保持主线，不是预设结论或允许跳过反证检索。
+
+开始主题检索与写作前，必须从用户原话取得参考文献数量。`reference_count_confirmation.confirmed` 只有取得明确要求，或用户明确授权代定并已告知所选数值后，才能设为 `true`；`user_request` 保存对应的真实用户原话。模板的 `confirmed=false`、空原话以及上下限 `null` 是待询问状态，不能当作用户同意默认篇数。
+
+`minimum_article_count` 确认后为正整数；`maximum_article_count` 为不小于下限的整数或 `null`（无上限），布尔值不算整数。具体 N 篇为 `min=max=N`，至少 N 篇为 `min=N/max=null`，A—B 篇为 `min=A/max=B`。数量以正文实际引用且核验、去重的合格学术文章计。仅有旧版 `minimum_article_count=30` 不足以证明用户确认，须回查会话；找不到用户要求时先询问，不自动迁移为 `confirmed`。
+
+数量、上限或确认记录变更属于语义上下文变更，会使旧自查失效。用户改变要求时保留 amendments，再更新可行性及相关自查。脚本校验记录格式而不证明用户原话真实，宿主不得伪填。
 
 在进入正式写作前填写 `capabilities` 的显式布尔值及 `document_export` 能力列表，并完成 `article_count_feasibility`：status 为 `feasible`、`at_risk` 或 `insufficient`，同时记录真实 assessed_at 和判断依据。`null` 表示尚未检查，不能通过最终 audit；`insufficient` 表示不能按完成稿交付。
 
@@ -29,7 +39,7 @@
 
 ## evidence.json
 
-顶层必须有 searches、records、claims、benchmarks、issues 五个数组和 host_self_review 对象。以下是字段说明，不是真实研究数据。不要将例子当成文献证据。
+顶层必须有 searches、records、claims、benchmarks、issues 五个数组和 host_self_review 对象。`workflow_status` 分别记录 `evidence_verification`、`benchmark_execution`、`synthesis_assessment` 和 `delivery` 的 `complete` / `partial` / `pending` 状态及一句依据；它是状态摘要，不能覆盖下方实质门槛。以下是字段说明，不是真实研究数据。不要将例子当成文献证据。
 
 ### searches[]
 
@@ -64,6 +74,12 @@ status 可用 `completed`、`partial`、`failed`。三个 count 均为非负整�
   "year": 2024,
   "identifier": "真实 DOI、PMID、ISBN 或稳定来源定位",
   "publication_type": "original_research",
+  "study_design": {
+    "category": "unverified",
+    "verified": false,
+    "basis": "",
+    "locator": ""
+  },
   "publication_status": "published",
   "screening_status": "included",
   "screening_reason": "根据预定标准纳入的实际理由",
@@ -115,6 +131,12 @@ status 可用 `completed`、`partial`、`failed`。三个 count 均为非负整�
 ```
 
 `citation_number=null` 表示内部记录但不列入最终书目。`screening_status` 可为 included、excluded、awaiting_full_text、context_only。排除记录要有理由；只读摘要不应伪填全文状态。`study_id` 是报告关联，不自动意味着样本独立。
+
+`study_design.category` 可为 `experimental`、`observational`、`computational`、`theoretical`、`evidence_synthesis`、`other`、`unverified`。`verified` 是真实布尔值；核实后填写 `basis`（具体设计与分类依据）和 `locator`（实际方法、结果、图表或补充材料位置）。未核实不计入实验分子，仍保留在有效文章分母。`experimental` 仅用于原创实际实验或干预，需与 `publication_type` 相容；综述和Meta分析不因涉及实验结果而成为实验文章。混合研究记录相关实验部分的依据。程序核对记录结构与比例，分类真实性由宿主读源文核实。
+
+在正式检索前，按研究问题与用户要求记录 `reference_composition_policy`：`experimental75` 用于实验主题或用户明确要求75%的任务，保留实验文献至少75%的门槛；`domain_specific` 用于理论、计算、观察等问题，记录实际适用的 `target_designs`，不强加实验比例；`prespecified` 用于正式系统综述、范围综述或Meta分析，按预定纳入标准记录目标设计，不为配比排除合格研究。新任务必须填写模式、依据 `basis` 与统计单位；非实验比例模式将 `minimum_experimental_percent` 设为null。不得在看到比例不足后为放行而改策略。问题、用户明确要求或纳入标准确实改变时，保存变更理由并重做受影响的证据选择与自查；用户明确配比与纳入标准冲突时先说明冲突，不擅自改变任一要求。各模式均保留去重、真实分类、主张支持与反证覆盖；无适用原始研究不能靠空书目通过。
+
+`unit` 固定为 `unique_eligible_articles_actually_cited`。experimental75的minimum_experimental_percent为75；其他模式为null，target_designs是experimental/observational/computational/theoretical/other中适用类型的非空不重复列表。basis记研究问题或预定纳入标准的具体依据。旧协议缺mode但仍记录75和统计单位时按旧experimental75合同读取；新建模板mode为null，必须判定后填写。策略变化纳入语义上下文哈希，旧自查失效。
 
 publication_status 可为 published、preprint、corrected、retracted、expression_of_concern、unknown。原始来源可能没有 DOI、确切年份或作者，保留真实不确定性，不补造。
 
@@ -203,19 +225,19 @@ issue 的等级根据其对研究判断、综述方法及目标期刊要求满�
 
 ### host_self_review
 
-使用模板中的十项自查。只有宿主实际检查后才能全设为 true。status 改为 completed，checked_at 为真实日期；用 `hash` 子命令获得内部 `_work/review.md` 的 SHA-256 后写入 `review_sha256`，用 `context-hash` 子命令获得当前问题、范围、证据、主张与开放问题的语义上下文哈希，写入 `semantic_context_sha256`，并保留模板中的 `context_hash_version`。脚本不自动把这些字段设为已完成。
+使用模板中的十三项自查，包括 `abstract_conclusions_informative`（摘要结论与信息价值）和 `reader_gain_checked`（正文带来的具体理解），以及 `constructive_closings_checked`（段落结论的语义分类、实际比例与证据复核）。结论比例的段落记录保存在内部 notes.md；未达目标时记录具体证据原因，该检查项完成不代表强制把比例改到达标。只有宿主实际检查后才能全设为 true。status 改为 completed，checked_at 为真实日期；用 `hash` 子命令获得内部 `_work/review.md` 的 SHA-256 后写入 `review_sha256`，用 `context-hash` 子命令获得当前问题、范围、证据、主张与开放问题的语义上下文哈希，写入 `semantic_context_sha256`，并保留模板中的 `context_hash_version`。脚本不自动把这些字段设为已完成。
 
 该自查是当前宿主自查，不是独立评审。正文变化会使 review_sha256 失效；问题边界、检索语义、关键证据、提取、主张关系或开放问题变化会使 semantic_context_sha256 失效。纯运行日志和操作时间不参与语义哈希。旧任务没有语义哈希时进入待复核状态，不能默认沿用旧自查；无需为了哈希而把临时来源和隐私文本传到外部。
 
 ## v1.1.0 最终交付字段（向后兼容的数据契约扩展）
 
-`protocol.output_format` 固定为 `docx`；`output_file` 为任务根目录下单个 `.docx` 文件名，不得包含目录跳转。`minimum_article_count` 默认 30，可以提高但不能低于 30。`output_citation_style` 为 `numeric` 或 `custom`。内部正文统一保存在 `_work/review.md`。
+`protocol.output_format` 固定为 `docx`；`output_file` 为任务根目录下单个 `.docx` 文件名，不得包含目录跳转。自 v1.5.0 起数量必须先经用户确认，按本文件开头的上下限契约验收，不再默认 30。`output_citation_style` 为 `numeric` 或 `custom`。内部正文统一保存在 `_work/review.md`。
 
 `records[].article_id` 将同一文章的预印本、正式版等版本关联，不能与 `study_id` 混淆。计数仍会用规范化稳定标识和标题交叉去重；不同 `article_id` 不能让同一文章重复计数。`publication_type` 使用真实类型；允许计数的值见最终门槛规范。文章应有明确相关性（`extraction.role_in_review`）和指向正文实际主张的已核验 `claims[].links`，不能仅附一个书目编号。
 
 `delivery_review` 使用模板中的新对象。只有真实完成 Word 内容与排版复核后才能把 checks 标为 true；source_sha256 绑定当前内部稿，docx_sha256 绑定当前 Word。记录真实 checked_at、page_count、pages_inspected 和实际 preview_locator，预览所有页面而不是只看首页。`citation_map` 仅在最终样式非数值型时必需：每项包含 `ref_id`、`marker`、`body_excerpt`、`reference_excerpt`；后二者必须逐字存在于 Word 正文和参考文献部分，body_excerpt 包含真实 marker 和至少一句登记的主张；reference_excerpt 包含文章完整标题。详见 `word-and-reference-gate.md`。
 
-文献数不足 30 的情形通过 issues 记录为 core（例如 `insufficient_articles`），并在稿件/交付语句明确未完成。不能靠删除问题记录让 final gate 放行；final gate 独立重数。
+文献数不足确认下限或超过确认上限的情形通过 issues 记录为 core（例如 `article_count_mismatch`），并在稿件/交付语句明确未完成。不能靠删除问题记录让 final gate 放行；final gate 独立重数。用户明确修改数量后，再按新要求更新记录和复核，不得由宿主擅自调门槛。
 
 ## v1.3.0 证据上下文与最终 Word 扩展
 

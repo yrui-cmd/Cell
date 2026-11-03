@@ -163,5 +163,54 @@ class FigureDeliveryTests(unittest.TestCase):
         self.assertEqual({path.name for path in destination.iterdir()}, set(audit["artifacts"]))
 
 
+
+    def make_outlined_figure(self):
+        from matplotlib.figure import Figure
+        from matplotlib.textpath import TextPath
+        from matplotlib.patches import PathPatch
+        figure = Figure(figsize=(2, 1.5))
+        axis = figure.add_axes([0, 0, 1, 1])
+        axis.set_axis_off()
+        axis.set_xlim(0, 2)
+        axis.set_ylim(0, 1.5)
+        axis.plot([0.3, 1.7], [0.4, 1.0])
+        axis.add_patch(PathPatch(TextPath((0.2, 0.1), 'Group A', size=0.15), color='black'))
+        export_triplet(figure, self.stage / 'figure', dpi=self.dpi)
+
+    def test_outlined_vectors_pass_only_when_explicitly_allowed(self):
+        self.make_outlined_figure()
+        with self.assertRaisesRegex(ValueError, 'text/font objects'):
+            self.audit()
+        result = inspect_stage(self.stage, ['plot_data.csv'], ['figure'], self.dpi, 'allow_outlines')
+        details = result['figures']['figure']
+        self.assertGreater(details['pdf_vector_objects'], 0)
+        self.assertEqual(details['pdf_embedded_image_count'], 0)
+        self.assertFalse(details['text_searchable'])
+        self.assertEqual(details['font_policy'], 'allow_outlines')
+
+    def test_outline_publish_requires_matching_policy_and_requirement(self):
+        self.make_outlined_figure()
+        gate, _ = self.create_gate()
+        audit = inspect_stage(self.stage, ['plot_data.csv'], ['figure'], self.dpi, 'allow_outlines')
+        review = {'kind': 'final_delivery_review', 'artifacts': audit['artifacts'],
+            'actual_formats_inspected': ['tif', 'jpg', 'pdf'], 'unresolved': [],
+            'checks': observations(FINAL_CHECKS), 'rerun': {'isolated_code_and_data_only': True,
+                'exit_code': 0, 'outputs_match': True, 'command': 'python plot.py'}}
+        path = self.root / 'outlined-review.json'
+        args = SimpleNamespace(stage=self.stage, destination=self.root / 'outlined-final', gate=[gate],
+            review=path, data=['plot_data.csv'], figures=['figure'], dpi=self.dpi, font_policy='allow_outlines')
+        path.write_text(json.dumps(review), encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'font policy differs'):
+            command_publish(args)
+        review['font_policy'] = 'allow_outlines'
+        path.write_text(json.dumps(review), encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'font_policy_basis'):
+            command_publish(args)
+        review['font_policy_basis'] = 'SYNTHETIC explicit requirement to outline labels.'
+        path.write_text(json.dumps(review), encoding='utf-8')
+        result = command_publish(args)
+        self.assertTrue(Path(result['published']).is_dir())
+
+
 if __name__ == "__main__":
     unittest.main()

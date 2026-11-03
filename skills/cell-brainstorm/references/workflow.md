@@ -12,7 +12,7 @@
 | 第5步 | S10.validation | minimum_validation、prediction_matrix、premortem |
 | 第6步 | S11–S13 | audit_bundle、final_report、sensitivity、freshness、snapshot |
 
-原S10拆成两个可见步骤，内部仍属于一个设计阶段。新版本输入必用2.0 schema。小型宿主可把同阶段记录合并为JSON文件，保留字段及来源定位；只存可核对结果，不存私有思维链。
+原S10拆成两个可见步骤，内部仍属于一个设计阶段。原始研究新任务使用2.0；证据综合新任务使用synthesis-1.1，按evidence-synthesis.md执行，不能把二者互套。小型宿主可把同阶段记录合并为JSON文件，保留字段及来源定位；只存可核对结果，不存私有思维链。
 
 ## 第1步｜界定范围与首轮候选
 输入：原始请求、用户可用资料、宿主工具。
@@ -62,7 +62,7 @@
 通过：可以据方案解释不同结果；未执行不编造结果，最小试验不是附加实验权限。
 
 ## 第6步｜门禁、五题、复查与交付
-输入：schema2.0完整audit_bundle及实际工具记录。
+输入：原始研究用schema2.0 audit_bundle；证据综合用synthesis-1.1审计记录。两者都保留实际工具记录，各自按适用合同校验与排版。
 1. S11先原有八项底线和检查，再三道科学门：knowledge_gain、answerability、feasibility。pass/conditional/fail，任一fail不能靠总分抵消；未知不强行作fail或pass。只有方案的假说尚未验证不构成自动失败。
 2. 保留N/V/F/T/E与原固定权重。F以P1而非P0为准；T按研究类型评可回答性。代码固定门禁、排序、同分、去重，不能验证科学语义。新字段校验防未查新版本、资源矛盾、假执行和无质量解释的结果分支。
 3. question_key按对象/条件/核心未知/回答标准去重，同gap上限2；不是按标题或技术相异填五题。检查五题共同依赖的未证前提，共享资源不扣分。先合格、后条件性、不足留空位。

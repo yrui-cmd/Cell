@@ -23,6 +23,13 @@ class ReviewAuditTests(unittest.TestCase):
         self.run = rt.init_review("SYNTHETIC TEST TOPIC — NOT A REAL REVIEW", Path(self.tmp.name))
         self.protocol = rt.read_json(self.run / "_work" / "protocol.json")
         self.protocol.update(question="Synthetic test question", added_value="Test-only value", last_search_date="2026-09-27")
+        self.protocol.update(
+            review_type="critical",
+            review_type_confirmation={"confirmed": True, "user_request": "Critical review (synthetic fixture)."},
+            minimum_article_count=1, maximum_article_count=None,
+            reference_count_confirmation={"confirmed": True, "user_request": "At least 1 reference (synthetic fixture)."},
+        )
+        self.protocol["reference_composition_policy"] = {"mode": "experimental75", "minimum_experimental_percent": 75, "unit": "unique_eligible_articles_actually_cited", "basis": "Synthetic experimental test topic."}
         self.protocol["capabilities"].update(
             web_search=True, full_text_access=True, local_execution=True,
             document_export=["docx", "page_preview"],
@@ -49,6 +56,11 @@ class ReviewAuditTests(unittest.TestCase):
             "id": "R001", "study_id": "S001", "citation_number": 1,
             "title": "Synthetic test reference", "authors": ["Test Author"], "year": 2024,
             "identifier": "TEST-ONLY-ID", "publication_type": "original_research",
+            "study_design": {
+                "category": "experimental", "verified": True,
+                "basis": "Synthetic experimental design fixture only; not a real study.",
+                "locator": "Synthetic Methods and Results fixture",
+            },
             "publication_status": "published", "screening_status": "included", "screening_reason": "test only",
             "reading": {"abstract_read": True, "full_text_read": True, "key_figures_checked": False, "supplements_checked": False},
             "metadata_check": {"status": "verified", "checked_at": "2026-09-27", "source": "synthetic fixture", "fields_checked": ["title", "authors", "year", "identifier"]},
@@ -107,6 +119,93 @@ class ReviewAuditTests(unittest.TestCase):
         result = rt.audit_review(fresh)
         self.assertEqual(result["status"], "NEEDS_REVISION")
         self.assertFalse((fresh / "_work" / "review.md").exists())
+        protocol = rt.read_json(fresh / "_work" / "protocol.json")
+        self.assertIsNone(protocol["review_type"])
+        self.assertIs(protocol["review_type_confirmation"]["confirmed"], False)
+        self.assertIsNone(protocol["minimum_article_count"])
+        self.assertIsNone(protocol["maximum_article_count"])
+        self.assertIs(protocol["reference_count_confirmation"]["confirmed"], False)
+
+    def test_legacy_count_without_confirmation_is_not_authorized(self):
+        self.protocol["minimum_article_count"] = 30
+        self.protocol.pop("reference_count_confirmation")
+        self.assert_error("explicit user confirmation required")
+
+    def test_review_type_requires_explicit_confirmation(self):
+        for confirmation in (None, [], {"confirmed": False, "user_request": ""},
+                             {"confirmed": 1, "user_request": "Critical"},
+                             {"confirmed": True, "user_request": "  "},
+                             {"confirmed": True, "user_request": 1}):
+            with self.subTest(confirmation=confirmation):
+                self.protocol["review_type_confirmation"] = confirmation
+                self.assert_error("review_type_confirmation")
+
+    def test_review_type_must_be_selected_and_current(self):
+        for review_type in (None, "", "critical_narrative", "unknown"):
+            with self.subTest(review_type=review_type):
+                self.protocol["review_type"] = review_type
+                self.assert_error("protocol.review_type")
+
+    def test_supported_review_types_are_accepted(self):
+        for review_type in ("critical", "narrative"):
+            with self.subTest(review_type=review_type):
+                self.protocol["review_type"] = review_type
+                self.assertEqual(self.audit()["errors"], [])
+
+    def test_reference_count_confirmation_must_be_explicit(self):
+        for confirmation in (None, [], {"confirmed": False, "user_request": ""},
+                             {"confirmed": 1, "user_request": "At least 1"},
+                             {"confirmed": True, "user_request": "  "},
+                             {"confirmed": True, "user_request": 1}):
+            with self.subTest(confirmation=confirmation):
+                self.protocol["reference_count_confirmation"] = confirmation
+                self.assert_error("reference_count_confirmation")
+
+    def test_invalid_reference_count_bounds_block_audit(self):
+        for minimum, maximum in ((None, None), (True, None), (False, None),
+                                 (0, None), (-1, None), ("30", None), (1.5, None),
+                                 (1, True), (1, False), (1, 0), (1, -1),
+                                 (1, "5"), (1, 1.5), (5, 4)):
+            with self.subTest(minimum=minimum, maximum=maximum):
+                self.protocol.update(minimum_article_count=minimum, maximum_article_count=maximum)
+                self.assert_error("article_count")
+
+    def test_confirmed_reference_bounds_do_not_have_global_30_floor(self):
+        for minimum, maximum in ((1, 1), (5, 8), (2, None), (30, None)):
+            with self.subTest(minimum=minimum, maximum=maximum):
+                self.protocol.update(minimum_article_count=minimum, maximum_article_count=maximum)
+                self.assertEqual(self.audit()["errors"], [])
+
+    def test_reference_count_and_confirmation_changes_invalidate_semantic_review(self):
+        mutations = (
+            ("minimum_article_count", 2), ("maximum_article_count", 3),
+            ("reference_count_confirmation", {"confirmed": True, "user_request": "Reconfirmed at least 1 reference."}),
+            ("reference_count_confirmation", {"confirmed": False, "user_request": "At least 1 reference."}),
+        )
+        original = copy.deepcopy(self.protocol)
+        for field, value in mutations:
+            with self.subTest(field=field, value=value):
+                self.protocol = copy.deepcopy(original)
+                self.save()
+                self.protocol[field] = value
+                self.save(refresh_hash=False)
+                result = rt.audit_review(self.run)
+                self.assertTrue(any("semantic context hash" in e for e in result["errors"]), result)
+
+    def test_review_type_and_confirmation_changes_invalidate_semantic_review(self):
+        mutations = (
+            ("review_type", "narrative"),
+            ("review_type_confirmation", {"confirmed": True, "user_request": "Narrative review."}),
+        )
+        original = copy.deepcopy(self.protocol)
+        for field, value in mutations:
+            with self.subTest(field=field, value=value):
+                self.protocol = copy.deepcopy(original)
+                self.save()
+                self.protocol[field] = value
+                self.save(refresh_hash=False)
+                result = rt.audit_review(self.run)
+                self.assertTrue(any("semantic context hash" in e for e in result["errors"]), result)
 
     def test_empty_topic_rejected(self):
         with self.assertRaises(ValueError):
@@ -205,6 +304,9 @@ class ReviewAuditTests(unittest.TestCase):
 
     def test_formal_review_cannot_pass_with_empty_methods(self):
         self.protocol["review_type"] = "systematic"
+        self.protocol["review_type_confirmation"] = {
+            "confirmed": True, "user_request": "Systematic review (synthetic fixture)."
+        }
         self.assert_error("Formal review methods are not completed")
 
     def test_custom_style_not_falsely_certified(self):

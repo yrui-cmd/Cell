@@ -12,6 +12,8 @@ EXPECTED_SKILLS = {
     "cell-brainstorm",
     "cell-plan",
     "cell-review",
+    "cell-reviewer",
+    "cell-paper-translation",
     "cell-manuscript-editing",
     "cell-reviewer-response",
     "cell-submission",
@@ -65,6 +67,18 @@ def test_readme_documents_every_skill() -> None:
     section = readme.split("## Cell 功能索引", 1)[1].split("\n## ", 1)[0]
     documented = set(re.findall(r"^\| `(cell(?:[-_][a-z0-9]+)*)` \|", section, re.MULTILINE))
     assert documented == EXPECTED_SKILLS
+
+
+def test_adapted_skills_preserve_upstream_license_and_notice() -> None:
+    for name in ("cell-reviewer", "cell-paper-translation"):
+        skill = ROOT / "skills" / name
+        license_text = (skill / "LICENSE").read_text(encoding="utf-8")
+        notice = (skill / "NOTICE").read_text(encoding="utf-8")
+
+        assert "Apache License" in license_text
+        assert "Version 2.0" in license_text
+        assert "Yuan1z0825/nature-skills" in notice
+        assert "no endorsement" in notice.lower()
 
 
 if __name__ == "__main__":

@@ -37,3 +37,14 @@ python scripts/render_report.py --input RUN/results/demo.json --output RUN/resul
 
 ## 降级与授权
 没有联网时只能按已有证据探索，并在正文一句说明未完成当日查新；没有脚本时由宿主按合同核对，不谎报测试成功。资源未知继续形成有明确条件的候选；根本没有研究主题才问一句。不能自动购买、申请审批、访问未授权数据或执行实验。
+
+## 证据综合分支（新任务synthesis-1.1）
+
+前面的quality_gate/weight_sensitivity只用于原始研究。证据综合按references/evidence-synthesis.md填写brief、sources与四段report_sections，执行：
+
+```bash
+python scripts/synthesis_gate.py RUN/synthesis_audit.json
+python scripts/render_report.py --input RUN/synthesis_audit.json --output RUN/final_report.md
+```
+
+0—5个候选均可，render补足五个展示位置。显式vacant只需id/status/reason；fail不作为推荐题输出。结构门槛和渲染每次读取当前同一份输入，修改后重新运行。旧synthesis-1.0仅供记录校验；渲染前补齐1.1字段，不能编造来源。

@@ -24,6 +24,10 @@ class DeliveryGateTests(unittest.TestCase):
         self.base.setUp()
         self.addCleanup(self.base.doCleanups)
         self.run, self.protocol, self.ledger = self.base.run, self.base.protocol, self.base.ledger
+        self.protocol.update(
+            minimum_article_count=30, maximum_article_count=None,
+            reference_count_confirmation={'confirmed': True, 'user_request': 'At least 30 references (synthetic fixture).'},
+        )
         self.source_record = copy.deepcopy(self.ledger['records'][0])
         self.claim_text = self.ledger['claims'][0]['text']
         self.make_articles(30)
@@ -121,20 +125,153 @@ class DeliveryGateTests(unittest.TestCase):
         self.save()
         self.assertEqual(gate.validate_delivery(self.run)['status'], 'DELIVERY_CHECKS_PASSED')
 
+    def test_experimental_ratio_is_enforced_in_final_word(self):
+        self.make_articles(32)
+        for r in self.ledger['records'][24:]:
+            r['publication_type'] = 'review'
+            r['study_design']['category'] = 'evidence_synthesis'
+        self.save()
+        result = gate.validate_delivery(self.run)
+        self.assertEqual(result['status'], 'DELIVERY_CHECKS_PASSED', result)
+        self.assertEqual(result['counts']['unique_experimental_articles'], 24)
+        self.assertEqual(result['counts']['experimental_percentage'], 75.0)
+        self.ledger['records'][23]['study_design']['category'] = 'observational'
+        self.save()
+        result = self.check('Experimental articles must be at least 75%')
+        self.assertEqual(result['counts']['required_experimental_articles'], 24)
+
+    def test_uncited_experiments_do_not_raise_final_word_ratio(self):
+        self.make_articles(32)
+        for r in self.ledger['records'][24:]:
+            r['study_design']['category'] = 'observational'
+        excerpt = f'{self.claim_text}[2–32]'
+        for link in self.ledger['claims'][0]['links']:
+            link['word_excerpt'] = excerpt
+        self.save(body=self.body.replace('[1–32]', '[2–32]'))
+        result = self.check('Experimental articles must be at least 75%')
+        self.assertEqual(result['reference_composition']['experimental_articles'], 23)
+        self.assertEqual(result['reference_composition']['unique_articles'], 31)
+
+    def test_missing_design_record_does_not_silently_pass(self):
+        self.ledger['records'][0].pop('study_design')
+        self.save()
+        self.check('study_design classification record required')
+
+    def test_design_change_invalidates_previous_content_review(self):
+        self.save()
+        self.ledger['records'][0]['study_design']['category'] = 'observational'
+        self.flush()
+        self.check('semantic context hash')
+
+    def test_composition_policy_cannot_be_lowered_or_removed(self):
+        for policy in (None, {}, {'minimum_experimental_percent': 50,
+                                  'unit': 'unique_eligible_articles_actually_cited'}):
+            with self.subTest(policy=policy):
+                self.protocol['reference_composition_policy'] = policy
+                self.save()
+                self.check('reference_composition_policy')
+
+    def test_information_value_self_review_items_required(self):
+        for key in ('abstract_conclusions_informative', 'reader_gain_checked', 'constructive_closings_checked'):
+            self.save()
+            self.ledger['host_self_review']['checks'][key] = False
+            self.flush()
+            self.check(key)
+            self.ledger['host_self_review']['checks'][key] = True
+
     def test_29_articles_blocked(self):
         self.make_articles(29)
         self.save()
         self.check('found 29')
 
-    def test_floor_cannot_be_lowered(self):
-        self.protocol['minimum_article_count'] = 1
+    def test_legacy_default_without_user_confirmation_is_blocked(self):
+        self.protocol.pop('reference_count_confirmation')
         self.save()
-        self.check('lowering the gate')
+        result = self.check('explicit user confirmation required')
+        self.assertIsNone(result['counts']['minimum_articles'])
 
-    def test_boolean_is_not_article_floor(self):
-        self.protocol['minimum_article_count'] = True
+    def test_pending_or_empty_user_confirmation_is_blocked(self):
+        for confirmation in (None, [], {'confirmed': False, 'user_request': ''},
+                             {'confirmed': 1, 'user_request': '30 references'},
+                             {'confirmed': True, 'user_request': '  '},
+                             {'confirmed': True, 'user_request': 30}):
+            with self.subTest(confirmation=confirmation):
+                self.protocol['reference_count_confirmation'] = confirmation
+                self.save()
+                result = self.check('reference_count_confirmation')
+                self.assertIsNone(result['counts']['minimum_articles'])
+
+    def test_invalid_reference_count_bounds_do_not_fall_back_to_30(self):
+        for minimum, maximum in ((None, None), (True, None), (False, None),
+                                 (0, None), (-1, None), ('30', None), (1.5, None),
+                                 (1, True), (1, False), (1, 0), (1, -1),
+                                 (1, '5'), (1, 1.5), (5, 4)):
+            with self.subTest(minimum=minimum, maximum=maximum):
+                self.protocol.update(minimum_article_count=minimum, maximum_article_count=maximum)
+                self.save()
+                result = self.check('article_count')
+                self.assertIsNone(result['counts']['minimum_articles'])
+                self.assertIsNone(result['counts']['maximum_articles'])
+
+    def test_explicit_one_article_requirement_passes(self):
+        self.protocol.update(
+            minimum_article_count=1, maximum_article_count=1,
+            reference_count_confirmation={'confirmed': True, 'user_request': 'Exactly 1 reference.'},
+        )
+        self.make_articles(1)
         self.save()
-        self.check('integer >=30')
+        result = gate.validate_delivery(self.run)
+        self.assertEqual(result['status'], 'DELIVERY_CHECKS_PASSED', result)
+        self.assertEqual(result['counts']['unique_eligible_articles'], 1)
+
+    def test_exact_requirement_rejects_excess_articles(self):
+        self.protocol.update(
+            minimum_article_count=10, maximum_article_count=10,
+            reference_count_confirmation={'confirmed': True, 'user_request': 'Exactly 10 references.'},
+        )
+        self.make_articles(11)
+        self.save()
+        self.check('At most 10')
+
+    def test_range_boundaries_are_enforced(self):
+        self.protocol.update(
+            minimum_article_count=10, maximum_article_count=12,
+            reference_count_confirmation={'confirmed': True, 'user_request': '10 to 12 references.'},
+        )
+        for count in (9, 10, 11, 12, 13):
+            with self.subTest(count=count):
+                self.make_articles(count)
+                self.save()
+                result = gate.validate_delivery(self.run)
+                if 10 <= count <= 12:
+                    self.assertEqual(result['status'], 'DELIVERY_CHECKS_PASSED', result)
+                else:
+                    self.check('At least 10' if count < 10 else 'At most 12')
+
+    def test_at_least_requirement_allows_excess_articles(self):
+        self.protocol.update(
+            minimum_article_count=5, maximum_article_count=None,
+            reference_count_confirmation={'confirmed': True, 'user_request': 'At least 5 references.'},
+        )
+        self.make_articles(7)
+        self.save()
+        result = gate.validate_delivery(self.run)
+        self.assertEqual(result['status'], 'DELIVERY_CHECKS_PASSED', result)
+        self.assertIsNone(result['counts']['maximum_articles'])
+
+    def test_changed_count_or_confirmation_invalidates_previous_self_review(self):
+        original = copy.deepcopy(self.protocol)
+        for field, value in (
+            ('minimum_article_count', 20), ('maximum_article_count', 35),
+            ('reference_count_confirmation', {'confirmed': True, 'user_request': 'Reconfirmed at least 30 references.'}),
+        ):
+            with self.subTest(field=field):
+                self.protocol.clear()
+                self.protocol.update(copy.deepcopy(original))
+                self.save()
+                self.protocol[field] = value
+                self.flush()
+                self.check('semantic context hash')
 
     def test_higher_user_minimum_honored(self):
         self.protocol['minimum_article_count'] = 40
@@ -201,6 +338,7 @@ class DeliveryGateTests(unittest.TestCase):
 
     def test_review_articles_are_valid_article_type(self):
         self.ledger['records'][-1]['publication_type'] = 'review'
+        self.ledger['records'][-1]['study_design']['category'] = 'evidence_synthesis'
         self.save()
         self.assertEqual(gate.validate_delivery(self.run)['status'], 'DELIVERY_CHECKS_PASSED')
 
@@ -315,6 +453,45 @@ class DeliveryGateTests(unittest.TestCase):
         self.save()
         self.assertEqual(rt.audit_review(self.run)['status'], 'RECORDS_CONSISTENT')
         self.check('found 29')
+
+
+
+    def test_theoretical_review_passes_recorded_domain_policy(self):
+        self.protocol['reference_composition_policy'] = {
+            'mode': 'domain_specific', 'minimum_experimental_percent': None,
+            'unit': 'unique_eligible_articles_actually_cited', 'target_designs': ['theoretical'],
+            'basis': 'Synthetic theory question, classified before evidence work.'}
+        for record in self.ledger['records']:
+            record['study_design']['category'] = 'theoretical'
+        self.save()
+        result = gate.validate_delivery(self.run)
+        self.assertEqual(result['status'], 'DELIVERY_CHECKS_PASSED', result['errors'])
+        self.assertEqual(result['counts']['unique_experimental_articles'], 0)
+        self.assertIsNone(result['counts']['required_experimental_articles'])
+
+    def test_prespecified_observational_review_passes_without_quota(self):
+        self.protocol['reference_composition_policy'] = {
+            'mode': 'prespecified', 'minimum_experimental_percent': None,
+            'unit': 'unique_eligible_articles_actually_cited', 'target_designs': ['observational'],
+            'basis': 'Synthetic prespecified inclusion permits observational studies.'}
+        self.protocol.update(review_type='systematic', review_type_confirmation={
+            'confirmed': True, 'user_request': 'Synthetic systematic review request.'})
+        self.protocol['formal_methods'].update(completed=True, guidance_sources=['SYNTHETIC guidance'],
+            checks={key: True for key in rt.FORMAL_CHECKS})
+        for record in self.ledger['records']:
+            record['study_design']['category'] = 'observational'
+        self.save()
+        result = gate.validate_delivery(self.run)
+        self.assertEqual(result['status'], 'DELIVERY_CHECKS_PASSED', result['errors'])
+
+    def test_changing_evidence_policy_invalidates_semantic_review(self):
+        self.save()
+        self.protocol['reference_composition_policy'] = {
+            'mode': 'domain_specific', 'minimum_experimental_percent': None,
+            'unit': 'unique_eligible_articles_actually_cited', 'target_designs': ['experimental'],
+            'basis': 'Synthetic changed scope requires a fresh host review.'}
+        self.flush()
+        self.check('semantic context hash')
 
 
 if __name__ == '__main__':

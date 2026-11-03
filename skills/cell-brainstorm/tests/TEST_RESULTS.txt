@@ -1,3 +1,4 @@
+
 test_abstract_closest_work_conditional (test_core.CoreTests.test_abstract_closest_work_conditional) ... ok
 test_boolean_not_accepted_as_numeric_score (test_core.CoreTests.test_boolean_not_accepted_as_numeric_score) ... ok
 test_demo_never_claims_pass (test_core.CoreTests.test_demo_never_claims_pass) ... ok
@@ -33,6 +34,8 @@ test_analogy_target_cannot_be_known (test_final.EnhancedTests.test_analogy_targe
 test_author_not_invented (test_final.EnhancedTests.test_author_not_invented) ... ok
 test_confirmed_constraint_needs_reference (test_final.EnhancedTests.test_confirmed_constraint_needs_reference) ... ok
 test_description_not_rejected_for_lack_of_causality (test_final.EnhancedTests.test_description_not_rejected_for_lack_of_causality) ... ok
+test_duplicate_assumption_statement_rejected (test_final.EnhancedTests.test_duplicate_assumption_statement_rejected) ... ok
+test_essential_assumption_must_exist_in_ledger (test_final.EnhancedTests.test_essential_assumption_must_exist_in_ledger) ... ok
 test_exact_five_memo_sections (test_final.EnhancedTests.test_exact_five_memo_sections) ... ok
 test_executed_requires_record (test_final.EnhancedTests.test_executed_requires_record) ... ok
 test_false_claim_preservation_does_not_rescue (test_final.EnhancedTests.test_false_claim_preservation_does_not_rescue) ... ok
@@ -77,6 +80,21 @@ test_progress_cannot_skip (test_final.ProgressAndCLITests.test_progress_cannot_s
 test_progress_no_second_model (test_final.ProgressAndCLITests.test_progress_no_second_model) ... ok
 test_record_real_file_hash (test_final.ProgressAndCLITests.test_record_real_file_hash) ... ok
 test_record_rejects_outside_run (test_final.ProgressAndCLITests.test_record_rejects_outside_run) ... ok
+test_legacy_report_reason_remains_readable (test_runtime_fixes.FreshnessRenderingTests.test_legacy_report_reason_remains_readable) ... ok
+test_missing_freshness_reaches_final_memo (test_runtime_fixes.FreshnessRenderingTests.test_missing_freshness_reaches_final_memo) ... ok
+test_stale_freshness_reaches_final_memo (test_runtime_fixes.FreshnessRenderingTests.test_stale_freshness_reaches_final_memo) ... ok
+test_conditional_issue_is_disclosed (test_runtime_fixes.SynthesisRuntimeTests.test_conditional_issue_is_disclosed) ... ok
+test_doi_alias_cannot_fill_two_roles (test_runtime_fixes.SynthesisRuntimeTests.test_doi_alias_cannot_fill_two_roles) ... ok
+test_explicit_vacant_requires_no_fabricated_evidence (test_runtime_fixes.SynthesisRuntimeTests.test_explicit_vacant_requires_no_fabricated_evidence) ... ok
+test_gate_to_renderer_cli (test_runtime_fixes.SynthesisRuntimeTests.test_gate_to_renderer_cli) ... ok
+test_live_missing_freshness_cannot_pass (test_runtime_fixes.SynthesisRuntimeTests.test_live_missing_freshness_cannot_pass) ... ok
+test_malformed_root_and_nested_values_return_errors (test_runtime_fixes.SynthesisRuntimeTests.test_malformed_root_and_nested_values_return_errors) ... ok
+test_pass_cannot_hide_incomplete_search (test_runtime_fixes.SynthesisRuntimeTests.test_pass_cannot_hide_incomplete_search) ... ok
+test_registry_identity_cannot_be_overridden_by_role_row (test_runtime_fixes.SynthesisRuntimeTests.test_registry_identity_cannot_be_overridden_by_role_row) ... ok
+test_rejected_topic_is_not_recommended (test_runtime_fixes.SynthesisRuntimeTests.test_rejected_topic_is_not_recommended) ... ok
+test_same_source_id_cannot_fill_two_roles (test_runtime_fixes.SynthesisRuntimeTests.test_same_source_id_cannot_fill_two_roles) ... ok
+test_unknown_report_citation_is_rejected (test_runtime_fixes.SynthesisRuntimeTests.test_unknown_report_citation_is_rejected) ... ok
+test_zero_and_four_candidates_render_five_slots (test_runtime_fixes.SynthesisRuntimeTests.test_zero_and_four_candidates_render_five_slots) ... ok
 test_actual_fresh_context_declaration_accepted (test_single_model.SingleModelTests.test_actual_fresh_context_declaration_accepted) ... ok
 test_baseline_hash_exact (test_single_model.SingleModelTests.test_baseline_hash_exact) ... ok
 test_duplicate_question_never_selected_twice (test_single_model.SingleModelTests.test_duplicate_question_never_selected_twice) ... ok
@@ -100,8 +118,13 @@ test_sensitive_selection_detected (test_single_model.SingleModelTests.test_sensi
 test_sensitivity_deterministic_and_no_mutation (test_single_model.SingleModelTests.test_sensitivity_deterministic_and_no_mutation) ... ok
 test_target_perturbation (test_single_model.SingleModelTests.test_target_perturbation) ... ok
 test_weights_normalized (test_single_model.SingleModelTests.test_weights_normalized) ... ok
+test_conditional_candidate_scopes_its_open_issue (test_synthesis_gate.SynthesisContractTests.test_conditional_candidate_scopes_its_open_issue) ... ok
+test_five_unique_slots_are_required (test_synthesis_gate.SynthesisContractTests.test_five_unique_slots_are_required) ... ok
+test_nearest_reviews_and_primary_evidence_are_distinct_required_roles (test_synthesis_gate.SynthesisContractTests.test_nearest_reviews_and_primary_evidence_are_distinct_required_roles) ... ok
+test_search_success_does_not_replace_novelty_completion (test_synthesis_gate.SynthesisContractTests.test_search_success_does_not_replace_novelty_completion) ... ok
+test_valid_synthesis_contract_passes (test_synthesis_gate.SynthesisContractTests.test_valid_synthesis_contract_passes) ... ok
 
 ----------------------------------------------------------------------
-Ran 102 tests in 11.184s
+Ran 124 tests in 7.766s
 
 OK

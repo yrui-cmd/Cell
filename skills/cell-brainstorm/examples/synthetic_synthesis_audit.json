@@ -1,0 +1,319 @@
+{
+  "schema_version": "synthesis-1.1",
+  "run": {
+    "as_of": "2026-10-12",
+    "mode": "synthetic",
+    "final_checked_at": null
+  },
+  "candidates": [
+    {
+      "id": "S1",
+      "title": "Synthetic synthesis topic 1",
+      "question": "Which bounded judgment changes after comparable evidence is separated?",
+      "relationship_to_primary_candidate": "parallel",
+      "nearest_reviews": [
+        {
+          "source_id": "REV1",
+          "access": "fulltext",
+          "prior_synthesis": "The nearest review combines the conditions.",
+          "comparison_result": "The candidate separates conditions that change the conclusion."
+        }
+      ],
+      "primary_evidence": [
+        {
+          "source_id": "PRI1",
+          "access": "fulltext",
+          "role": "Tests the load-bearing comparison."
+        }
+      ],
+      "synthesis_delta": {
+        "prior_synthesis": "Conditions were pooled.",
+        "changed_judgment": "The conclusion is conditional rather than universal.",
+        "synthesis_operation": "Compare studies by condition and endpoint.",
+        "visible_artifact": "A condition-by-endpoint evidence matrix.",
+        "boundaries": "Applies only to the defined population and endpoints.",
+        "negating_evidence": "A prior review already performs the same comparison with the same conclusion."
+      },
+      "search_status": {
+        "request_succeeded": true,
+        "screening_sufficient": true,
+        "novelty_complete": true
+      },
+      "evidence_plan": {
+        "P0": "Pilot the extraction and comparison on representative studies.",
+        "P1": "Complete coverage and cross-study synthesis.",
+        "P2": null
+      },
+      "open_items": [],
+      "status": "pass",
+      "report_sections": {
+        "basis": {
+          "text": "Synthetic previous synthesis and evidence.",
+          "source_ids": [
+            "REV1",
+            "PRI1"
+          ]
+        },
+        "question": {
+          "text": "Synthetic bounded judgment.",
+          "source_ids": []
+        },
+        "plan": {
+          "text": "Synthetic extraction and comparison plan.",
+          "source_ids": [
+            "PRI1"
+          ]
+        },
+        "limitations": {
+          "text": "Synthetic test only, not research evidence.",
+          "source_ids": []
+        }
+      }
+    },
+    {
+      "id": "S2",
+      "title": "Synthetic synthesis topic 2",
+      "question": "Which bounded judgment changes after comparable evidence is separated?",
+      "relationship_to_primary_candidate": "subtopic",
+      "nearest_reviews": [
+        {
+          "source_id": "REV2",
+          "access": "fulltext",
+          "prior_synthesis": "The nearest review combines the conditions.",
+          "comparison_result": "The candidate separates conditions that change the conclusion."
+        }
+      ],
+      "primary_evidence": [
+        {
+          "source_id": "PRI2",
+          "access": "fulltext",
+          "role": "Tests the load-bearing comparison."
+        }
+      ],
+      "synthesis_delta": {
+        "prior_synthesis": "Conditions were pooled.",
+        "changed_judgment": "The conclusion is conditional rather than universal.",
+        "synthesis_operation": "Compare studies by condition and endpoint.",
+        "visible_artifact": "A condition-by-endpoint evidence matrix.",
+        "boundaries": "Applies only to the defined population and endpoints.",
+        "negating_evidence": "A prior review already performs the same comparison with the same conclusion."
+      },
+      "search_status": {
+        "request_succeeded": true,
+        "screening_sufficient": true,
+        "novelty_complete": true
+      },
+      "evidence_plan": {
+        "P0": "Pilot the extraction and comparison on representative studies.",
+        "P1": "Complete coverage and cross-study synthesis.",
+        "P2": null
+      },
+      "open_items": [],
+      "status": "pass",
+      "report_sections": {
+        "basis": {
+          "text": "Synthetic previous synthesis and evidence.",
+          "source_ids": [
+            "REV2",
+            "PRI2"
+          ]
+        },
+        "question": {
+          "text": "Synthetic bounded judgment.",
+          "source_ids": []
+        },
+        "plan": {
+          "text": "Synthetic extraction and comparison plan.",
+          "source_ids": [
+            "PRI2"
+          ]
+        },
+        "limitations": {
+          "text": "Synthetic test only, not research evidence.",
+          "source_ids": []
+        }
+      }
+    },
+    {
+      "id": "S3",
+      "title": "Synthetic synthesis topic 3",
+      "question": "Which bounded judgment changes after comparable evidence is separated?",
+      "relationship_to_primary_candidate": "subtopic",
+      "nearest_reviews": [
+        {
+          "source_id": "REV3",
+          "access": "fulltext",
+          "prior_synthesis": "The nearest review combines the conditions.",
+          "comparison_result": "The candidate separates conditions that change the conclusion."
+        }
+      ],
+      "primary_evidence": [
+        {
+          "source_id": "PRI3",
+          "access": "fulltext",
+          "role": "Tests the load-bearing comparison."
+        }
+      ],
+      "synthesis_delta": {
+        "prior_synthesis": "Conditions were pooled.",
+        "changed_judgment": "The conclusion is conditional rather than universal.",
+        "synthesis_operation": "Compare studies by condition and endpoint.",
+        "visible_artifact": "A condition-by-endpoint evidence matrix.",
+        "boundaries": "Applies only to the defined population and endpoints.",
+        "negating_evidence": "A prior review already performs the same comparison with the same conclusion."
+      },
+      "search_status": {
+        "request_succeeded": true,
+        "screening_sufficient": true,
+        "novelty_complete": true
+      },
+      "evidence_plan": {
+        "P0": "Pilot the extraction and comparison on representative studies.",
+        "P1": "Complete coverage and cross-study synthesis.",
+        "P2": null
+      },
+      "open_items": [],
+      "status": "pass",
+      "report_sections": {
+        "basis": {
+          "text": "Synthetic previous synthesis and evidence.",
+          "source_ids": [
+            "REV3",
+            "PRI3"
+          ]
+        },
+        "question": {
+          "text": "Synthetic bounded judgment.",
+          "source_ids": []
+        },
+        "plan": {
+          "text": "Synthetic extraction and comparison plan.",
+          "source_ids": [
+            "PRI3"
+          ]
+        },
+        "limitations": {
+          "text": "Synthetic test only, not research evidence.",
+          "source_ids": []
+        }
+      }
+    },
+    {
+      "id": "S4",
+      "title": "Synthetic synthesis topic 4",
+      "question": "Which bounded judgment changes after comparable evidence is separated?",
+      "relationship_to_primary_candidate": "subtopic",
+      "nearest_reviews": [
+        {
+          "source_id": "REV4",
+          "access": "fulltext",
+          "prior_synthesis": "The nearest review combines the conditions.",
+          "comparison_result": "The candidate separates conditions that change the conclusion."
+        }
+      ],
+      "primary_evidence": [
+        {
+          "source_id": "PRI4",
+          "access": "fulltext",
+          "role": "Tests the load-bearing comparison."
+        }
+      ],
+      "synthesis_delta": {
+        "prior_synthesis": "Conditions were pooled.",
+        "changed_judgment": "The conclusion is conditional rather than universal.",
+        "synthesis_operation": "Compare studies by condition and endpoint.",
+        "visible_artifact": "A condition-by-endpoint evidence matrix.",
+        "boundaries": "Applies only to the defined population and endpoints.",
+        "negating_evidence": "A prior review already performs the same comparison with the same conclusion."
+      },
+      "search_status": {
+        "request_succeeded": true,
+        "screening_sufficient": true,
+        "novelty_complete": true
+      },
+      "evidence_plan": {
+        "P0": "Pilot the extraction and comparison on representative studies.",
+        "P1": "Complete coverage and cross-study synthesis.",
+        "P2": null
+      },
+      "open_items": [],
+      "status": "pass",
+      "report_sections": {
+        "basis": {
+          "text": "Synthetic previous synthesis and evidence.",
+          "source_ids": [
+            "REV4",
+            "PRI4"
+          ]
+        },
+        "question": {
+          "text": "Synthetic bounded judgment.",
+          "source_ids": []
+        },
+        "plan": {
+          "text": "Synthetic extraction and comparison plan.",
+          "source_ids": [
+            "PRI4"
+          ]
+        },
+        "limitations": {
+          "text": "Synthetic test only, not research evidence.",
+          "source_ids": []
+        }
+      }
+    }
+  ],
+  "brief": {
+    "research_content": "SYNTHETIC evidence synthesis"
+  },
+  "sources": [
+    {
+      "id": "REV1",
+      "kind": "review",
+      "title": "SYNTHETIC REV1",
+      "url": "https://example.invalid/REV1"
+    },
+    {
+      "id": "PRI1",
+      "kind": "original_research",
+      "title": "SYNTHETIC PRI1",
+      "url": "https://example.invalid/PRI1"
+    },
+    {
+      "id": "REV2",
+      "kind": "review",
+      "title": "SYNTHETIC REV2",
+      "url": "https://example.invalid/REV2"
+    },
+    {
+      "id": "PRI2",
+      "kind": "original_research",
+      "title": "SYNTHETIC PRI2",
+      "url": "https://example.invalid/PRI2"
+    },
+    {
+      "id": "REV3",
+      "kind": "review",
+      "title": "SYNTHETIC REV3",
+      "url": "https://example.invalid/REV3"
+    },
+    {
+      "id": "PRI3",
+      "kind": "original_research",
+      "title": "SYNTHETIC PRI3",
+      "url": "https://example.invalid/PRI3"
+    },
+    {
+      "id": "REV4",
+      "kind": "review",
+      "title": "SYNTHETIC REV4",
+      "url": "https://example.invalid/REV4"
+    },
+    {
+      "id": "PRI4",
+      "kind": "original_research",
+      "title": "SYNTHETIC PRI4",
+      "url": "https://example.invalid/PRI4"
+    }
+  ]
+}

@@ -55,8 +55,20 @@ def cautious_notes(slot: dict[str,Any], source_map: dict[str,Any]) -> list[str]:
     for gate in e['scientific_gates'].values():
         if gate['status'] == 'conditional':
             notes.append(gate['reason'])
-    if any(s in slot['reasons'] for s in ('Final current-literature check is missing.',)):
-        notes.append('尚需补充近期文献复核。')
+    codes = set(slot.get('reason_codes', []))
+    legacy = {
+        'Final freshness check was not completed.': 'FRESHNESS_MISSING',
+        'Final current-literature check is missing.': 'FRESHNESS_MISSING',
+        'Final freshness check exceeds the configured age.': 'FRESHNESS_STALE',
+        'Live report cutoff is not its recorded report date.': 'CUTOFF_MISMATCH',
+    }
+    codes.update(legacy[r] for r in slot['reasons'] if r in legacy)
+    messages = {
+        'FRESHNESS_MISSING': '尚未完成最终文献时效复核，近期研究状态仍待确认。',
+        'FRESHNESS_STALE': '最终文献复核已超出规定时限，近期研究状态仍需更新。',
+        'CUTOFF_MISMATCH': '资料截止日期与成稿日期不一致，不能视为成稿当日查新。',
+    }
+    notes.extend(messages[code] for code in sorted(codes) if code in messages)
     if slot['status']=='conditional' and not notes:
         notes.append('现有依据或研究条件仍有待核实，暂作为备选方案。')
     return list(dict.fromkeys(notes))

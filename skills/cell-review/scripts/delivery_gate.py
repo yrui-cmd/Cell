@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Final editable-DOCX and >=30 unique cited article gate; Python 3.10+, no network.
+"""Final editable-DOCX and user-confirmed cited article gate; Python 3.10+, no network.
 
 Checks file structure, citation anchors, deduplication and host attestations.
 It does not retrieve/verify papers, render Word, or certify scientific correctness.
@@ -10,20 +10,17 @@ import argparse
 import json
 import re
 import sys
-import unicodedata
 import zipfile
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote
 from xml.etree import ElementTree as ET
 
 import review_tools as rt
 
-MINIMUM_ARTICLES = 30
-ARTICLE_TYPES = {
-    'original_research', 'research_article', 'review', 'systematic_review',
-    'scoping_review', 'meta_analysis', 'methods_article', 'conference_paper',
-}
+from reference_composition import (
+    ARTICLE_TYPES, compact, canonical_title, canonical_identifier, count_unique, composition_summary,
+)
+
 COUNTABLE_STATUSES = {'published', 'corrected', 'preprint'}
 DELIVERY_CHECKS = (
     'editable_word', 'source_matches_word', 'all_pages_visually_checked',
@@ -42,29 +39,6 @@ def obj(value: Any) -> dict[str, Any]:
 
 def rows(value: Any) -> list[dict[str, Any]]:
     return [v for v in value if isinstance(v, dict)] if isinstance(value, list) else []
-
-
-def compact(value: str) -> str:
-    return re.sub(r'\s+', '', unicodedata.normalize('NFKC', value))
-
-
-def canonical_title(value: str) -> str:
-    return re.sub(r'[\W_]+', '', unicodedata.normalize('NFKC', value).casefold())
-
-
-def canonical_identifier(value: str) -> str:
-    text = unquote(unicodedata.normalize('NFKC', value).strip()).casefold()
-    # Recognize the DOI in common textual/URL wrappers without altering its suffix.
-    doi = re.search(r'10\.\d{4,9}/[^\s?#]+', text)
-    if doi:
-        return 'doi:' + doi.group(0).rstrip('.,;')
-    pmid = re.search(r'(?:pmid\s*:?\s*|pubmed\.ncbi\.nlm\.nih\.gov/)(\d+)', text)
-    if pmid:
-        return 'pmid:' + pmid.group(1)
-    arxiv = re.search(r'(?:arxiv\s*:?\s*|arxiv\.org/(?:abs|pdf)/)(\d{4}\.\d{4,5})(?:v\d+)?', text)
-    if arxiv:
-        return 'arxiv:' + arxiv.group(1)
-    return text.rstrip('/')
 
 
 def read_docx(path: Path) -> tuple[str, str, int]:
@@ -111,57 +85,13 @@ def read_docx(path: Path) -> tuple[str, str, int]:
     return body, bibliography, len(paragraphs)
 
 
-def count_unique(records: list[dict[str, Any]]) -> tuple[int, list[list[str]], list[dict[str, Any]]]:
-    """Deduplicate strong identities; expose title collisions instead of hiding them."""
-    parents = list(range(len(records)))
-    def find(i: int) -> int:
-        while parents[i] != i:
-            parents[i] = parents[parents[i]]
-            i = parents[i]
-        return i
-    keys: dict[tuple[str, str], int] = {}
-    for i, record in enumerate(records):
-        identities = (
-            ('article_id', compact(record['article_id']).casefold()),
-            ('identifier', canonical_identifier(record['identifier'])),
-        )
-        for kind, identity in identities:
-            if not identity:
-                continue
-            key = kind, identity
-            if key in keys:
-                parents[find(i)] = find(keys[key])
-            else:
-                keys[key] = i
-    title_groups: dict[str, list[int]] = {}
-    for i, record in enumerate(records):
-        title = canonical_title(record['title'])
-        if title:
-            title_groups.setdefault(title, []).append(i)
-    conflicts: list[dict[str, Any]] = []
-    for indices in title_groups.values():
-        roots = {find(i) for i in indices}
-        if len(roots) <= 1:
-            continue
-        # A title is only a candidate match. Conflicting strong identities require
-        # a human decision and must never be silently collapsed by punctuation/case.
-        conflicts.append({
-            'records': [records[i]['id'] for i in indices],
-            'title': records[indices[0]]['title'],
-            'article_ids': sorted({compact(records[i]['article_id']).casefold() for i in indices}),
-            'identifiers': sorted({canonical_identifier(records[i]['identifier']) for i in indices}),
-        })
-    groups: dict[int, list[str]] = {}
-    for i, record in enumerate(records):
-        groups.setdefault(find(i), []).append(record['id'])
-    return len(groups), [group for group in groups.values() if len(group) > 1], conflicts
-
-
 def validate_delivery(run_dir: Path) -> dict[str, Any]:
     run = run_dir.expanduser().resolve()
     errors: list[str] = []
     warnings: list[str] = []
-    counts: dict[str, int] = {'minimum_articles': MINIMUM_ARTICLES, 'unique_eligible_articles': 0}
+    counts: dict[str, int | float | None] = {
+        'minimum_articles': None, 'maximum_articles': None, 'unique_eligible_articles': 0,
+    }
     duplicate_groups: list[list[str]] = []
     excluded: dict[str, str] = {}
     result: dict[str, Any] = {
@@ -185,11 +115,12 @@ def validate_delivery(run_dir: Path) -> dict[str, Any]:
         errors.append('protocol.output_format must be docx.')
     if protocol.get('citation_style') != 'numeric_draft':
         errors.append('Internal manuscript must retain numeric_draft for deterministic citation checks.')
-    minimum = protocol.get('minimum_article_count')
-    if type(minimum) is not int or minimum < MINIMUM_ARTICLES:
-        errors.append('minimum_article_count must be an integer >=30; lowering the gate is not allowed.')
-        minimum = MINIMUM_ARTICLES
+    minimum, maximum, count_errors = rt.reference_count_contract(protocol)
+    if count_errors:
+        errors.extend('Reference-count gate: ' + message for message in count_errors)
+        return result
     counts['minimum_articles'] = minimum
+    counts['maximum_articles'] = maximum
     filename = protocol.get('output_file', 'review.docx')
     if (not isinstance(filename, str) or '/' in filename or '\\' in filename
             or ':' in filename or Path(filename).suffix.lower() != '.docx'):
@@ -351,8 +282,17 @@ def validate_delivery(run_dir: Path) -> dict[str, Any]:
         warnings.append('Duplicate article/version groups were counted once; study families are not independent replications.')
     if identity_conflicts:
         errors.append('Same-title records have conflicting article identifiers; verify the records or versions before delivery.')
+    composition = composition_summary(eligible, protocol.get('reference_composition_policy'))
+    result['reference_composition'] = composition
+    counts['unique_experimental_articles'] = composition['experimental_articles']
+    counts['required_experimental_articles'] = composition['required_experimental_articles']
+    counts['experimental_percentage'] = composition['experimental_percentage']
+    errors.extend('Reference composition: ' + e for e in composition['errors'])
+    warnings.extend(composition['warnings'])
     if count < minimum:
         errors.append(f'At least {minimum} unique verified relevant articles actually cited in Word are required; found {count}. Continue evidence work or label as incomplete; never pad or fabricate.')
+    if maximum is not None and count > maximum:
+        errors.append(f'At most {maximum} unique verified relevant articles actually cited in Word are permitted by the user-confirmed requirement; found {count}. Revise the selection or obtain a revised user requirement.')
     if not errors:
         result['status'] = 'DELIVERY_CHECKS_PASSED'
     return result

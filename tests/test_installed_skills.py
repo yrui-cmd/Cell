@@ -16,6 +16,8 @@ FREE_SKILLS = {
     "cell-brainstorm",
     "cell-plan",
     "cell-review",
+    "cell-reviewer",
+    "cell-paper-translation",
     "cell-reviewer-response",
     "cell-submission",
     "cell-data-figure",
@@ -29,6 +31,7 @@ ENTRYPOINTS = (
     ("cell-plan", "scripts/check_delivery.py"),
     ("cell-review", "scripts/review_tools.py"),
     ("cell-review", "scripts/delivery_gate.py"),
+    ("cell-paper-translation", "scripts/pages.py"),
     ("cell-reviewer-response", "scripts/reviewer_docs.py"),
     ("cell-submission", "scripts/preflight.py"),
     ("cell-data-figure", "scripts/figure_tools.py"),
@@ -91,3 +94,10 @@ def test_installed_sci_magic_loads_bundled_rules_and_calendar_dependencies(insta
     status = json.loads(result.stdout)
     assert status["runtime_ready"] is True
     assert all(dependency["ok"] for dependency in status["dependencies"].values())
+
+
+def test_installed_paper_translation_has_runtime_requirements(installed_root):
+    requirements = installed_root / "cell-paper-translation" / "requirements.txt"
+    text = requirements.read_text(encoding="utf-8")
+    for package in ("Pillow", "PyMuPDF"):
+        assert re.search(rf"(?mi)^{re.escape(package)}(?:[<>=!~].*)?$", text)

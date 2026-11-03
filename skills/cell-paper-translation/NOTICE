@@ -1,0 +1,16 @@
+Cell paper translation skill
+
+This skill contains modified material from:
+
+  Yuan1z0825/nature-skills
+  skills/nature-paper-trans
+  https://github.com/Yuan1z0825/nature-skills/tree/main/skills/nature-paper-trans
+  source commit: 19be8d45e0d5233aa44be6d4572e655b9914ff54
+
+The upstream material is licensed under the Apache License, Version 2.0.
+The bundled LICENSE applies to the adapted files in this directory.
+
+Modifications include Cell naming and routing, mandatory per-page quality
+records, scientific-content checks, updated PyMuPDF imports, UTF-8 CLI output,
+and integration with the Cell repository. No endorsement by the upstream
+authors is implied.

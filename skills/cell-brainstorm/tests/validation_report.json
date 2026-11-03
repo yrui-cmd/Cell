@@ -1,35 +1,26 @@
 {
-  "package_version": "2.0.0",
-  "policy_date": "2026-09-27",
-  "recorded_at_system_utc": "2026-09-26T16:32:53.084175+00:00",
-  "runtime": "3.13.5 (main, Jul 15 2026, 20:25:40) [GCC 14.2.0]",
+  "package_version": "2.3.0",
+  "release_date": "2026-10-31",
+  "runtime": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
   "unit_tests": {
     "executed": true,
-    "passed": 102,
+    "passed": 124,
     "failed": 0,
-    "duration_seconds": 11.184,
+    "duration_seconds": 8.85,
     "log": "TEST_RESULTS.txt"
   },
-  "integration": {
-    "executed": true,
-    "fixture": "synthetic_audit_bundle_v2.json",
-    "checks": [
-      "default-quiet audit -> sensitivity -> supervisor memo CLI",
-      "exactly five memo sections",
-      "number-only sequential progress with duplicate suppression",
-      "counterexample/conditional/dependency/updated-claim checks"
-    ]
-  },
-  "packaging": {
-    "frontmatter_rules_checked": true,
-    "main_references_checked": 12,
-    "missing_main_references": []
-  },
-  "not_executed": [
-    "Real topic end-to-end literature search and scientific judgment assessment",
-    "Cross-model quality/equivalence benchmark",
-    "Independent domain expert review",
-    "Any proposed physical experiment"
+  "covered": [
+    "synthesis vacancies and explicit slots",
+    "article role identity and DOI alias separation",
+    "conditional search state",
+    "synthesis gate to rendered report CLI",
+    "freshness disclosures",
+    "existing original research contracts"
   ],
-  "limits": "Synthetic code and format tests establish only local behavior. They do not establish research originality, source entailment, actual resource access, or improved scientific quality."
+  "not_executed": [
+    "real topic end-to-end literature search",
+    "scientific semantic validation",
+    "physical experiments",
+    "independent agents"
+  ]
 }

@@ -1,0 +1,13 @@
+Cell Reviewer, local adaptation, 2026-10-08.
+
+Adapted from the Nature Reviewer workflow in Yuan1z0825/nature-skills:
+https://github.com/Yuan1z0825/nature-skills/tree/main/skills/nature-reviewer
+Upstream license: Apache License 2.0, included as LICENSE.
+Upstream attribution is retained; no endorsement by upstream contributors,
+Nature, Cell, or Cell Press is implied.
+
+Changes: rewritten Chinese entrypoint and self-contained references; separate
+narrative/systematic/scoping/meta-analysis review criteria; experimental and
+other original-research review criteria; partial-input single-review handling;
+claim-dependent evidence requirements, minimal sufficient revisions, explicit
+audit and consensus boundaries, and Cell family routing support.

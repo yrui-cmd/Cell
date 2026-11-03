@@ -1,6 +1,6 @@
 # 开源来源记录
 
-以下 Star 为 2026-09-28 通过 GitHub API 查询的快照，会随时间变化。仓库内容只作为参考资料；本 Skill 根据英文学术论文场景重新编写规则，没有复制上游检测器实现或完整规则表。
+以下 Star 为 2026-09-28 通过 GitHub API 查询的快照，会随时间变化。表内仓库作为中英文学术写作规则的设计参考，没有复制其检测器实现。
 
 | 仓库 | Star 快照 | 许可证 | 吸收内容 | 未采用内容 |
 | --- | ---: | --- | --- | --- |
@@ -10,7 +10,18 @@
 | [AIScientists-Dev/academic-humanizer](https://github.com/AIScientists-Dev/academic-humanizer) | 1,734 | 仓库内 MIT | 学术例外、claim-evidence discipline、作者与 venue 匹配、保留必要 hedging/被动语态/`we` | 基金申请分支；绝对删除 em dash；未经作者核实就把模糊结果改成具体数值 |
 | [hanlulong/econ-writing-skill](https://github.com/hanlulong/econ-writing-skill) | 628 | MIT | 用简单具体的句子陈述精确主张，避免空泛元话语 | 固定句长目标、普遍禁用词和标点规则 |
 
-另核对了 18,696 Star 的 [op7418/Humanizer-zh](https://github.com/op7418/Humanizer-zh)。它主要是 `blader/humanizer` 的中文化版本，而本 Skill 处理英文论文，因此不重复引入同一套规则。
+另核对了 18,696 Star 的 [op7418/Humanizer-zh](https://github.com/op7418/Humanizer-zh)。其中适合中文论文的原则已通过学术完整性和作者声音约束筛选，未整套复制通用文案规则。
+
+## 本地内置的执行模块
+
+本 Skill 完整保留并内置了以下两个上游 Skill 的固定版本及 MIT 许可证。提交号、文件哈希和本地路径见 `vendor/PROVENANCE.md`。
+
+| 上游 Skill | 本地用途 | 启用位置 |
+| --- | --- | --- |
+| [Kiterlin/anti-defensive-writing](https://github.com/Kiterlin/anti-defensive-writing) | 清理迂回立论、防御式元话语和机械连接词，同时保留真实限制、不确定性与不利证据 | 中英文稿完成科学内容、逻辑和结构修订后 |
+| [larashero3-dotcom/lieflat-less-ai-tone](https://github.com/larashero3-dotcom/lieflat-less-ai-tone) | 对中文稿执行白名单式语气和可读性清理，减少模板腔、过度解析和生硬标题 | `anti-defensive-writing` 之后，仅用于中文稿 |
+
+内置模块不能改动事实、数值、引用关系或必要的方法限制。主 Skill 的科学完整性、期刊体例和作者明确要求具有更高优先级；两次处理结束后必须重新核对事实、主张、引文和术语。
 
 ## 适配原则
 

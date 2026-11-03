@@ -185,3 +185,7 @@ https://matplotlib.org/stable/api/_as_gen/matplotlib.figure.Figure.savefig.html
 https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html
 https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html
 ```
+
+## PDF字体策略
+
+audit/publish默认`--font-policy preserve_text`，保留文本/字体对象检查。用户或已核实期刊要求转曲时，两命令均传`--font-policy allow_outlines`，final review同时填写`font_policy: allow_outlines`和非空`font_policy_basis`（记录实际要求与来源）。无文本/字体对象不再自动视为栅格化，但仍须有矢量路径，且宿主实际查看字形、标注和全部三格式。字体策略与当前review不符、转曲依据缺失或最终审核未通过时禁止发布。audit报告的text_searchable为false时不得声称文字可搜索。

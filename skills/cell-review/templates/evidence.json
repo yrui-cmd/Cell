@@ -5,11 +5,29 @@
   "claims": [],
   "benchmarks": [],
   "issues": [],
+  "workflow_status": {
+    "evidence_verification": {
+      "status": "pending",
+      "basis": ""
+    },
+    "benchmark_execution": {
+      "status": "pending",
+      "basis": ""
+    },
+    "synthesis_assessment": {
+      "status": "pending",
+      "basis": ""
+    },
+    "delivery": {
+      "status": "pending",
+      "basis": ""
+    }
+  },
   "host_self_review": {
     "status": "pending",
     "checked_at": null,
     "review_sha256": null,
-    "context_hash_version": "1",
+    "context_hash_version": "2",
     "semantic_context_sha256": null,
     "checks": {
       "question_answered": false,
@@ -21,7 +39,10 @@
       "review_type_honest": false,
       "manuscript_complete": false,
       "benchmark_checked_or_disclosed": false,
-      "limitations_disclosed": false
+      "limitations_disclosed": false,
+      "abstract_conclusions_informative": false,
+      "reader_gain_checked": false,
+      "constructive_closings_checked": false
     },
     "notes": "只能在宿主真实完成对应自查后填写。脚本不判断科学内容是否正确。"
   },

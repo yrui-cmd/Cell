@@ -21,6 +21,7 @@ CHECKS = (
     "counterevidence_addressed", "design_limits_respected",
     "citations_semantically_checked", "review_type_honest",
     "manuscript_complete", "benchmark_checked_or_disclosed", "limitations_disclosed",
+    "abstract_conclusions_informative", "reader_gain_checked", "constructive_closings_checked",
 )
 FORMAL_CHECKS = (
     "protocol_documented", "search_complete", "counts_reconciled",
@@ -32,8 +33,9 @@ READ_FLAGS = {
     "figure": "key_figures_checked", "supplement": "supplements_checked",
 }
 KINDS = {"descriptive", "association", "intervention", "mechanism", "prediction", "synthesis", "hypothesis"}
-REVIEW_TYPES = {"critical_narrative", "scoping", "systematic", "meta_analysis"}
-CONTEXT_HASH_VERSION = "1"
+REVIEW_TYPES = {"critical", "narrative", "systematic", "scoping", "meta_analysis"}
+LEGACY_REVIEW_TYPES = {"critical_narrative"}
+CONTEXT_HASH_VERSION = "2"
 QUESTION_STATES = {
     "search_failed", "no_eligible_evidence", "material_unavailable",
     "answerable_with_limits", "unresolved_conflict", "answerable",
@@ -87,6 +89,56 @@ def file_hash(path: Path) -> str:
 
 def has_text(value: Any) -> bool:
     return isinstance(value, str) and bool(value.strip())
+
+
+def reference_count_contract(protocol: dict[str, Any]) -> tuple[int | None, int | None, list[str]]:
+    """Validate the recorded user requirement without inventing a default count.
+
+    Confirmation is a host attestation of actual user input, not a replacement
+    for asking the user. An invalid or unconfirmed contract has no usable bounds.
+    """
+    errors: list[str] = []
+    confirmation = protocol.get("reference_count_confirmation")
+    if not isinstance(confirmation, dict):
+        errors.append("protocol.reference_count_confirmation: explicit user confirmation required")
+    else:
+        if confirmation.get("confirmed") is not True:
+            errors.append("protocol.reference_count_confirmation.confirmed must be true after actual user confirmation")
+        if not has_text(confirmation.get("user_request")):
+            errors.append("protocol.reference_count_confirmation.user_request: non-empty actual user request required")
+    minimum = protocol.get("minimum_article_count")
+    maximum = protocol.get("maximum_article_count")
+    if type(minimum) is not int or minimum < 1:
+        errors.append("protocol.minimum_article_count must be a positive integer confirmed by the user")
+    if maximum is not None:
+        if type(maximum) is not int or maximum < 1:
+            errors.append("protocol.maximum_article_count must be null or a positive integer confirmed by the user")
+        elif type(minimum) is int and minimum >= 1 and maximum < minimum:
+            errors.append("protocol.maximum_article_count must be greater than or equal to minimum_article_count")
+    if errors:
+        return None, None, errors
+    return minimum, maximum, errors
+
+
+def review_type_contract(protocol: dict[str, Any]) -> tuple[str | None, list[str]]:
+    """Require a recorded author choice instead of silently selecting a review type."""
+    errors: list[str] = []
+    confirmation = protocol.get("review_type_confirmation")
+    if not isinstance(confirmation, dict):
+        errors.append("protocol.review_type_confirmation: explicit user confirmation required")
+    else:
+        if confirmation.get("confirmed") is not True:
+            errors.append("protocol.review_type_confirmation.confirmed must be true after actual user confirmation")
+        if not has_text(confirmation.get("user_request")):
+            errors.append("protocol.review_type_confirmation.user_request: non-empty actual user request required")
+    review_type = protocol.get("review_type")
+    if review_type in LEGACY_REVIEW_TYPES:
+        errors.append("protocol.review_type: legacy critical_narrative must be clarified and migrated to critical or narrative")
+    elif not one_of(review_type, REVIEW_TYPES):
+        errors.append("protocol.review_type: a valid user-confirmed review type is required")
+    if errors:
+        return None, errors
+    return review_type, errors
 
 
 def one_of(value: Any, values: set[str] | dict[str, Any]) -> bool:
@@ -237,7 +289,7 @@ def audit_review(run_dir: Path) -> dict[str, Any]:
             "status": "RECORDS_CONSISTENT" if not errors else "NEEDS_REVISION",
             "checked_at": now_iso(), "run_dir": str(run),
             "errors": errors, "warnings": warnings, "counts": counts,
-            "scope": "Local record consistency only; no network or scientific/semantic verification. Final DOCX and >=30 article checks require delivery_gate.py.",
+            "scope": "Local record consistency only; no network or scientific/semantic verification. Final DOCX and user-confirmed article-count checks require delivery_gate.py.",
             "scientific_quality_certified": False,
             "independent_peer_review_performed": False,
         }
@@ -253,6 +305,13 @@ def audit_review(run_dir: Path) -> dict[str, Any]:
     for key in ("topic", "question", "added_value"):
         if not has_text(protocol.get(key)):
             error(f"protocol.{key}: required")
+    review_type, type_errors = review_type_contract(protocol)
+    errors.extend(type_errors)
+    _, _, count_errors = reference_count_contract(protocol)
+    errors.extend(count_errors)
+    from reference_composition import composition_policy_errors
+    for message in composition_policy_errors(protocol.get("reference_composition_policy")):
+        error("protocol.reference_composition_policy: " + message)
     capabilities = obj(protocol.get("capabilities"), "protocol.capabilities")
     for key in ("web_search", "full_text_access", "local_execution"):
         if type(capabilities.get(key)) is not bool:
@@ -294,9 +353,6 @@ def audit_review(run_dir: Path) -> dict[str, Any]:
         unknowns = item.get("remaining_unknowns")
         if not isinstance(unknowns, list) or not all(has_text(x) for x in unknowns):
             error(f"{label}: remaining_unknowns must be an explicit list")
-    review_type = protocol.get("review_type")
-    if not one_of(review_type, REVIEW_TYPES):
-        error("protocol.review_type: invalid")
     manuscript = run / "_work" / "review.md"
     try:
         text = manuscript.read_text(encoding="utf-8-sig")
