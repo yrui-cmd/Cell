@@ -125,6 +125,60 @@ class DeliveryGateTests(unittest.TestCase):
         self.save()
         self.assertEqual(gate.validate_delivery(self.run)['status'], 'DELIVERY_CHECKS_PASSED')
 
+    def test_experimental_ratio_is_enforced_in_final_word(self):
+        self.make_articles(32)
+        for r in self.ledger['records'][24:]:
+            r['publication_type'] = 'review'
+            r['study_design']['category'] = 'evidence_synthesis'
+        self.save()
+        result = gate.validate_delivery(self.run)
+        self.assertEqual(result['status'], 'DELIVERY_CHECKS_PASSED', result)
+        self.assertEqual(result['counts']['unique_experimental_articles'], 24)
+        self.assertEqual(result['counts']['experimental_percentage'], 75.0)
+        self.ledger['records'][23]['study_design']['category'] = 'observational'
+        self.save()
+        result = self.check('Experimental articles must be at least 75%')
+        self.assertEqual(result['counts']['required_experimental_articles'], 24)
+
+    def test_uncited_experiments_do_not_raise_final_word_ratio(self):
+        self.make_articles(32)
+        for r in self.ledger['records'][24:]:
+            r['study_design']['category'] = 'observational'
+        excerpt = f'{self.claim_text}[2–32]'
+        for link in self.ledger['claims'][0]['links']:
+            link['word_excerpt'] = excerpt
+        self.save(body=self.body.replace('[1–32]', '[2–32]'))
+        result = self.check('Experimental articles must be at least 75%')
+        self.assertEqual(result['reference_composition']['experimental_articles'], 23)
+        self.assertEqual(result['reference_composition']['unique_articles'], 31)
+
+    def test_missing_design_record_does_not_silently_pass(self):
+        self.ledger['records'][0].pop('study_design')
+        self.save()
+        self.check('study_design classification record required')
+
+    def test_design_change_invalidates_previous_content_review(self):
+        self.save()
+        self.ledger['records'][0]['study_design']['category'] = 'observational'
+        self.flush()
+        self.check('semantic context hash')
+
+    def test_composition_policy_cannot_be_lowered_or_removed(self):
+        for policy in (None, {}, {'minimum_experimental_percent': 50,
+                                  'unit': 'unique_eligible_articles_actually_cited'}):
+            with self.subTest(policy=policy):
+                self.protocol['reference_composition_policy'] = policy
+                self.save()
+                self.check('reference_composition_policy')
+
+    def test_information_value_self_review_items_required(self):
+        for key in ('abstract_conclusions_informative', 'reader_gain_checked', 'constructive_closings_checked'):
+            self.save()
+            self.ledger['host_self_review']['checks'][key] = False
+            self.flush()
+            self.check(key)
+            self.ledger['host_self_review']['checks'][key] = True
+
     def test_29_articles_blocked(self):
         self.make_articles(29)
         self.save()
@@ -284,6 +338,7 @@ class DeliveryGateTests(unittest.TestCase):
 
     def test_review_articles_are_valid_article_type(self):
         self.ledger['records'][-1]['publication_type'] = 'review'
+        self.ledger['records'][-1]['study_design']['category'] = 'evidence_synthesis'
         self.save()
         self.assertEqual(gate.validate_delivery(self.run)['status'], 'DELIVERY_CHECKS_PASSED')
 
@@ -398,6 +453,45 @@ class DeliveryGateTests(unittest.TestCase):
         self.save()
         self.assertEqual(rt.audit_review(self.run)['status'], 'RECORDS_CONSISTENT')
         self.check('found 29')
+
+
+
+    def test_theoretical_review_passes_recorded_domain_policy(self):
+        self.protocol['reference_composition_policy'] = {
+            'mode': 'domain_specific', 'minimum_experimental_percent': None,
+            'unit': 'unique_eligible_articles_actually_cited', 'target_designs': ['theoretical'],
+            'basis': 'Synthetic theory question, classified before evidence work.'}
+        for record in self.ledger['records']:
+            record['study_design']['category'] = 'theoretical'
+        self.save()
+        result = gate.validate_delivery(self.run)
+        self.assertEqual(result['status'], 'DELIVERY_CHECKS_PASSED', result['errors'])
+        self.assertEqual(result['counts']['unique_experimental_articles'], 0)
+        self.assertIsNone(result['counts']['required_experimental_articles'])
+
+    def test_prespecified_observational_review_passes_without_quota(self):
+        self.protocol['reference_composition_policy'] = {
+            'mode': 'prespecified', 'minimum_experimental_percent': None,
+            'unit': 'unique_eligible_articles_actually_cited', 'target_designs': ['observational'],
+            'basis': 'Synthetic prespecified inclusion permits observational studies.'}
+        self.protocol.update(review_type='systematic', review_type_confirmation={
+            'confirmed': True, 'user_request': 'Synthetic systematic review request.'})
+        self.protocol['formal_methods'].update(completed=True, guidance_sources=['SYNTHETIC guidance'],
+            checks={key: True for key in rt.FORMAL_CHECKS})
+        for record in self.ledger['records']:
+            record['study_design']['category'] = 'observational'
+        self.save()
+        result = gate.validate_delivery(self.run)
+        self.assertEqual(result['status'], 'DELIVERY_CHECKS_PASSED', result['errors'])
+
+    def test_changing_evidence_policy_invalidates_semantic_review(self):
+        self.save()
+        self.protocol['reference_composition_policy'] = {
+            'mode': 'domain_specific', 'minimum_experimental_percent': None,
+            'unit': 'unique_eligible_articles_actually_cited', 'target_designs': ['experimental'],
+            'basis': 'Synthetic changed scope requires a fresh host review.'}
+        self.flush()
+        self.check('semantic context hash')
 
 
 if __name__ == '__main__':

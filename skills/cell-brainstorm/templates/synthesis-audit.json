@@ -1,9 +1,14 @@
 {
-  "schema_version": "synthesis-1.0",
+  "schema_version": "synthesis-1.1",
   "run": {
     "as_of": "YYYY-MM-DD",
     "mode": "live",
-    "final_checked_at": null
+    "final_checked_at": null,
+    "report_created_at": null
   },
-  "candidates": []
+  "candidates": [],
+  "brief": {
+    "research_content": ""
+  },
+  "sources": []
 }

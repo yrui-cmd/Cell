@@ -44,4 +44,21 @@
 python scripts/synthesis_gate.py RUN/synthesis_audit.json
 ```
 
-`SYNTHESIS_CONTRACT_PASSED` 只说明五个候选具备所需字段、来源角色和边界记录，不证明检索穷尽、科学判断正确或期刊可接收。条件性候选可以通过结构门槛，但其限制必须保留到交接和最终报告。
+`SYNTHESIS_CONTRACT_PASSED` 只说明实际候选及空位满足适用的结构字段、来源角色和边界记录，不证明检索穷尽、科学判断正确或期刊可接收。条件性候选可以通过结构门槛，但其限制必须保留到交接和最终报告。
+
+## synthesis-1.1：可执行交付合同
+
+新任务使用synthesis-1.1。`candidates`允许0—5个输入项；渲染器输出五个展示位置，缺额自动留空。也可显式记录`{"id":"VACANT-5","status":"vacant","reason":"可靠候选不足"}`，不为占位构造题目和论文。fail候选保留审计但不作为推荐题显示。
+
+根字段增加`brief.research_content`与`sources`。sources每项含id、title、kind（review/original_research）、url，已核实时可记录article_id、doi。来源身份按source_id及已记录的article_id/DOI共同核对；最近综述与承重原始研究不得复用同一文章身份。两角色记录仍须包含实际读取access与原有比较字段。pass需角色证据齐全、三个search_status均为true且无open_items；未完成检索只能conditional并写清具体影响及可继续动作，或fail/vacant。
+
+每个pass/conditional候选含`report_sections`四段：basis/question/plan/limitations，各为`{"text":"实际已核对的单段文字","source_ids":["实际来源ID"]}`。引文只能属于该候选登记的角色来源，basis应引用实际最近综述（若尚无综述则如实保留资料不足）。这些字段用于排版，不能引入新事实。conditional的open_items与子题/重叠关系会进入最终文稿。
+
+live模式另记带时区的report_created_at和final_checked_at；最终复核需在成稿前24小时内才能标pass。未复核用null，候选保留conditional和具体open_items。offline/replay不声称当日查新。模板初始化仍是不完整记录，不是可直接交付的合成范文。
+
+```bash
+python scripts/synthesis_gate.py RUN/synthesis_audit.json
+python scripts/render_report.py --input RUN/synthesis_audit.json --output RUN/final_report.md
+```
+
+原始研究2.0和旧回放1.1不变；旧synthesis-1.0可做结构回放，不能缺少文献登记而直接排版。结构通过不证明来源真实或科学判断正确。

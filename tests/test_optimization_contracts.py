@@ -34,7 +34,7 @@ def test_brainstorm_has_a_separate_evidence_synthesis_contract():
 def test_review_templates_capture_argument_and_workflow_status():
     protocol = json.loads(read("skills/cell-review/templates/protocol.json"))
     evidence = json.loads(read("skills/cell-review/templates/evidence.json"))
-    assert protocol["skill_version"] == "1.6.0"
+    assert protocol["skill_version"] == "1.10.0"
     assert set(protocol["argument_skeleton"]) == {
         "core_answer",
         "difference_from_nearest_reviews",

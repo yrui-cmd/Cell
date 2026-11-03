@@ -1,4 +1,4 @@
-# cell-brainstorm v2.1.0
+# cell-brainstorm v2.3.0
 
 单个模型；六步进度；支持原始研究与证据综合；最终为五个选题的简明学术论证稿。
 
@@ -34,3 +34,7 @@ v2.1.0 增加 `original_research` / `evidence_synthesis` 分流。证据综合�
 
 ## 最终报告
 格式见 `references/output-template.md`，语言规则见 `references/writing-standard.md`。没有调用第二个模型，也没有真实执行本稿提出的研究；本地测试不能证明科研质量。`examples/synthetic_memo.md` 仅用于检查版式，不含可用的科学结论。
+
+## v2.3.0修复与验证
+
+证据综合新任务使用synthesis-1.1，命令见references/evidence-synthesis.md；支持0—5候选和明确空位，按当前输入生成报告。全部测试统一由unittest发现。examples/synthetic_synthesis_audit.json仅为合成格式样例，不能作为科研来源。tests/history保留历史2.1.0测试记录，tests/validation_report.json记录本发布实测。

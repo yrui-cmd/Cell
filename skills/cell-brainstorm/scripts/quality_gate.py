@@ -58,6 +58,7 @@ def audit_candidate(candidate: dict[str, Any], bundle: dict[str, Any], policy: d
     sources = {s['id']: s for s in bundle['sources']}
     rejected: list[str] = []
     conditional: list[str] = []
+    reason_codes: list[str] = []
     levels = {key: value['level'] for key, value in c['ratings'].items()}
     confidence = c['novelty_confidence']
     as_of = date.fromisoformat(bundle['run']['as_of'])
@@ -167,6 +168,7 @@ def audit_candidate(candidate: dict[str, Any], bundle: dict[str, Any], policy: d
     run = bundle['run']
     if run['mode'] == 'offline':
         conditional.append('Offline exploration does not establish current novelty.')
+        reason_codes.append('FRESHNESS_OFFLINE')
     if run['mode'] == 'live':
         if not run['query_log_refs']:
             conditional.append('No actual search-log references were supplied.')
@@ -174,14 +176,18 @@ def audit_candidate(candidate: dict[str, Any], bundle: dict[str, Any], policy: d
             conditional.append('No source channels were recorded.')
         if not run['final_checked_at']:
             conditional.append('Final freshness check was not completed.')
+            reason_codes.append('FRESHNESS_MISSING')
         else:
             age = (parse_time(run['report_created_at']) - parse_time(run['final_checked_at'])).total_seconds() / 3600
             if age < 0:
                 rejected.append('Final check timestamp is after report creation.')
+                reason_codes.append('FRESHNESS_FUTURE')
             elif age > policy['live_source_read_age_hours']:
                 conditional.append('Final freshness check exceeds the configured age.')
+                reason_codes.append('FRESHNESS_STALE')
         if as_of != parse_time(run['report_created_at']).date():
             conditional.append('Live report cutoff is not its recorded report date.')
+            reason_codes.append('CUTOFF_MISMATCH')
 
     # Resource uncertainty must not be confused with novelty uncertainty.
     evidence_uncertain = any(c['checks'][key] == 'unknown' for key in
@@ -202,7 +208,8 @@ def audit_candidate(candidate: dict[str, Any], bundle: dict[str, Any], policy: d
     status = 'rejected' if rejected else ('conditional' if conditional else 'qualified')
     return {'candidate': c, 'status': status, 'score': score(levels, policy['score_weights']),
             'effective_levels': levels, 'effective_novelty_confidence': confidence,
-            'reasons': sorted(set(rejected + conditional)), 'referenced_source_ids': sorted(references),
+            'reasons': sorted(set(rejected + conditional)), 'reason_codes': sorted(set(reason_codes)),
+            'referenced_source_ids': sorted(references),
             'enhancement_audit': enhancement_audit}
 
 

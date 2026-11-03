@@ -1,9 +1,13 @@
 {
   "schema_version": "1.0",
-  "skill_version": "1.6.0",
+  "skill_version": "1.10.0",
   "topic": "",
   "question": "",
-  "review_type": "critical_narrative",
+  "review_type": null,
+  "review_type_confirmation": {
+    "confirmed": false,
+    "user_request": ""
+  },
   "language": "zh-CN",
   "created_at": null,
   "last_search_date": null,
@@ -65,5 +69,12 @@
     "same_article_versions_count_once": true,
     "metadata_and_content_verification_required": true,
     "no_padding": true
+  },
+  "reference_composition_policy": {
+    "mode": null,
+    "minimum_experimental_percent": null,
+    "unit": "unique_eligible_articles_actually_cited",
+    "target_designs": [],
+    "basis": ""
   }
 }

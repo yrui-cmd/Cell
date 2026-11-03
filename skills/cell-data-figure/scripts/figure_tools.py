@@ -291,7 +291,7 @@ def verify_gate(path):
     return gate
 
 
-def inspect_stage(stage, data_names, figures, dpi):
+def inspect_stage(stage, data_names, figures, dpi, font_policy='preserve_text'):
     from PIL import Image
     import pymupdf
     stage = Path(stage).resolve(strict=True)
@@ -299,6 +299,7 @@ def inspect_stage(stage, data_names, figures, dpi):
     require(data_names and len(set(data_names)) == len(data_names), 'Missing/duplicate data names')
     require(figures and len(set(figures)) == len(figures), 'Missing/duplicate figure stems')
     require(dpi >= 72, 'Invalid target dpi')
+    require(font_policy in ('preserve_text', 'allow_outlines'), 'Invalid font policy')
     for f in figures:
         require(NAME.fullmatch(f) is not None, f'Invalid figure stem: {f}')
     for name in data_names:
@@ -357,11 +358,14 @@ def inspect_stage(stage, data_names, figures, dpi):
                       "basefont": row[3], "encoding": row[5]}
                      for row in page.get_fonts(full=True)]
             require(vectors > 0, 'PDF has no vector paths; inspect for whole-page rasterization')
-            require(bool(text) or bool(fonts), 'PDF lacks text/font objects; inspect label rasterization')
+            if font_policy == 'preserve_text':
+                require(bool(text) or bool(fonts), 'PDF lacks text/font objects; inspect label rasterization')
             summaries[stem] = {'size_px': list(sizes[0]), 'dpi': dpi, 'pdf_vector_objects': vectors,
                                'pdf_text_characters': len(text),
                                'pdf_embedded_image_count': len(page.get_images()),
                                'pdf_fonts': fonts}
+            summaries[stem]['font_policy'] = font_policy
+            summaries[stem]['text_searchable'] = bool(text)
     return {'kind': 'delivery_audit', 'structural_valid': True, 'artifacts': artifacts,
             'figures': summaries, 'note': 'Semantic/data/visual validity still requires host inspection and rerun.'}
 
@@ -377,9 +381,14 @@ def command_publish(args):
         gate = verify_gate(path)
         target_figures.update(gate['target_figures'])
     require(set(args.figures) <= target_figures, 'At least one output figure lacks a reference gate')
-    audit = inspect_stage(stage, args.data, args.figures, args.dpi)
+    font_policy = getattr(args, 'font_policy', 'preserve_text')
+    audit = inspect_stage(stage, args.data, args.figures, args.dpi, font_policy)
     review = load_json(args.review)
     require(review.get('kind') == 'final_delivery_review', 'Wrong final review kind')
+    require(review.get('font_policy', 'preserve_text') == font_policy, 'Review font policy differs from audit')
+    if font_policy == 'allow_outlines':
+        require(isinstance(review.get('font_policy_basis'), str) and review['font_policy_basis'].strip(),
+                'Outline mode needs the user/journal requirement in font_policy_basis')
     require(review.get('artifacts') == audit['artifacts'], 'Final files changed after review or hashes are incomplete')
     require(review.get('actual_formats_inspected') == ['tif', 'jpg', 'pdf'], 'All three formats must be inspected')
     require(review.get('unresolved') == [], 'Unresolved final issues remain')
@@ -395,7 +404,7 @@ def command_publish(args):
         bundle.mkdir()
         for name in audit['artifacts']:
             shutil.copy2(stage / name, bundle / name)
-        copied = inspect_stage(bundle, args.data, args.figures, args.dpi)
+        copied = inspect_stage(bundle, args.data, args.figures, args.dpi, font_policy)
         require(copied['artifacts'] == audit['artifacts'], 'Copy integrity check failed')
         require(not destination.exists(), 'Destination appeared during publishing')
         # All work is in a task-specific directory; no user files are removed.
@@ -428,6 +437,7 @@ def build_parser():
         p.add_argument('--data', nargs='+', required=True, help='Basenames only, e.g. plot_data.csv')
         p.add_argument('--figures', nargs='+', default=['figure'])
         p.add_argument('--dpi', type=int, default=600)
+        p.add_argument('--font-policy', choices=['preserve_text', 'allow_outlines'], default='preserve_text')
         if command == 'publish':
             p.add_argument('--gate', type=Path, action='append', required=True)
             p.add_argument('--review', type=Path, required=True)
@@ -448,7 +458,7 @@ def main():
         elif args.command == 'palette':
             result = analyze_palette(args.colors, args.background)
         elif args.command == 'audit':
-            result = inspect_stage(args.stage, args.data, args.figures, args.dpi)
+            result = inspect_stage(args.stage, args.data, args.figures, args.dpi, args.font_policy)
         else:
             result = command_publish(args)
         print(json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False))

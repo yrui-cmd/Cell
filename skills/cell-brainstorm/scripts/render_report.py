@@ -14,6 +14,11 @@ def safe(value: object) -> str:
     return html.escape(str(value)).replace('|', '\\|')
 
 def render(report: dict, sensitivity: dict | None = None) -> str:
+    if str(report.get('schema_version', '')).startswith('synthesis-'):
+        if sensitivity is not None:
+            raise ValueError('Original-research weight sensitivity is not applicable to synthesis audits.')
+        from render_synthesis import render_synthesis
+        return render_synthesis(report)
     if report.get('schema_version') == '2.0':
         from render_final import render_v2
         return render_v2(report, sensitivity)

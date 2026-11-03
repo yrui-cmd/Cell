@@ -1,3 +1,4 @@
+import unittest
 import copy
 import importlib.util
 from pathlib import Path
@@ -58,33 +59,38 @@ def bundle() -> dict:
     }
 
 
-def test_valid_synthesis_contract_passes():
-    assert MODULE.validate(bundle()) == []
+class SynthesisContractTests(unittest.TestCase):
+    def test_valid_synthesis_contract_passes(self):
+        assert MODULE.validate(bundle()) == []
 
 
-def test_nearest_reviews_and_primary_evidence_are_distinct_required_roles():
-    data = bundle()
-    data["candidates"][0]["nearest_reviews"] = []
-    errors = MODULE.validate(data)
-    assert any("nearest_reviews" in error for error in errors)
+    def test_nearest_reviews_and_primary_evidence_are_distinct_required_roles(self):
+        data = bundle()
+        data["candidates"][0]["nearest_reviews"] = []
+        errors = MODULE.validate(data)
+        assert any("nearest_reviews" in error for error in errors)
 
 
-def test_conditional_candidate_scopes_its_open_issue():
-    data = bundle()
-    data["candidates"][0]["status"] = "conditional"
-    errors = MODULE.validate(data)
-    assert any("scoped open_items" in error for error in errors)
+    def test_conditional_candidate_scopes_its_open_issue(self):
+        data = bundle()
+        data["candidates"][0]["status"] = "conditional"
+        errors = MODULE.validate(data)
+        assert any("scoped open_items" in error for error in errors)
 
 
-def test_search_success_does_not_replace_novelty_completion():
-    data = bundle()
-    del data["candidates"][0]["search_status"]["novelty_complete"]
-    errors = MODULE.validate(data)
-    assert any("novelty_complete" in error for error in errors)
+    def test_search_success_does_not_replace_novelty_completion(self):
+        data = bundle()
+        del data["candidates"][0]["search_status"]["novelty_complete"]
+        errors = MODULE.validate(data)
+        assert any("novelty_complete" in error for error in errors)
 
 
-def test_five_unique_slots_are_required():
-    data = copy.deepcopy(bundle())
-    data["candidates"][4]["id"] = "S1"
-    errors = MODULE.validate(data)
-    assert any("unique" in error for error in errors)
+    def test_five_unique_slots_are_required(self):
+        data = copy.deepcopy(bundle())
+        data["candidates"][4]["id"] = "S1"
+        errors = MODULE.validate(data)
+        assert any("unique" in error for error in errors)
+
+
+if __name__ == "__main__":
+    unittest.main()
