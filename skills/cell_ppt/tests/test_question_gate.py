@@ -14,13 +14,15 @@ class QuestionGateTests(unittest.TestCase):
     def setUp(self):
         self.task = {
             "questions_locked": True,
+            "design": {"style": "清晰学术", "language": "中文", "aspect_ratio": "16:9", "palette": "蓝白", "page_count": 1},
+            "template_notes": "无模板",
             "questions": [{"field": key, "question": "请确认这一项？", "asked": True,
                            "answer": "按推荐", "state": "confirmed", "response_source": "用户回复：按推荐"}
                           for key in sorted(handoff.REQUIRED_QUESTIONS)],
             "timing": {"total": 60, "talk": 60, "qa": 0, "includes_qa": False},
             "sources": [], "original_request": "离线测试资料",
             "pages": [{"kind": "content", "title": "测试", "story": "内容", "evidence": "资料",
-                       "visual": "图示", "seconds": 60}],
+                       "visual": "图示", "content": "真实上屏内容", "layout": "左图右文", "notes": "注释不直接上屏", "seconds": 60}],
         }
 
     def test_complete_answers_build_verified_handoff(self):

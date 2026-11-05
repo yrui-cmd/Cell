@@ -4,12 +4,17 @@
 
 ## 方案输入
 
-- `questions_locked: true` 只在六项实际问答完成后填写。`questions` 必须覆盖且不重复 `audience`、`duration`、`focus`、`outcome`、`scope`、`materials`。每项含 `field`、实际呈现的 `question`、`asked: true`、`answer`、`state`（`confirmed` 或该项真实授权的 `delegated`）及 `response_source`（用户答复原文或消息编号）。已有信息必须先问用户确认，不能自动锁定；不得伪造用户答复或授权。缺项、未提问或无答复出处时，脚本拒绝生成交接包。旧任务单缺少这些记录时先补问确认。
+- `questions_locked: true` 只在全部实际问答完成后填写。`questions` 必须覆盖且不重复 `style`、`audience`、`page_count`、`language`、`aspect_ratio`、`template`、`duration`、`focus`、`outcome`、`scope`、`materials`。每项含 `field`、实际呈现的 `question`、`asked: true`、`answer`、`state`（`confirmed` 或该项真实授权的 `delegated`）及 `response_source`（用户答复原文或消息编号）。已有信息必须先问用户确认，不能自动锁定；不得伪造用户答复或授权。缺项、未提问或无答复出处时，脚本拒绝生成交接包。旧任务单缺少这些记录时先补问确认。
+- `design` 必填 `style`、`language`、`aspect_ratio`（推荐 `16:9`）、`palette` 和整数 `page_count`；页数等于 `pages` 长度，含封面和结尾，不含模板参考页。`template_notes` 必填，写名称/编号及使用说明，不用模板写“无模板”。
 - `timing` 为整数秒 `total`、`talk`、`qa` 和布尔 `includes_qa`。逐页 `seconds` 合计必须等于演讲时间。
-- `pages` 按最终页序排列，每项写 `kind`、`title`、`story`、`evidence`、`visual`、`seconds`，可附章节编号、口播和转场。封面、目录等占正式页数。不再用一页方案概括多个成品页。只填写本次演示的内容和客户已确认的要求。
+- `pages` 按最终页序排列，每项写 `kind`、`title`、`story`、`evidence`、`visual`、`content`（实际上屏完整正文）、`layout`（版式/位置/比例/配色要求）、`notes`（制作注释，不直接上屏）、`seconds`，可附章节编号、口播和转场。封面、目录等占正式页数。不再用一页方案概括多个成品页。只填写本次演示的内容和客户已确认的要求。
 - `sources` 依序列 `title`、`path`。必用论文必须列齐，核验后设 `required_paper: true`、`fulltext_verified: true`。先匹配题名、作者和 DOI，再检查原文正文、图表、末页和出处；仅摘要、缺页或错文献一律先尝试合法下载。取不到才集中向客户索取具体 PDF。非 PDF 附原件，可另设 `readable_pdf` 指向可信渲染件。无外部附件且资料已充分时填 `original_request` 作为资料正文。
-- 有原生参考时填 `template.path` 和 `template.picks`，每项写 `page`（源页码从 1 起）、`kind`、`style`（唯一）、目录项可加 `agenda_states`。全页审计后只留使用的代表页，目录仅一页。检查模板源与精简版的实际可见外观、字体及母版依赖。若用户要求仅复制可见部分，在临时副本中先清理明确隐藏或画布外的对象、无关源备注等，保留会影响可见外观的组、蒙版和依赖；复杂遮挡按视觉核对。截图或 PDF 参考先用可见画面做参考样页 PPTX，保持实际参考风格，并注明视觉参考与原生对象的区别。客户指定库模板时记录其编号。
-- 每份原始文件入只读清单，记录路径、SHA-256、来源和授权。PDF 中的书签和嵌入索引给出 `material_start`、材料页段及规划/模板摘要，首页也打印资料起始页。问答可多页。制作端读取全部问答页；资料起始页必须与书签、索引和首页文字一致。
+- 有原生参考时填 `template.path` 和 `template.picks`，每项写 `page`（源页码从 1 起）、`kind`、`style`（唯一）、目录项可加 `agenda_states`。同时提供 `template.readable_pdf`（模板源文件完整、实际渲染的 PDF）及 `template.rendered_from_sha256`（对应源 PPTX 摘要）。脚本把所选代表页的预览并入 PDF 模板区。无实际文件、只选库模板编号时，用 `template_id` 和 `template_notes` 写清库编号与要求，不伪造模板预览。全页审计后只留使用的代表页，目录仅一页。检查模板源与精简版的实际可见外观、字体及母版依赖。若用户要求仅复制可见部分，在临时副本中先清理明确隐藏或画布外的对象、无关源备注等，保留会影响可见外观的组、蒙版和依赖；复杂遮挡按视觉核对。截图或 PDF 参考先用可见画面做参考样页 PPTX，保持实际参考风格，并注明视觉参考与原生对象的区别。客户指定库模板时记录其编号。
+- PDF 固定顺序为 **问答 → 模板 → 资料 → PPT内容**。开头第一行写 `PPT内容共 N 页`，随后写 `模板：名称/编号/无模板`；模板分区始终存在。每个 PPT 逻辑页另起一张 PDF 页，以 `# 第 N 页：标题` 开头，包含完整内容、排版和注释；太长时自动续页，续页不增加 PPT 页数。
+- 构建输出 `outline.json`、逐页安排 PPTX、交接 PDF 及可选精简模板 PPTX。规划 PPTX 是逐页摘要，完整正文及排版注释以 PDF 的 PPT内容区和 outline 为准，不用生图。
+- PDF 索引 schema 2 记录四区页段、`material_start`、`content_start`、每个 PPT 逻辑页对应的 PDF 页段、规划/模板摘要。资料区不再延伸到 PDF 末尾。`inspect` 继续支持旧 schema 1，避免阻断原订单查询和领取；新任务统一生成 schema 2。
+- 原始文件只读，保留附件、书签及 SHA-256。制作端依序阅读四区，参考资料与最终上屏内容明确分开。
+
 
 ## 客户确认
 

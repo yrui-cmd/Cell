@@ -23,3 +23,7 @@ python -X utf8 scripts/ppt_credentials.py check
 元素预览需要桌面版 Microsoft PowerPoint，Windows 通过 PowerShell/COM、macOS 通过 AppleScript 控制独立预览副本。macOS 首次可能要求自动化授权。Linux 可用于部分离线工具，但不支持当前凭据配置及桌面预览流程。
 
 代码依赖固定外部接口 `https://xiaomiao-ai.com/api/ppt/v1`，首次使用应持有该服务的 PPT 客户端密钥和足够页额度。开源不代表远端制作免费，也不包含 PowerPoint 软件许可。
+
+## 逐页内容规划
+
+先逐项确认风格、受众、页数、语言、比例（推荐 16:9）、可选模板以及时间、重点、范围和资料，再直接整理 `outline.json`，不生图。每页包含实际正文、排版、素材依据和制作注释。交接 PDF 按“问答 → 模板 → 资料 → PPT内容”排列，开头标明 PPT 总页数和模板，每页内容以 `# 第 N 页：标题` 开头。文件版本与额度确认后，沿用原有上传和后台进度流程。
