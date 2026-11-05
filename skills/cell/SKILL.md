@@ -1,8 +1,8 @@
 ---
 name: cell
-description: Cell 系列科研工作总入口。根据用户的科研任务，在科研选题、研究计划、顶刊综述、论文模拟审稿、论文 PDF 版式保留翻译、中英文论文深度润色、审稿回复、投稿整理、Python/MATLAB 科研可视化代码、数据图复现、科研图重建、文字或图片生成可编辑科研图、PowerPoint 原生对象编辑和科研玄学娱乐成员之间选择一个最匹配的 Skill，并直接执行对应流程。用户说“Cell 系列”“用 Cell 做”但未指定成员，或需要判断应使用哪个 Cell Skill 时使用。
+description: Cell 系列科研工作总入口。根据用户的科研任务，在科研选题、研究计划、顶刊综述、论文模拟审稿、论文 PDF 版式保留翻译、中英文论文深度润色、审稿回复、投稿整理、Python/MATLAB 科研可视化代码、数据图复现、科研图重建、文字或图片生成可编辑科研图、整套 PPT 制作、PowerPoint 原生对象编辑和科研玄学娱乐成员之间选择一个最匹配的 Skill，并直接执行对应流程。用户说“Cell 系列”“用 Cell 做”但未指定成员，或需要判断应使用哪个 Cell Skill 时使用。
 metadata:
-  version: "1.7.2"
+  version: "1.8.0"
   language: "zh-CN"
 ---
 
@@ -26,6 +26,7 @@ metadata:
 | 用代码复现论文数据图，再替换为用户数据 | `cell-data-figure` |
 | 把参考科研图重建为可编辑 PPT 或 Illustrator 图形 | `cell_su7` |
 | 提交文字或图片，选择1号/2号方案返回SVG、识别路径PPTX或导入Adobe Illustrator | `cell-cns-figure` |
+| 根据主题与资料规划、确认报价并制作整套 PPT | `cell_ppt` |
 | 快速编辑已打开 PowerPoint 中的原生对象 | `cell-ppt-edited` 插件 |
 | 科研玄学娱乐：个人八字、大运分析，或通用投稿择时 | `cell_sci_magic` |
 

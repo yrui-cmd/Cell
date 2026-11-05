@@ -1,0 +1,119 @@
+{
+  "entry": "questions",
+  "exit": "output",
+  "max_steps": 10,
+  "nodes": {
+    "questions": {
+      "decision_schema": {
+        "ready": "bool"
+      }
+    },
+    "sources": {
+      "decision_schema": {
+        "ready": "bool"
+      }
+    },
+    "plan": {
+      "decision_schema": {}
+    },
+    "approval": {
+      "decision_schema": {
+        "confirmed": "bool"
+      }
+    },
+    "submit": {
+      "decision_schema": {}
+    },
+    "failure": {
+      "decision_schema": {}
+    },
+    "output": {
+      "decision_schema": {}
+    }
+  },
+  "edges": [
+    {
+      "from": "questions",
+      "to": "sources",
+      "when": {
+        "field": "ready",
+        "op": "eq",
+        "value": true
+      }
+    },
+    {
+      "from": "questions",
+      "to": "output",
+      "when": {
+        "field": "ready",
+        "op": "eq",
+        "value": false
+      }
+    },
+    {
+      "from": "sources",
+      "to": "plan",
+      "when": {
+        "field": "ready",
+        "op": "eq",
+        "value": true
+      }
+    },
+    {
+      "from": "sources",
+      "to": "output",
+      "when": {
+        "field": "ready",
+        "op": "eq",
+        "value": false
+      }
+    },
+    {
+      "from": "plan",
+      "to": "approval",
+      "when": {
+        "always": true
+      }
+    },
+    {
+      "from": "approval",
+      "to": "submit",
+      "when": {
+        "field": "confirmed",
+        "op": "eq",
+        "value": true
+      }
+    },
+    {
+      "from": "approval",
+      "to": "output",
+      "when": {
+        "field": "confirmed",
+        "op": "eq",
+        "value": false
+      }
+    },
+    {
+      "from": "submit",
+      "to": "output",
+      "when": {
+        "always": true
+      }
+    },
+    {
+      "from": "failure",
+      "to": "output",
+      "when": {
+        "always": true
+      }
+    }
+  ],
+  "error_targets": {
+    "questions": "failure",
+    "sources": "failure",
+    "plan": "failure",
+    "approval": "failure",
+    "submit": "failure",
+    "output": "failure"
+  }
+}

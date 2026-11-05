@@ -19,6 +19,7 @@ MEMBERS = {
     "cell-cns-figure",
     "cell-ppt-edited",
     "cell_sci_magic",
+    "cell_ppt",
 }
 
 

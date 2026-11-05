@@ -1,0 +1,4 @@
+interface:
+  display_name: "cell_ppt"
+  short_description: "PPT 需求确认、资料整理、上传、成品下载和预览"
+  default_prompt: "使用 $cell_ppt 逐项确认需求，准备待确认的资料和报价，并在成品回传后下载和预览。"

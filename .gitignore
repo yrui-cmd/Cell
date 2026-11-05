@@ -21,3 +21,10 @@ xiaomiao_api.txt
 # Public credential-handling source, not customer secrets.
 !skills/cell-cns-figure/backends/*/scripts/credentials.py
 !skills/cell-cns-figure/backends/*/tests/test_credentials.py
+
+# cell_ppt public client sources and private local credential storage.
+!skills/cell_ppt/scripts/ppt_credentials.py
+!skills/cell_ppt/references/credentials.md
+skills/cell_ppt/config/
+*.dpapi
+*.keychain
