@@ -13,6 +13,7 @@ PLAN = "逐页安排.pptx"
 MATERIAL = "问答与原始资料.pdf"
 TEMPLATE = "精简参考模板.pptx"
 INDEX = "cell-ppt-handoff.json"
+TRANSPORT_INDEX = "ppt-material-index.json"
 MAX_FILE = 64 * 1024**2
 
 
@@ -234,25 +235,47 @@ def make_material(path, spec, plan_hash, template_hash):
         for i, item in enumerate(index["sections"]):
             item["last"] = index["sections"][i+1]["first"] - 1 if i+1 < len(index["sections"]) else len(doc)
         doc.set_toc(toc)
-        doc.embfile_add(INDEX, json_text(index).encode(), filename=INDEX)
+        payload = json_text(index).encode("utf-8")
+        doc.embfile_add(INDEX, payload, filename=INDEX)
+        doc.embfile_add(TRANSPORT_INDEX, payload, filename=TRANSPORT_INDEX)
         doc.save(path, deflate=True)
 
 
-def inspect(root):
-    paths = {role: root / name for role, name in (("pptx", PLAN), ("material", MATERIAL), ("pptx2", TEMPLATE))}
-    if not paths["pptx2"].exists():
-        del paths["pptx2"]
-    for path in paths.values():
-        check(path.is_file() and 0 < path.stat().st_size <= MAX_FILE, f"文件缺失或超出 64 MiB：{path.name}")
-    hashes = {role: sha(path) for role, path in paths.items()}
-    pages = slide_count(paths["pptx"])
-    template_pages = slide_count(paths["pptx2"]) if "pptx2" in paths else 0
-    with fitz.open(paths["material"]) as doc:
-        index = json.loads(doc.embfile_get(INDEX))
+def inspect(root, *, legacy=False):
+    root = Path(root)
+    pdf = root / MATERIAL
+    check(pdf.is_file() and 0 < pdf.stat().st_size <= MAX_FILE, "交接 PDF 缺失或超出 64 MiB")
+    with fitz.open(pdf) as doc:
+        check(not doc.needs_pass and len(doc) > 0, "交接 PDF 无法读取")
+        names = doc.embfile_names()
+        single_pdf = TRANSPORT_INDEX in names and not legacy
+        index = json.loads(doc.embfile_get(TRANSPORT_INDEX if single_pdf else INDEX))
+        check(isinstance(index, dict), "PDF 内嵌索引无效")
+        if TRANSPORT_INDEX in names and INDEX in names:
+            check(json.loads(doc.embfile_get(INDEX)) == json.loads(doc.embfile_get(TRANSPORT_INDEX)),
+                  "PDF 两份内嵌索引不一致，请重新生成并确认")
+        pages = index.get("page_count")
+        check(type(pages) is int and 1 <= pages <= 500, "内嵌索引 page_count 必须是 1–500 的整数")
+        check(index.get("schema") == 2 if single_pdf else index.get("schema") in {1, 2}, "不支持的 PDF 索引格式")
+        hashes = {"material": sha(pdf)}
+        template_pages = 0
+        for role, filename, hash_key in (("pptx", PLAN, "plan_sha256"), ("pptx2", TEMPLATE, "template_sha256")):
+            local = root / filename
+            if not local.exists():
+                check(single_pdf or role == "pptx2", "旧订单缺少规划 PPTX")
+                continue
+            check(0 < local.stat().st_size <= MAX_FILE, "本地参考 PPTX 超出大小限制")
+            check(sha(local) == index.get(hash_key), "本地规划或模板与 PDF 版本不符")
+            count = slide_count(local)
+            if role == "pptx":
+                check(count == pages, "规划 PPTX 与 PDF 声明页数不符")
+            else:
+                template_pages = count
+            if not single_pdf:
+                hashes[role] = sha(local)
+        if not single_pdf:
+            check(index.get("template_sha256") == hashes.get("pptx2"), "旧订单缺少对应模板 PPTX")
         start = index["material_start"]
-        check(index["schema"] in {1, 2} and index["page_count"] == pages
-              and index["plan_sha256"] == hashes["pptx"] and index["template_sha256"] == hashes.get("pptx2"),
-              "资料 PDF 与规划或模板版本不符")
         if index["schema"] == 1:
             check(2 <= start <= len(doc) and [1, "原始资料", start] in doc.get_toc()
                   and f"原始资料从第{start}页开始" in "".join(doc[0].get_text().split()),
@@ -289,7 +312,9 @@ def inspect(root):
                 check(actual == item["sha256"], "原始资料附件摘要不符")
             next_page = item["last"] + 1
         check(next_page == material_end + 1, "存在未登记的资料页")
-    return {"plan_pages": pages, "template_pages": template_pages, "credits": pages + template_pages,
+    return {"plan_pages": pages, "template_pages": template_pages,
+            "credits": pages if single_pdf else pages + template_pages,
+            "upload_format": "single_pdf" if single_pdf else "legacy_pptx_pdf",
             "sha256": hashes, "index": index}
 
 

@@ -67,12 +67,19 @@ class Client:
               "服务器订单模式、页数或报价与已确认版本不符，未扣费")
         check({role: item["sha256"] for role, item in quote["files"].items()} == bundle["sha256"],
               "服务器文件摘要与已确认版本不符，未扣费")
-        check(quote["files"]["pptx"]["page_count"] == bundle["plan_pages"]
-              and quote["files"].get("pptx2", {}).get("page_count", 0) == bundle["template_pages"],
-              "服务器单文件页数不符，未扣费")
+        if "pptx" in bundle["sha256"]:
+            check(quote["files"]["pptx"]["page_count"] == bundle["plan_pages"]
+                  and quote["files"].get("pptx2", {}).get("page_count", 0) == bundle["template_pages"],
+                  "服务器单文件页数不符，未扣费")
 
     def submit(self, root, approval):
-        bundle = inspect(root)
+        root = Path(root)
+        state_path = root / "order.json"
+        existing = read(state_path) if state_path.exists() else {}
+        legacy_order = bool(existing.get("job_id") and "pptx" in existing.get("sha256", {}))
+        bundle = inspect(root, legacy=True) if legacy_order else inspect(root)
+        check(existing.get("job_id") or bundle.get("upload_format") == "single_pdf",
+              "新订单仅支持单 PDF；请重新生成含 ppt-material-index.json 的交接 PDF，并确认新摘要和额度")
         check(approval.get("approved") is True and approval.get("sha256") == bundle["sha256"]
               and approval.get("credits") == bundle["credits"] and approval.get("thread_id")
               and approval.get("customer_confirmation"), "需要当前文件和额度的客户确认")
@@ -90,6 +97,11 @@ class Client:
                 health = self.call("GET", "/health", public=True)
                 check(health.get("ok") is True and MODE in health.get("job_modes", []),
                       "现网尚未公布 planned_deck，保留交接包，未上传")
+                contract = health.get("planned_upload", {})
+                check(health.get("version") == 2 and contract.get("files") == ["material"]
+                      and contract.get("format") == "pdf" and contract.get("billing") == "declared_ppt_content_pages",
+                      "服务未声明受支持的单 PDF 契约，未上传")
+                check(set(bundle["sha256"]) == {"material"}, "新订单仅允许上传交接 PDF")
                 balance = self.call("GET", "/balance")
                 check(balance["available_pages"] >= bundle["credits"], "PPT 页额度不足")
                 with ExitStack() as stack:
@@ -176,7 +188,8 @@ def play_elements(client, root, order, reply):
             # A failed or exited worker is retryable. Preserve the old preview and rebuild.
             state = {}
         if not state:
-            source = client.receive(root, order, reply, inspect(root))
+            source = client.receive(root, order, reply,
+                                    inspect(root, legacy=True) if "pptx" in order.get("sha256", {}) else inspect(root))
             copy = root / FINAL_PPTX
             macos = sys.platform == "darwin"
             if macos or copy.exists():

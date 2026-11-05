@@ -57,7 +57,7 @@ class ContentPdfTests(unittest.TestCase):
                               'picks':[{'page':1,'kind':'content','style':'example'}]}
             spec['sources']=[{'title':'原始资料','path':str(d/'source.pdf')}]
             r=h.build(spec,d/'bundle')
-            self.assertEqual(r['credits'],3)
+            self.assertEqual(r['credits'],2)
             with fitz.open(d/'bundle'/h.MATERIAL) as doc:
                 s=r['index']['sections']
                 self.assertIn('TEMPLATE PREVIEW',doc[s[1]['last']-1].get_text())
