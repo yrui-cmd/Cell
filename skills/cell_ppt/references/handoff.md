@@ -4,7 +4,7 @@
 
 ## 方案输入
 
-- `questions_locked: true` 只在关键问答完成时填写。`questions` 每项写 `question`、`answer`、`state`（`confirmed` 或 `delegated`）。`confirmed` 记录客户自行选择或明确采用推荐的结果，并在任务单保留出处。`delegated` 记录明确委托范围及所作选择。既有偏好注明出处。
+- `questions_locked: true` 只在六项实际问答完成后填写。`questions` 必须覆盖且不重复 `audience`、`duration`、`focus`、`outcome`、`scope`、`materials`。每项含 `field`、实际呈现的 `question`、`asked: true`、`answer`、`state`（`confirmed` 或该项真实授权的 `delegated`）及 `response_source`（用户答复原文或消息编号）。已有信息必须先问用户确认，不能自动锁定；不得伪造用户答复或授权。缺项、未提问或无答复出处时，脚本拒绝生成交接包。旧任务单缺少这些记录时先补问确认。
 - `timing` 为整数秒 `total`、`talk`、`qa` 和布尔 `includes_qa`。逐页 `seconds` 合计必须等于演讲时间。
 - `pages` 按最终页序排列，每项写 `kind`、`title`、`story`、`evidence`、`visual`、`seconds`，可附章节编号、口播和转场。封面、目录等占正式页数。不再用一页方案概括多个成品页。只填写本次演示的内容和客户已确认的要求。
 - `sources` 依序列 `title`、`path`。必用论文必须列齐，核验后设 `required_paper: true`、`fulltext_verified: true`。先匹配题名、作者和 DOI，再检查原文正文、图表、末页和出处；仅摘要、缺页或错文献一律先尝试合法下载。取不到才集中向客户索取具体 PDF。非 PDF 附原件，可另设 `readable_pdf` 指向可信渲染件。无外部附件且资料已充分时填 `original_request` 作为资料正文。

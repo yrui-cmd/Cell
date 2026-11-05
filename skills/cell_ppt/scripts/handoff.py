@@ -36,13 +36,26 @@ def slide_count(path):
     return count
 
 
+REQUIRED_QUESTIONS = {"audience", "duration", "focus", "outcome", "scope", "materials"}
+
+
 def validate_spec(spec):
     check(spec.get("questions_locked") is True, "先完成问答")
-    questions = spec["questions"]
-    check(bool(questions), "问答为空")
+    questions = spec.get("questions")
+    check(isinstance(questions, list) and bool(questions), "六项关键问题必须实际询问并收到答复")
+    fields = set()
     for item in questions:
-        check(item["state"] in {"confirmed", "delegated"} and item["answer"].strip(),
-              "问答尚未锁定")
+        check(isinstance(item, dict), "问答记录格式错误")
+        field = item.get("field")
+        check(isinstance(field, str) and field in REQUIRED_QUESTIONS and field not in fields,
+              "关键问答字段缺失、未知或重复")
+        fields.add(field)
+        check(item.get("asked") is True, "必须向用户实际提问，不能静默采用已有答案")
+        check(item.get("state") in {"confirmed", "delegated"}, "问答尚未确认")
+        for key in ("question", "answer", "response_source"):
+            check(isinstance(item.get(key), str) and bool(item[key].strip()),
+                  "必须保留实际问题、用户答复及答复出处")
+    check(fields == REQUIRED_QUESTIONS, "六项关键问题尚未全部完成，先继续逐项提问")
     timing = spec["timing"]
     total, talk, qa = (timing[key] for key in ("total", "talk", "qa"))
     check(all(type(x) is int and x >= 0 for x in (total, talk, qa)) and talk > 0,
