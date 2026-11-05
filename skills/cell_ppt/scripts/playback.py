@@ -79,6 +79,50 @@ def stage_for_macos(slide_xml, slide):
     return targets
 
 
+def remove_invalid_tags(slide, relationships):
+    """Drop only nonvisual tags pointing to a missing or wrong relationship type."""
+    rel_ns = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+    valid = {node.get("Id") for node in relationships
+             if node.get("Type") == rel_ns + "/tags"}
+    removed = 0
+    for tag in list(slide.iter(p("tags"))):
+        if tag.get("{" + rel_ns + "}id") not in valid:
+            parent = tag.getparent()
+            parent.remove(tag)
+            if parent.tag == p("custDataLst") and len(parent) == 0:
+                parent.getparent().remove(parent)
+            removed += 1
+    return removed
+
+
+def worker_alive(pid):
+    if type(pid) is not int or pid <= 0:
+        return False
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        handle = kernel.OpenProcess(0x1000, False, pid)
+        if not handle:
+            return False
+        try:
+            code = wintypes.DWORD()
+            return bool(kernel.GetExitCodeProcess(handle, ctypes.byref(code))) and code.value == 259
+        finally:
+            kernel.CloseHandle(handle)
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+
+
 def prepare(source, destination, *, macos=False):
     source, destination = Path(source).resolve(), Path(destination).resolve()
     if source == destination or destination.exists():
@@ -99,9 +143,15 @@ def prepare(source, destination, *, macos=False):
                 if member.filename in parts:
                     index, slide = parts[member.filename]
                     xml = etree.fromstring(payload, parser)
+                    part = Path(member.filename)
+                    rel_name = str(part.parent / "_rels" / (part.name + ".rels")).replace("\\", "/")
+                    relationships = (etree.fromstring(original.read(rel_name), parser)
+                                     if rel_name in original.namelist() else [])
+                    repaired = remove_invalid_tags(xml, relationships)
                     items = stage_for_macos(xml, slide) if macos else hide_for_playback(xml)
                     if items:
                         targets[str(index if macos else slide.slide_id)] = items
+                    if items or repaired:
                         payload = etree.tostring(xml, encoding="UTF-8", xml_declaration=True)
                 deck.writestr(member, payload)
         if len(Presentation(staged).slides) != len(slides):

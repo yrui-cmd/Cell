@@ -30,7 +30,7 @@ LABELS = {
     "expired": "订单已过期",
 }
 TERMINAL = {"completed", "failed", "cancelled", "expired"}
-PANEL_VERSION = 2
+PANEL_VERSION = 3
 
 
 def load_order(root):
@@ -54,7 +54,7 @@ def snapshot(order, remote=None, now=None, *, output=None):
     if output == "completed":
         label = "PPT 输出完成"
     elif output == "failed":
-        label = "制作完成 · PPT 输出需要处理"
+        label = "成品已下载 · 预览失败，请查看 element-playback.log；可重试原订单预览"
     return {"credits": order["credits"], "estimate_seconds": round(estimate, 1),
             "percent": 100 if status == "completed" else min(99, elapsed / estimate * 100),
             "elapsed_seconds": int(elapsed), "remaining_seconds": max(0, estimate - elapsed),
@@ -79,7 +79,9 @@ def refresh(server, root, order, token):
                             server.remote["playback_label"] = "正在输出 PPT"
                             return
                         except (OSError, ValueError, KeyError, TypeError, BadZipFile, PythonPptxError,
-                                requests.RequestException):
+                                requests.RequestException) as error:
+                            with (root / "element-playback.log").open("a", encoding="utf-8") as log:
+                                log.write(f"Preview startup failed ({type(error).__name__}): {error}\n")
                             server.remote["playback_label"] = "制作完成 · PPT 输出需要处理"
                             return
                     if reply["status"] in TERMINAL - {"completed"}:
@@ -105,6 +107,12 @@ def make_server(order, token, root):
                 body, kind = page, "text/html; charset=utf-8"
             elif self.path == prefix + "status":
                 state = self.server.output
+                try:
+                    current = read(root / "element-playback-state.json")
+                    if current.get("job_id") == order["job_id"]:
+                        state = current
+                except (OSError, ValueError):
+                    pass
                 output = (result_for(root, state) or "running") if state else None
                 body = json.dumps(snapshot(order, self.server.remote, output=output), ensure_ascii=False).encode()
                 kind = "application/json; charset=utf-8"

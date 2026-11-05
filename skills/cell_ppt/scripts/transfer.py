@@ -162,13 +162,19 @@ class Client:
 
 
 def play_elements(client, root, order, reply):
-    from playback import launch, prepare
+    from playback import launch, prepare, worker_alive
+    from output_worker import result_for
 
     with order_lock(root / "playback.lock"):
         state_path = root / "element-playback-state.json"
         state = read(state_path) if state_path.is_file() else {}
-        if state.get("job_id") == order["job_id"] and state.get("worker_pid"):
-            return state
+        if state:
+            check(state.get("job_id") == order["job_id"], "已有预览属于其他订单")
+            outcome = result_for(root, state)
+            if outcome == "completed" or (outcome is None and worker_alive(state.get("worker_pid"))):
+                return state
+            # A failed or exited worker is retryable. Preserve the old preview and rebuild.
+            state = {}
         if not state:
             source = client.receive(root, order, reply, inspect(root))
             copy = root / FINAL_PPTX

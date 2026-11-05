@@ -50,18 +50,22 @@ def run(manifest):
         if sys.platform == "win32":
             powershell = Path(os.environ["SystemRoot"]) / "System32/WindowsPowerShell/v1.0/powershell.exe"
             worker = Path(__file__).with_name("run_element_playback.ps1")
-            code = subprocess.run([str(powershell), "-NoProfile", "-NonInteractive", "-File", str(worker),
+            with manifest.with_name("element-playback.log").open("ab") as log:
+                code = subprocess.run([str(powershell), "-NoProfile", "-NonInteractive", "-File", str(worker),
                                    "-Manifest", str(manifest)], check=False,
-                                  creationflags=subprocess.CREATE_NO_WINDOW).returncode
+                                      stdin=subprocess.DEVNULL, stdout=log, stderr=log,
+                                      creationflags=subprocess.CREATE_NO_WINDOW).returncode
         elif sys.platform == "darwin":
             code = run_macos(deck, state["targets"])
         else:
             raise ValueError("Unsupported PPT preview platform")
         status = "completed" if code == 0 else "failed"
     except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
-        print(f"PPT output failed ({type(error).__name__})", file=sys.stderr)
+        with manifest.with_name("element-playback.log").open("a", encoding="utf-8") as log:
+            log.write(f"PPT output failed ({type(error).__name__}): {error}\n")
     finally:
-        write(manifest.with_name(RESULT), {"job_id": state["job_id"], "run_id": state["run_id"], "status": status})
+        write(manifest.with_name(RESULT), {"job_id": state["job_id"], "run_id": state["run_id"], "status": status,
+                                            "diagnostic_log": "element-playback.log"})
     return 0 if status == "completed" else 1
 
 
