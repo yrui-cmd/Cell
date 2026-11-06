@@ -17,7 +17,7 @@ from handoff import MATERIAL, PLAN, TEMPLATE, check, inspect, json_text, sha, sl
 from ppt_credentials import API, load as load_credential
 
 MODE = "planned_deck"
-FINAL_PPTX = "成品ppt.pptx"
+FINAL_PPTX = "成品.pptx"
 NAMES = {"pptx": PLAN, "pptx2": TEMPLATE, "material": MATERIAL}
 FILE_TYPES = {"pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
               "pdf": "application/pdf"}
@@ -138,20 +138,24 @@ class Client:
               and reply["billing"] == "settled", "等待原订单成品回传")
         result = reply["result"]
         digest, size = result["sha256"], result["bytes"]
-        check(result["page_count"] == bundle["plan_pages"] and re.fullmatch(r"[0-9a-f]{64}", digest)
+        result_pages = result.get("page_count")
+        check(type(result_pages) is int and 1 <= result_pages <= 500
+              and ("pptx" not in bundle["sha256"] or result_pages == bundle["plan_pages"])
+              and isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{64}", digest)
               and type(size) is int and 0 < size <= 512 * 1024**2, "回传成品的页数或文件信息不符")
         destination = root / "交付" / FINAL_PPTX
         destination.parent.mkdir(exist_ok=True)
         if destination.exists():
             check(destination.stat().st_size == size and sha(destination) == digest
-                  and slide_count(destination) == bundle["plan_pages"], "已保存的回传原件与服务端成品不符")
+                  and slide_count(destination) == result_pages, "已保存的回传原件与服务端成品不符")
             return destination
 
-        legacy = root / "成品_回传原件.pptx"
+        legacy = next((path for path in (root / "交付" / "成品ppt.pptx",
+                                        root / "成品_回传原件.pptx") if path.is_file()), None)
         with NamedTemporaryFile(dir=destination.parent, suffix=".pptx", delete=False) as stream:
             staged = Path(stream.name)
         try:
-            if legacy.is_file():
+            if legacy is not None:
                 check(legacy.stat().st_size == size, "已保存的回传原件与服务端成品不符")
                 shutil.copyfile(legacy, staged)
             else:
@@ -166,7 +170,7 @@ class Client:
                             check(received <= size, "回传成品超出回执大小")
                             stream.write(chunk)
             check(staged.stat().st_size == size and sha(staged) == digest
-                  and slide_count(staged) == bundle["plan_pages"], "回传成品的摘要或页数验证失败")
+                  and slide_count(staged) == result_pages, "回传成品的摘要或页数验证失败")
             staged.rename(destination)
         finally:
             staged.unlink(missing_ok=True)

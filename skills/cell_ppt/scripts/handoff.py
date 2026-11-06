@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 import textwrap
 
 import fitz
@@ -187,7 +188,7 @@ def make_material(path, spec, plan_hash, template_hash):
                    f"演讲 {timing['talk']} 秒；现场问答 {timing['qa']} 秒；总时长 {timing['total']} 秒", ""]
         for i, q in enumerate(spec["questions"], 1):
             answers += [f"{i}. {q['question']}", f"答：{q['answer']}", f"答复出处：{q['response_source']}", ""]
-        write_text(doc, f"PPT内容共 {total} 页", answers)
+        write_text(doc, f"PPT 总页数：{total} 页", answers)
         section(doc, "模板")
         write_text(doc, "模板", [f"模板：{template_label}", f"模板编号：{spec.get('template_id') or '无'}",
                    "以下模板预览仅用于风格参考，不计入 PPT 内容总页数。",
@@ -257,6 +258,14 @@ def inspect(root, *, legacy=False):
         pages = index.get("page_count")
         check(type(pages) is int and 1 <= pages <= 500, "内嵌索引 page_count 必须是 1–500 的整数")
         check(index.get("schema") == 2 if single_pdf else index.get("schema") in {1, 2}, "不支持的 PDF 索引格式")
+        if index["schema"] == 2:
+            first_line = "".join((doc[0].get_text().splitlines() or [""])[0].split())
+            declaration = re.fullmatch(r"(?:PPT总页数：|PPT内容共)([0-9]+)页", first_line)
+            check(declaration is not None, "PDF 第一行必须声明 PPT 总页数")
+            declared_pages = int(declaration.group(1))
+            check(1 <= declared_pages <= 500 and declared_pages == pages,
+                  "PDF 第一行 PPT 总页数与内嵌索引不一致，请重新生成并确认")
+            pages = declared_pages
         hashes = {"material": sha(pdf)}
         template_pages = 0
         for role, filename, hash_key in (("pptx", PLAN, "plan_sha256"), ("pptx2", TEMPLATE, "template_sha256")):
@@ -292,7 +301,7 @@ def inspect(root, *, legacy=False):
             check(cursor == len(doc)+1 and start == sections[2]["first"]
                   and index["content_start"] == sections[3]["first"], "资料与 PPT 内容起始页错误")
             first_text = "".join(doc[0].get_text().split())
-            check(f"PPT内容共{pages}页" in first_text and "模板：" in first_text, "首页缺少 PPT 总页数或模板")
+            check("模板：" in first_text, "首页须注明模板")
             records = index["content_pages"]
             check(len(records) == pages, "PDF 的 PPT 内容页数错误")
             cursor = index["content_start"]

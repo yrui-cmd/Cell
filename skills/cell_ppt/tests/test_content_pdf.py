@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 import fitz
 from pptx import Presentation
 
@@ -24,6 +25,21 @@ def task():
                   'notes':'这是制作注释，不应作为正文上屏。','seconds':60} for n in (1,2)]}
 
 class ContentPdfTests(unittest.TestCase):
+    def test_first_line_count_must_match_and_old_heading_remains_readable(self):
+        original_wrap = h.wrap
+        for heading, accepted in [('PPT 总页数：3 页', False),
+                                   ('说明\nPPT 总页数：2 页', False),
+                                   ('PPT内容共 2 页', True)]:
+            def replace_title(lines):
+                return original_wrap([heading if line == 'PPT 总页数：2 页' else line for line in lines])
+            with self.subTest(heading=heading), tempfile.TemporaryDirectory() as d:
+                with patch.object(h, 'wrap', side_effect=replace_title):
+                    if accepted:
+                        self.assertEqual(h.build(task(), Path(d)/'bundle')['plan_pages'], 2)
+                    else:
+                        with self.assertRaisesRegex(ValueError, '第一行'):
+                            h.build(task(), Path(d)/'bundle')
+
     def test_sections_long_content_and_no_template(self):
         spec=task();spec['pages'][0]['content']='长正文用于验证自动续页。\n'*100+'正文末尾唯一标记'
         with tempfile.TemporaryDirectory() as d:
@@ -32,7 +48,7 @@ class ContentPdfTests(unittest.TestCase):
             with fitz.open(root/h.MATERIAL) as doc:
                 sections=r['index']['sections']
                 self.assertEqual([x[1] for x in doc.get_toc() if x[0]==1],['问答','模板','资料','PPT内容'])
-                self.assertIn('PPT内容共 2 页',doc[0].get_text())
+                self.assertEqual('PPT 总页数：2 页',doc[0].get_text().splitlines()[0])
                 self.assertIn('模板：无模板',doc[0].get_text())
                 records=r['index']['content_pages']
                 self.assertGreater(records[0]['last'],records[0]['first'])
