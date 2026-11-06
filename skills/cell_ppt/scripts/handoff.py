@@ -157,20 +157,24 @@ def make_material(path, spec, plan_hash, template_hash):
              "template_id": spec.get("template_id"), "sources": [],
              "sections": [], "content_pages": []}
     toc = []
+    # Embed a Unicode-mapped font so the server can extract the visible count.
+    # Built-in china-s renders correctly but lacks ToUnicode for pypdf readers.
+    font_buffer = fitz.Font("cjk").buffer
 
     def write_text(doc, title, lines):
         lines = wrap(lines)
         offset = 0
         while offset < max(1, len(lines)):
             page = doc.new_page(width=595, height=842)
+            page.insert_font(fontname="cell-cjk", fontbuffer=font_buffer)
             heading = wrap([title if offset == 0 else title + "（续）"])
             check(len(heading) <= 8, "页标题过长，请精简标题")
             for i, line in enumerate(heading):
-                page.insert_text((38, 48 + i * 20), line, fontname="china-s", fontsize=11)
+                page.insert_text((38, 48 + i * 20), line, fontname="cell-cjk", fontsize=11)
             body_y = 62 + len(heading) * 20
             capacity = int((780 - body_y) // 19) + 1
             for i, line in enumerate(lines[offset:offset + capacity]):
-                page.insert_text((38, body_y + i * 19), line, fontname="china-s", fontsize=11)
+                page.insert_text((38, body_y + i * 19), line, fontname="cell-cjk", fontsize=11)
             page.insert_text((38, 815), str(len(doc)), fontsize=9)
             offset += capacity
 
@@ -239,6 +243,7 @@ def make_material(path, spec, plan_hash, template_hash):
         payload = json_text(index).encode("utf-8")
         doc.embfile_add(INDEX, payload, filename=INDEX)
         doc.embfile_add(TRANSPORT_INDEX, payload, filename=TRANSPORT_INDEX)
+        doc.subset_fonts()
         doc.save(path, deflate=True)
 
 

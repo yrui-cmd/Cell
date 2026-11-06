@@ -8,6 +8,7 @@ import unittest
 from unittest.mock import patch
 import fitz
 from pptx import Presentation
+from pypdf import PdfReader
 
 loader = importlib.util.spec_from_file_location('content_handoff', Path(__file__).resolve().parents[1]/'scripts/handoff.py')
 h = importlib.util.module_from_spec(loader)
@@ -45,6 +46,9 @@ class ContentPdfTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d)/'bundle';r=h.build(spec,root)
             self.assertEqual(r['credits'],2)
+            # The server uses pypdf, whose CJK extraction differs from PyMuPDF.
+            self.assertEqual(PdfReader(root/h.MATERIAL).pages[0].extract_text().splitlines()[0],
+                             'PPT 总页数：2 页')
             with fitz.open(root/h.MATERIAL) as doc:
                 sections=r['index']['sections']
                 self.assertEqual([x[1] for x in doc.get_toc() if x[0]==1],['问答','模板','资料','PPT内容'])

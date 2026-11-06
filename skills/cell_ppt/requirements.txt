@@ -1,4 +1,5 @@
 PyMuPDF>=1.24,<2
+pypdf>=6,<7
 python-pptx>=1.0,<2
 lxml>=5,<7
 requests>=2.31,<3
