@@ -9,6 +9,8 @@ import textwrap
 import fitz
 from pptx import Presentation
 from pptx.util import Inches, Pt
+from pptx.dml.color import RGBColor
+from pptx.enum.text import PP_ALIGN
 
 PLAN = "逐页安排.pptx"
 MATERIAL = "问答与原始资料.pdf"
@@ -44,6 +46,15 @@ QUESTION_LABELS = {
     "focus": "汇报重点", "outcome": "预期收获", "scope": "内容范围", "materials": "资料范围",
 }
 REQUIRED_QUESTIONS = set(QUESTION_LABELS)
+ROLE_LABELS = {"cover": "首页 / 封面", "overview": "总目录", "chapter": "章节导航",
+               "content": "正文", "thanks": "感谢页"}
+
+
+def page_role(item, number):
+    role = item.get("page_role", item["kind"])
+    if role == "agenda":
+        role = "overview" if number == 2 else "chapter"
+    return ROLE_LABELS.get(role, role)
 
 
 def nonblank(value):
@@ -96,6 +107,9 @@ def validate_spec(spec):
         check(all(isinstance(page[key], str) and page[key].strip()
                   for key in ("kind", "title", "story", "evidence", "visual", "content", "layout", "notes")), "逐页安排缺字段")
         check(type(page["seconds"]) is int and page["seconds"] >= 0, "逐页时长错误")
+        for asset in page.get("assets", []):
+            check(Path(asset["path"]).is_file() and Path(asset["path"]).suffix.lower() in {".png", ".jpg", ".jpeg"}
+                  and nonblank(asset.get("caption")), "自有配图须提供 PNG/JPEG 原件及图注")
     check(sum(page["seconds"] for page in pages) == talk, "逐页时长之和不等于演讲时长")
 
     design = spec.get("design", {})
@@ -118,22 +132,49 @@ def make_plan(path, pages, design):
     pres = Presentation()
     width, height = map(float, design["aspect_ratio"].split(":"))
     pres.slide_width, pres.slide_height = Inches(7.5 * width / height), Inches(7.5)
+    def text_box(slide, x, y, w, h, text, size=16, color="123052", bold=False):
+        box = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
+        box.text_frame.word_wrap = True
+        for i, line in enumerate(text.splitlines()):
+            para = box.text_frame.paragraphs[0] if i == 0 else box.text_frame.add_paragraph()
+            para.text = line
+            para.font.name = "Microsoft YaHei"
+            para.font.size = Pt(size)
+            para.font.bold = bold
+            para.font.color.rgb = RGBColor.from_string(color)
+            para.space_after = Pt(6)
+        return box
+
+    def summary(value, limit):
+        return value if len(value) <= limit else value[:limit] + "…（完整内容见 PDF / 备注）"
+
+    sw = pres.slide_width / Inches(1)
     for number, item in enumerate(pages, 1):
         slide = pres.slides.add_slide(pres.slide_layouts[5])
-        slide.shapes.title.text = f"# 第 {number} 页 | {item['title'][:50]}"
-        box = slide.shapes.add_textbox(Inches(.85), Inches(1.8), pres.slide_width - Inches(1.7), Inches(5))
-        frame = box.text_frame
-        frame.word_wrap = True
-        lines = (("页型 / 时间", f"{item['kind']} / {item['seconds']} 秒"),
-                 ("核心内容", item["story"]), ("依据", item["evidence"]),
-                 ("配图安排", item["visual"]))
-        for i, (label, value) in enumerate(lines):
-            para = frame.paragraphs[0] if i == 0 else frame.add_paragraph()
-            summary = value if len(value) <= 120 else value[:120] + "…（完整内容见 PDF）"
-            para.text = f"{label}  {summary}"
+        role = page_role(item, number)
+        text_box(slide, .55, .18, sw-1.1, .45,
+                 f"{role}    ·    第 {number:02d} / {len(pages):02d} 页    ·    {item['seconds']} 秒", 15, "168F8B", True)
+        title = slide.shapes.title
+        title.left, title.top, title.width, title.height = Inches(.55), Inches(.75), Inches(sw-1.1), Inches(.75)
+        title.text = item['title'][:50]
+        for para in title.text_frame.paragraphs:
+            para.alignment = PP_ALIGN.LEFT
             para.font.name = "Microsoft YaHei"
-            para.font.size = Pt(16)
-            para.space_after = Pt(10)
+            para.font.size = Pt(26)
+            para.font.color.rgb = RGBColor.from_string("123052")
+        left = (sw-1.5)*.53
+        right_x = .55 + left + .4
+        right = sw-right_x-.55
+        text_box(slide, .55, 1.65, left, .35, "本页内容", 16, bold=True)
+        text_box(slide, .55, 2.1, left, 4.7, summary(item['content'], 430), 17)
+        text_box(slide, right_x, 1.65, right, .35, "故事展开", 16, bold=True)
+        text_box(slide, right_x, 2.1, right, 2.5,
+                 summary(item.get('story_guide') or item['story'], 260), 14)
+        text_box(slide, right_x, 4.75, right, .35, "资料定位 / 配图", 16, bold=True)
+        locator = item.get('source_locator') or item['evidence']
+        text_box(slide, right_x, 5.15, right, 1.6, summary(locator, 170), 12, "637080")
+        text_box(slide, .55, 7.0, sw-1.1, .3,
+                 "逐页规划稿 · 详细故事、原图位置和制作注释见交接 PDF；自有配图附在对应内容页后。", 10, "637080")
         slide.notes_slide.notes_text_frame.text = json_text({"number": number, **item})
     pres.save(path)
 
@@ -244,6 +285,10 @@ def make_material(path, spec, plan_hash, template_hash):
                     with fitz.open(readable) as rendered:
                         check(not rendered.needs_pass and len(rendered) > 0, "资料预览 PDF 无法读取")
                         doc.insert_pdf(rendered)
+                elif source_path.suffix.lower() in {".png", ".jpg", ".jpeg"}:
+                    write_text(doc, "自有图片资料", [source["title"], f"原件：{source_path.name}"])
+                    preview = doc.new_page(width=595, height=842)
+                    preview.insert_image(fitz.Rect(30, 30, 565, 790), filename=str(source_path), keep_proportion=True)
                 else:
                     write_text(doc, "原始资料附件", [source["title"], f"附件：{source_path.name}"])
             toc.append([2, source["title"], first])
@@ -255,13 +300,29 @@ def make_material(path, spec, plan_hash, template_hash):
         index["content_start"] = section(doc, "PPT内容")
         for number, item in enumerate(spec["pages"], 1):
             first = len(doc) + 1
-            heading = f"# 第 {number} 页：{item['title']}"
+            asset_records = []
+            heading = f"# 第 {number} 页：【{page_role(item, number)}】{item['title']}"
             toc.append([2, heading, first])
-            write_text(doc, heading, [f"页型：{item['kind']}｜讲解：{item['seconds']} 秒",
+            write_text(doc, heading, [f"页型：{page_role(item, number)}｜讲解：{item['seconds']} 秒",
                        "核心目的：" + item["story"], "", "PPT内容：", item["content"], "",
+                       "故事展开（供写作与讲述）：", item.get("story_guide") or item["story"], "",
+                       "资料定位：", item.get("source_locator") or item["evidence"], "",
                        "排版：", item["layout"], "配图/图表安排：" + item["visual"],
                        "依据：" + item["evidence"], "", "注释（供制作参考，不直接上屏）：", item["notes"]])
-            index["content_pages"].append({"number": number, "first": first, "last": len(doc), "heading": heading})
+            for asset_number, asset in enumerate(item.get("assets", []), 1):
+                asset_path = Path(asset["path"])
+                attachment = f"page-{number:03d}-asset-{asset_number:03d}{asset_path.suffix.lower()}"
+                doc.embfile_add(attachment, asset_path.read_bytes(), filename=asset_path.name)
+                asset_records.append({"attachment": attachment, "sha256": sha(asset_path),
+                                      "caption": asset["caption"]})
+                write_text(doc, f"第 {number} 页自有配图 {asset_number}",
+                           [asset["caption"], f"原件：{asset_path.name}",
+                            f"资料编号：{asset.get('source_id', '本页自有资料')}", "以下原图保持比例；属于本页配套资料，不增加 PPT 页数。"])
+                preview = doc.new_page(width=595, height=842)
+                preview.insert_image(fitz.Rect(30, 30, 565, 790), filename=str(asset_path), keep_proportion=True)
+                preview.insert_text((38, 815), str(len(doc)), fontsize=9)
+            index["content_pages"].append({"number": number, "first": first, "last": len(doc),
+                                           "heading": heading, "assets": asset_records})
         for i, item in enumerate(index["sections"]):
             item["last"] = index["sections"][i+1]["first"] - 1 if i+1 < len(index["sections"]) else len(doc)
         doc.set_toc(toc)
@@ -340,6 +401,9 @@ def inspect(root, *, legacy=False):
                       and cursor <= item["last"] <= len(doc), "逐页内容顺序错误")
                 text = "".join(doc[item["first"]-1].get_text().split())
                 check(f"#第{number}页：" in text, "PPT 每页内容必须以 # 开头")
+                for asset in item.get("assets", []):
+                    check(hashlib.sha256(doc.embfile_get(asset["attachment"])).hexdigest() == asset["sha256"],
+                          "逐页自有配图原件摘要不符")
                 cursor = item["last"] + 1
             check(cursor == len(doc)+1, "PPT 内容页段不完整")
             material_end = sections[2]["last"]

@@ -1,10 +1,17 @@
 # cell_ppt
 
-整套 PPT 制作客户端，支持 Windows 与 macOS。需要 Python 3.11 或更新版本。源码按仓库根目录 MIT 许可发布；远端 PPT 制作服务不包含在此源码包内。
+用于做pptx。
 
 ## 安装与配置
 
-运行仓库的 `python install.py` 后，进入实际安装的 `cell_ppt` 目录，在运行 Skill 的 Python 环境中执行：
+需要 Python 3.11 或更新版本。将本仓库克隆到 Codex 的 Skills 目录，文件夹名保持为 `cell_ppt`，例如：
+
+```bash
+git clone https://github.com/yrui-cmd/cell_ppt.git ~/.codex/skills/cell_ppt
+cd ~/.codex/skills/cell_ppt
+```
+
+如设置了 `CODEX_HOME`，请改用其下的 `skills/cell_ppt`。在实际运行 Skill 的 Python 环境中执行：
 
 ```bash
 python -m pip install -r requirements.txt
@@ -12,9 +19,11 @@ python -X utf8 scripts/ppt_credentials.py setup
 python -X utf8 scripts/ppt_credentials.py check
 ```
 
-`setup` 隐藏输入自己的 PPT 客户端密钥。Windows 用 DPAPI 加密，macOS 使用系统钥匙串；不要分发 `config/`。`install.py --force` 会替换整个安装目录，更新前备份本机配置，更新后恢复到同一用户环境，或重新运行 setup。
+`setup` 隐藏输入自己的 PPT 客户端密钥。Windows 用 DPAPI 加密，macOS 使用系统钥匙串；不要分发 `config/`。更新时在本仓库目录执行 `git pull --ff-only`。本机 `config/` 已加入忽略规则，不会上传到 GitHub。
 
 ## 使用
+
+安装后重启 Codex 并新建聊天。本仓库可独立使用，无需安装 Cell 总入口。源码采用 [MIT 许可](LICENSE)。
 
 在 Codex 中说“使用 cell_ppt”并提供主题、论文、图片或参考模板。流程先检查 API，并提醒尽量提供相关图片。选择「默认」会直接拟定逐页安排，选择「个性化」才逐项确认。确认版本及报价后上传制作。完整规则见 [SKILL.md](SKILL.md)。
 
@@ -25,5 +34,7 @@ python -X utf8 scripts/ppt_credentials.py check
 代码依赖固定外部接口 `https://xiaomiao-ai.com/api/ppt/v1`，首次使用应持有该服务的 PPT 客户端密钥和足够页额度。开源不代表远端制作免费，也不包含 PowerPoint 软件许可。
 
 ## 逐页内容规划
+
+规划稿明确标注首页、总目录、章节导航、正文和感谢页。每页分列实际内容、故事展开和资料定位，方便按问题、观察、结论和转场继续写讲稿。文献图标明参考编号、原PDF页码及图号/面板，全文已附时不重复堆放；自有资料尽量完整附相关原图、图注和逐页对应关系，可放对应内容页后或集中资料区，资料续页不增加PPT页数或额度。
 
 默认模式沿用已给要求，其余参数按主题和资料拟定。个性化模式逐项确认风格、受众、页数、语言、比例、模板、时间、重点、范围和资料。两种模式都整理 `outline.json` 供审阅。每页包含实际正文、排版、素材依据和制作注释。交接 PDF 按“问答 → 模板 → 资料 → PPT内容”排列，开头标明 PPT 总页数和模板，每页内容以 `# 第 N 页：标题` 开头。文件版本与额度确认后，沿用原有上传和后台进度流程。

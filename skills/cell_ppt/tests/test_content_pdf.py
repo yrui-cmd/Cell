@@ -26,6 +26,46 @@ def task():
                   'notes':'这是制作注释，不应作为正文上屏。','seconds':60} for n in (1,2)]}
 
 class ContentPdfTests(unittest.TestCase):
+    def test_visible_roles_story_and_source_locations(self):
+        spec=task()
+        roles=['cover','overview','content','chapter','thanks']
+        spec['pages']=[dict(spec['pages'][0], page_role=role,
+                           story_guide='问题：谁支持生长？\n观察：原图结果。\n结论：有功能贡献。\n转场：机制是什么？',
+                           source_locator='R1，原PDF第4页，Fig.2h–i；共培养实验。') for role in roles]
+        spec['design']['page_count']=len(roles)
+        spec['timing'].update(total=300,talk=300)
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)/'bundle'
+            result=h.build(spec,root)
+            deck=Presentation(root/h.PLAN)
+            with fitz.open(root/h.MATERIAL) as pdf:
+                for role,slide,record in zip(roles,deck.slides,result['index']['content_pages']):
+                    visible='\n'.join(shape.text for shape in slide.shapes if shape.has_text_frame)
+                    self.assertIn(h.ROLE_LABELS[role],visible)
+                    self.assertIn('问题：谁支持生长？',visible)
+                    self.assertIn('Fig.2h–i',visible)
+                    self.assertIn(h.ROLE_LABELS[role],pdf[record['first']-1].get_text())
+
+    def test_own_figures_are_visible_preserved_and_do_not_add_credits(self):
+        spec=task()
+        with tempfile.TemporaryDirectory() as directory:
+            d=Path(directory)
+            with fitz.open() as source:
+                page=source.new_page(width=160,height=100)
+                page.draw_rect(fitz.Rect(10,10,150,90),color=(0,0,1),fill=(0,0,1))
+                page.get_pixmap().save(d/'own.png')
+            spec['pages'][0]['assets']=[{'path':str(d/'own.png'),'caption':'U1 自有实验图，支持第一页观察','source_id':'U1'}]
+            spec['pages'][0]['story_guide']='详细故事\n'*80+'完整故事结束标记'
+            result=h.build(spec,d/'bundle')
+            self.assertEqual(result['credits'],2)
+            self.assertEqual(len(Presentation(d/'bundle'/h.PLAN).slides),2)
+            record=result['index']['content_pages'][0]
+            with fitz.open(d/'bundle'/h.MATERIAL) as pdf:
+                self.assertGreater(record['last'],record['first'])
+                self.assertTrue(pdf[record['last']-1].get_images())
+                self.assertEqual(pdf.embfile_get(record['assets'][0]['attachment']),(d/'own.png').read_bytes())
+                self.assertIn('完整故事结束标记',''.join(p.get_text() for p in pdf))
+
     def test_default_parameters_do_not_require_or_fabricate_questions(self):
         spec=task()
         spec['intake']={'mode':'default','response_source':'选择默认'}
