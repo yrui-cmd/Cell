@@ -4,7 +4,9 @@
 
 ## 方案输入
 
-- `questions_locked: true` 只在全部实际问答完成后填写。`questions` 必须覆盖且不重复 `style`、`audience`、`page_count`、`language`、`aspect_ratio`、`template`、`duration`、`focus`、`outcome`、`scope`、`materials`。每项含 `field`、实际呈现的 `question`、`asked: true`、`answer`、`state`（`confirmed` 或该项真实授权的 `delegated`）及 `response_source`（用户答复原文或消息编号）。已有信息必须先问用户确认，不能自动锁定；不得伪造用户答复或授权。缺项、未提问或无答复出处时，脚本拒绝生成交接包。旧任务单缺少这些记录时先补问确认。
+- 新任务记录 `intake.mode`（`default` 或 `personalized`）和 `intake.response_source`（用户选择原文或消息编号）。两种模式都以 `questions_locked: true` 表示参数已齐备，`questions` 必须覆盖且不重复 `style`、`audience`、`page_count`、`language`、`aspect_ratio`、`template`、`duration`、`focus`、`outcome`、`scope`、`materials`。
+- 默认模式每项含 `field`、`asked: false`、`answer` 和 `state`。拟定值记 `defaulted`，客户已提供的参数记 `provided` 并附 `response_source`。交接 PDF 按实际来源标记参数。
+- 个性化和未记录模式的旧任务沿用实际问答记录。每项含 `field`、实际呈现的 `question`、`asked: true`、`answer`、`state`（`confirmed` 或该项真实授权的 `delegated`）及 `response_source`（用户答复原文或消息编号）。
 - `design` 必填 `style`、`language`、`aspect_ratio`（推荐 `16:9`）、`palette` 和整数 `page_count`；页数等于 `pages` 长度，含封面和结尾，不含模板参考页。`template_notes` 必填，写名称/编号及使用说明，不用模板写“无模板”。
 - `timing` 为整数秒 `total`、`talk`、`qa` 和布尔 `includes_qa`。逐页 `seconds` 合计必须等于演讲时间。
 - `pages` 按最终页序排列，每项写 `kind`、`title`、`story`、`evidence`、`visual`、`content`（实际上屏完整正文）、`layout`（版式/位置/比例/配色要求）、`notes`（制作注释，不直接上屏）、`seconds`，可附章节编号、口播和转场。封面、目录等占正式页数。不再用一页方案概括多个成品页。只填写本次演示的内容和客户已确认的要求。

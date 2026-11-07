@@ -38,14 +38,26 @@ def slide_count(path):
     return count
 
 
-REQUIRED_QUESTIONS = {"audience", "duration", "focus", "outcome", "scope", "materials",
-                      "style", "page_count", "language", "aspect_ratio", "template"}
+QUESTION_LABELS = {
+    "style": "风格", "audience": "受众", "page_count": "PPT 页数", "language": "语言",
+    "aspect_ratio": "页面比例", "template": "模板", "duration": "汇报时长",
+    "focus": "汇报重点", "outcome": "预期收获", "scope": "内容范围", "materials": "资料范围",
+}
+REQUIRED_QUESTIONS = set(QUESTION_LABELS)
+
+
+def nonblank(value):
+    return isinstance(value, str) and bool(value.strip())
 
 
 def validate_spec(spec):
-    check(spec.get("questions_locked") is True, "先完成问答")
+    check(spec.get("questions_locked") is True, "先完成问答或锁定默认参数")
+    intake = spec.get("intake", {"mode": "personalized"})
+    check(isinstance(intake, dict) and intake.get("mode") in {"default", "personalized"}
+          and ("intake" not in spec or nonblank(intake.get("response_source"))),
+          "需保留客户选择默认或个性化模式的出处")
     questions = spec.get("questions")
-    check(isinstance(questions, list) and bool(questions), "必问问题必须实际询问并收到答复")
+    check(isinstance(questions, list) and bool(questions), "缺少本次制作参数")
     fields = set()
     for item in questions:
         check(isinstance(item, dict), "问答记录格式错误")
@@ -53,12 +65,18 @@ def validate_spec(spec):
         check(isinstance(field, str) and field in REQUIRED_QUESTIONS and field not in fields,
               "关键问答字段缺失、未知或重复")
         fields.add(field)
-        check(item.get("asked") is True, "必须向用户实际提问，不能静默采用已有答案")
-        check(item.get("state") in {"confirmed", "delegated"}, "问答尚未确认")
-        for key in ("question", "answer", "response_source"):
-            check(isinstance(item.get(key), str) and bool(item[key].strip()),
+        check(nonblank(item.get("answer")), "缺少参数值")
+        if intake["mode"] == "default":
+            state = item.get("state")
+            check(item.get("asked") is False and state in {"defaulted", "provided"}
+                  and (state != "provided" or nonblank(item.get("response_source"))),
+                  "默认模式应区分拟定值与客户已提供的参数")
+        else:
+            check(item.get("asked") is True, "必须向用户实际提问，不能静默采用已有答案")
+            check(item.get("state") in {"confirmed", "delegated"}, "问答尚未确认")
+            check(all(nonblank(item.get(key)) for key in ("question", "response_source")),
                   "必须保留实际问题、用户答复及答复出处")
-    check(fields == REQUIRED_QUESTIONS, "必问问题尚未全部完成，先继续逐项提问")
+    check(fields == REQUIRED_QUESTIONS, "本次制作参数尚未齐全")
     timing = spec["timing"]
     total, talk, qa = (timing[key] for key in ("total", "talk", "qa"))
     check(all(type(x) is int and x >= 0 for x in (total, talk, qa)) and talk > 0,
@@ -190,8 +208,15 @@ def make_material(path, spec, plan_hash, template_hash):
                    f"风格：{design['style']}｜语言：{design['language']}｜比例：{design['aspect_ratio']}",
                    f"统一配色：{design['palette']}",
                    f"演讲 {timing['talk']} 秒；现场问答 {timing['qa']} 秒；总时长 {timing['total']} 秒", ""]
-        for i, q in enumerate(spec["questions"], 1):
-            answers += [f"{i}. {q['question']}", f"答：{q['answer']}", f"答复出处：{q['response_source']}", ""]
+        intake = spec.get("intake", {})
+        if intake.get("mode") == "default":
+            answers += ["参数模式：默认", f"选择出处：{intake['response_source']}"]
+            for item in spec["questions"]:
+                source = "按默认拟定" if item["state"] == "defaulted" else "客户已提供"
+                answers.append(f"{QUESTION_LABELS[item['field']]}：{item['answer']}（{source}）")
+        else:
+            for i, q in enumerate(spec["questions"], 1):
+                answers += [f"{i}. {q['question']}", f"答：{q['answer']}", f"答复出处：{q['response_source']}", ""]
         write_text(doc, f"PPT 总页数：{total} 页", answers)
         section(doc, "模板")
         write_text(doc, "模板", [f"模板：{template_label}", f"模板编号：{spec.get('template_id') or '无'}",

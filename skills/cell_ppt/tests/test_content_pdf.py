@@ -26,6 +26,29 @@ def task():
                   'notes':'这是制作注释，不应作为正文上屏。','seconds':60} for n in (1,2)]}
 
 class ContentPdfTests(unittest.TestCase):
+    def test_default_parameters_do_not_require_or_fabricate_questions(self):
+        spec=task()
+        spec['intake']={'mode':'default','response_source':'选择默认'}
+        spec['questions']=[{'field':item['field'],'asked':False,'state':'defaulted','answer':'按本次资料拟定'}
+                           for item in spec['questions']]
+        spec['questions'][0].update(state='provided',answer='16:9',response_source='用户原始要求')
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'bundle'
+            h.build(spec,bundle)
+            with fitz.open(bundle/h.MATERIAL) as doc:
+                text=doc[0].get_text()
+                self.assertIn('参数模式：默认',text)
+                self.assertIn('客户已提供',text)
+                self.assertIn('按默认拟定',text)
+                self.assertNotIn('答复出处',text)
+            self.assertEqual(h.inspect(bundle)['credits'],2)
+        del spec['intake']['response_source']
+        with self.assertRaisesRegex(ValueError,'选择'):
+            h.validate_spec(spec)
+        spec['intake']={'mode':'personalized','response_source':'选择个性化'}
+        with self.assertRaisesRegex(ValueError,'实际提问'):
+            h.validate_spec(spec)
+
     def test_first_line_count_must_match_and_old_heading_remains_readable(self):
         original_wrap = h.wrap
         for heading, accepted in [('PPT 总页数：3 页', False),
