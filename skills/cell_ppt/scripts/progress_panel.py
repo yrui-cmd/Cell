@@ -17,8 +17,9 @@ import requests
 from pptx.exc import PythonPptxError
 
 from output_worker import result_for
+from playback import worker_alive
 from ppt_credentials import load as load_credential
-from transfer import Client, MODE, check, order_lock, play_elements, read, write
+from transfer import Client, MODE, check, order_lock, read, write
 
 SECONDS_PER_CREDIT = 9 * 60 + 32
 LABELS = {
@@ -30,7 +31,7 @@ LABELS = {
     "expired": "订单已过期",
 }
 TERMINAL = {"completed", "failed", "cancelled", "expired"}
-PANEL_VERSION = 3
+PANEL_VERSION = 5
 
 
 def load_order(root):
@@ -51,15 +52,18 @@ def snapshot(order, remote=None, now=None, *, output=None):
     observed = remote["checked_at"] if remote else order["queued_at_unix"]
     elapsed = max(0, (observed if status in TERMINAL else now) - order["queued_at_unix"])
     label = remote.get("playback_label", LABELS[status]) if remote else LABELS[status]
-    if output == "completed":
+    receiving = bool(remote and remote.get("receiving"))
+    if receiving:
+        output = None
+    elif output == "completed":
         label = "PPT 输出完成"
     elif output == "failed":
-        label = "成品已下载 · 预览失败，请查看 element-playback.log；可重试原订单预览"
+        label = "成品已保存 · 预览中断，可重试"
     return {"credits": order["credits"], "estimate_seconds": round(estimate, 1),
             "percent": 100 if status == "completed" else min(99, elapsed / estimate * 100),
             "elapsed_seconds": int(elapsed), "remaining_seconds": max(0, estimate - elapsed),
-            "label": label, "terminal": status in TERMINAL and output != "running",
-            "output_state": output,
+            "label": label, "terminal": status in TERMINAL and output != "running" and not receiving,
+            "receiving": receiving, "output_state": output,
             "overdue": status not in TERMINAL and elapsed >= estimate,
             "source": "服务端状态" if remote else "本地订单回执"}
 
@@ -74,15 +78,19 @@ def refresh(server, root, order, token):
                         and reply.get("page_count") == order["credits"] and reply.get("status") in LABELS):
                     server.remote = {"status": reply["status"], "checked_at": time.time()}
                     if reply["status"] == "completed":
+                        server.remote.update(receiving=True, playback_label="制作完成 · 正在接收成品")
                         try:
-                            server.output = play_elements(client, root, order, reply)
-                            server.remote["playback_label"] = "正在输出 PPT"
-                            return
-                        except (OSError, ValueError, KeyError, TypeError, BadZipFile, PythonPptxError,
-                                requests.RequestException) as error:
+                            from return_watch import receive_ready
+                            receive_ready(client, root, order, reply)
+                        except requests.RequestException:
+                            server.remote["playback_label"] = "制作完成 · 正在重新接收成品"
+                        except (OSError, ValueError, KeyError, TypeError, BadZipFile, PythonPptxError) as error:
                             with (root / "element-playback.log").open("a", encoding="utf-8") as log:
-                                log.write(f"Preview startup failed ({type(error).__name__}): {error}\n")
-                            server.remote["playback_label"] = "制作完成 · PPT 输出需要处理"
+                                log.write(f"Delivery or preview needs attention ({type(error).__name__}): {error}\n")
+                            server.remote.update(receiving=False, playback_label="制作完成 · 成品接收或预览需要处理")
+                            return
+                        else:
+                            server.remote.update(receiving=False, playback_label="成品已返回 · 等待原对话接续输出")
                             return
                     if reply["status"] in TERMINAL - {"completed"}:
                         return
@@ -113,7 +121,11 @@ def make_server(order, token, root):
                         state = current
                 except (OSError, ValueError):
                     pass
-                output = (result_for(root, state) or "running") if state else None
+                output = None
+                if state:
+                    output = result_for(root, state)
+                    if output is None:
+                        output = "running" if worker_alive(state.get("worker_pid")) else (result_for(root, state) or "failed")
                 body = json.dumps(snapshot(order, self.server.remote, output=output), ensure_ascii=False).encode()
                 kind = "application/json; charset=utf-8"
             else:

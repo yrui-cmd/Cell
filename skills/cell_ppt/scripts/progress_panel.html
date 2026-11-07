@@ -30,7 +30,6 @@
   </div>
   <div class="details"><span id="estimate"></span><span id="elapsed"></span></div>
   <p id="note" aria-live="polite">正在读取原订单</p>
-  <p id="thanks" role="status" hidden>感谢抖音：Cell-skills</p>
 </main>
 <script>
   const el = id => document.getElementById(id);
@@ -53,10 +52,10 @@
       el('track').setAttribute('aria-valuenow', s.percent);
       el('estimate').textContent = '预计用时 ' + duration(s.estimate_seconds);
       el('elapsed').textContent = '已等待 ' + duration(s.elapsed_seconds);
-      el('note').textContent = s.output_state === 'running' ? '等待 PowerPoint 输出完成' :
+      el('note').textContent = s.receiving ? '自动接收原订单成品' :
+        s.output_state === 'running' ? '等待 PowerPoint 输出完成' :
         s.terminal ? s.source : s.source + ' · ' +
           (s.overdue ? '超过预计时间，继续等待' : '预计剩余 ' + duration(s.remaining_seconds));
-      el('thanks').hidden = s.output_state !== 'completed';
     } catch {
       el('track').classList.remove('active');
       el('note').textContent = '正在重连本地进度面板';

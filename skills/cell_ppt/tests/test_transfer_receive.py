@@ -50,7 +50,7 @@ class ReceiveTests(unittest.TestCase):
 
     def test_single_pdf_can_deliver_fewer_pages_and_reuse_verified_result(self):
         destination = self.receive()
-        self.assertEqual(destination, self.root / '交付' / '成品.pptx')
+        self.assertEqual(destination, self.root / '交付' / '成品ppt.pptx')
         self.assertEqual(destination.read_bytes(), self.payload)
         self.assertEqual(self.receive(), destination)
         self.session.get.assert_called_once()
@@ -59,7 +59,7 @@ class ReceiveTests(unittest.TestCase):
         self.reply['result']['page_count'] = 1
         with self.assertRaisesRegex(ValueError, '摘要或页数'):
             self.receive()
-        self.assertFalse((self.root / '交付' / '成品.pptx').exists())
+        self.assertFalse((self.root / '交付' / '成品ppt.pptx').exists())
 
     def test_invalid_reported_page_count_rejected_before_download(self):
         for pages in (0, -1, True, '2', 501):
@@ -73,7 +73,7 @@ class ReceiveTests(unittest.TestCase):
         self.reply['result']['sha256'] = '0' * 64
         with self.assertRaisesRegex(ValueError, '摘要或页数'):
             self.receive()
-        self.assertFalse((self.root / '交付' / '成品.pptx').exists())
+        self.assertFalse((self.root / '交付' / '成品ppt.pptx').exists())
 
     def test_legacy_order_keeps_planned_page_count_rule(self):
         self.bundle['sha256']['pptx'] = 'c' * 64
@@ -86,11 +86,11 @@ class ReceiveTests(unittest.TestCase):
         self.assertEqual(self.receive().read_bytes(), self.payload)
 
     def test_existing_old_filename_migrated_without_new_download(self):
-        legacy = self.root / '交付' / '成品ppt.pptx'
+        legacy = self.root / '交付' / '成品.pptx'
         legacy.parent.mkdir()
         legacy.write_bytes(self.payload)
         destination = self.receive()
-        self.assertEqual(destination.name, '成品.pptx')
+        self.assertEqual(destination.name, '成品ppt.pptx')
         self.assertEqual(destination.read_bytes(), self.payload)
         self.assertEqual(legacy.read_bytes(), self.payload)
         self.session.get.assert_not_called()
