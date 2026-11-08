@@ -1,30 +1,31 @@
 # 成品返回后接续原对话
 
-上传确认后结束当前轮次，成品返回后由原对话继续输出。使用 Codex 的同线程 heartbeat；不新建聊天，不用独立 CLI 会话代替原对话，也不让后台面板直接启动 PowerPoint。
+上传确认后结束当前轮次，由单个 Python 接收进程检查已入队订单，接收并校验 PPT 后通过桌面连接唤醒原对话一次。禁止创建、恢复或要求用户启用定时任务、heartbeat、cron、Windows 计划任务。进程内部查询不是聊天定时任务；后台不能启动 PowerPoint 或替用户选择录屏。
 
-## 上传后注册
+## 上传后启动
 
-1. `approval.json` 与 `order.json` 的 `thread_id` 必须是真实原对话 ID。确认订单已入队后运行 `python -X utf8 scripts/return_watch.py prepare 交接目录 --thread-id 原对话ID`。
-2. 发现并调用 Codex `automation_update` 工具，使用返回的 `automation_request` 创建本对话心跳。默认每分钟检查一次。若返回 `existing_automation_id`，先用工具查看并更新同一任务，不能再建第二个。工具要求调整频率时使用它允许的最短频率，如实记录。
-3. 将工具实际返回的 ID 绑定到订单：`python -X utf8 scripts/return_watch.py bind 交接目录 --thread-id 原对话ID --automation-id 实际ID`。prepare 只生成请求，不能把它当成已成功注册；不手工写自动化配置文件。
-4. 运行 `transfer.py progress` 打开面板，确认心跳已启用和面板可访问，结束当前轮次，只留上传成功和进度链接。等待期间状态未变化时保持安静，不定时发送聊天进度。
+1. `approval.json` 与 `order.json` 的 `thread_id` 必须是真实原对话 ID，订单已经结算入队。运行 `python -X utf8 scripts/receive_and_wake.py start 交接目录 --thread-id 原对话ID`。本流程授权该 Python 接收器仅向绑定的原对话发送一次本订单接续消息。
+2. `start` 先核对绑定并探测桌面连接，再启动隐藏的单订单进程。检查 `receive-state.json` 的 worker_pid、started_at 和实际存活状态；`return_watch.py prepare` 只准备绑定，不表示接收进程已启动。重复 start 不重新提交或另起进程。
+3. 运行 `transfer.py progress`，确认面板可访问并在聊天右侧打开，然后结束本轮，只留「已上传，[查看进度](实际 progress_url)」。不在聊天中循环等待或定时播报。
+4. 接收器只查询、领取原订单，不调用上传或扣费接口。文件摘要、原订单和原聊天匹配后，等待原聊天空闲，再发送一次接续消息并退出。回执不确定时记录 uncertain，不能盲目重发。
 
-如果心跳工具缺失或注册失败，明确说明“已入队，但原对话自动唤醒未注册”，保留订单，不能声称会自动唤醒。用户回来时在原对话补注册，沿用订单，不重新上传或扣费。
+桌面连接不可用、进程启动失败或连接失效时如实说明，保留原单和本地状态，不声称自动唤醒成功，不改回定时任务。收到停止指令运行 `receive_and_wake.py stop 交接目录 --thread-id 原对话ID`；仅用户明确恢复时才运行 resume。启动后默认最多等待 24 小时，超时记录 ReceiverTimeout，用户回来时检查状态再恢复。用户关闭电脑或 Codex 会影响接收/唤醒，不保证离线仍工作。
+
+## 迁移旧订单
+
+已绑定旧任务时，先用 automation_update 删除该订单真实 automation_id 指向的任务；仅删除已经核对订单和原对话匹配的任务，不影响其他订单。记录 automation_deleted=true，再启动本订单 Python 接收器。旧 prepare 不再生成自动化请求；旧 bind 命令拒绝绑定。不要取消订单、重新上传或再次收费。
 
 ## 原对话被唤醒后
 
-先运行 `python -X utf8 scripts/return_watch.py check 交接目录 --thread-id 原对话ID`。该命令只查原订单、校验和接收成品，不打开 PowerPoint。
+读取 receive-state.json，核对 job_id、thread_id 和消息中的 nonce。运行 `receive_and_wake.py ack 交接目录 --thread-id 原对话ID --nonce 接续标记`。核对 return-ready.json 的绑定及文件 SHA-256；调用 `return_watch.py check 交接目录 --thread-id 原对话ID` 获取输出状态。若接收器为 attention，只检查并报告错误，不假装收到了成品。
 
-- `pending`：等待下一次心跳，不发送重复进度。
-- `awaiting_recording_choice`：先暂停同一个心跳，按下面的问法询问，等实际答复，不能开始输出或重复询问。收到答复后保存选择并恢复原心跳。
-- `awaiting_recording_start`：用户已选录屏，先完成下面的录屏准备。
-- `ready`：由原对话运行 `python -X utf8 scripts/transfer.py play-elements 交接目录 --thread-id 原对话ID`，然后按 [PPT 输出规则](transfer.md#成品回传与-ppt-输出)检查实际 PowerPoint 编辑窗口、切到前台并完成逐元素输出。不能只启动进程就说已完成。
-- `running`：不重复启动；检查窗口是否等待前台。输出未结束就保留心跳，下一次继续核验。
-- `completed`：必须匹配当前订单及当前运行的 `element-output-result.json`。如有录屏，停止录制并验证视频可播放、起止画面完整，提供 PPT 和视频文件链接。用 `automation_update` 停用 `return-watch.json` 中的真实自动化 ID。最后在原对话单独一行写 **感谢抖音：Cell-skills**。
-- `failed`：核对日志，保留文件和原单，停用本订单心跳并报告具体故障。未完成时不发完成感谢语。用户要求重试后才恢复心跳和原单预览。
-- 网络暂不可用：保留心跳稍后再查；遇到凭据失效、文件校验失败等需处理的问题，报告并停用，不能无限重试。
-
-心跳必须绑定原对话。根据实际工具能力注册，不把“写了提示词”或“面板显示已完成”当成原对话已恢复的证据。修订此 Skill 本身不会自动为历史订单创建心跳；历史订单只在用户要求恢复时按上述步骤补注册。
+- pending：保留单个接收进程，不建立定时任务。
+- awaiting_recording_choice：只问下面的一句话，等实际答复，用 choose 保存；接收器已退出，不恢复任何心跳。
+- awaiting_recording_start：先录制整个 PowerPoint 软件窗口，验证实际开始后保存 recording-ready。
+- ready：原对话运行 `transfer.py play-elements 交接目录 --thread-id 原对话ID`。按每 0.5 秒一个元素、自动换页的规则输出。
+- running：在本次输出轮次检查实际窗口和进程直到完成，不重复启动，不建立定时任务。聊天被中断则用户继续时沿用本次运行。
+- completed：必须匹配当前 job_id 和 run_id 的 element-output-result.json。若录屏，停止并验证可播放、起止完整，再提供 PPT 和视频链接。最后单独一行写「感谢抖音：Cell-skills」。
+- failed：停止录制，保留原单和文件，报告具体问题，不提前感谢或宣称成功。
 
 ## 输出前只问一句
 

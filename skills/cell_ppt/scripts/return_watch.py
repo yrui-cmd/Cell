@@ -1,4 +1,4 @@
-"""Prepare a same-chat heartbeat and inspect a returned PPT without opening Office."""
+"""Bind an original order and inspect a returned PPT without opening Office."""
 import argparse
 import os
 from pathlib import Path
@@ -24,46 +24,19 @@ def bound_order(root, thread_id):
 
 def prepare(root, thread_id):
     order = bound_order(root, thread_id)
-    script = Path(__file__).resolve()
-    prompt = (
-        f"继续本对话的 cell_ppt 订单 {order['job_id']}，订单目录为 {root}。"
-        f"使用 {script.parent.parent / 'SKILL.md'}。运行 {script} check，目录参数为 {root}，"
-        f"--thread-id 参数为 {thread_id}。仅处理绑定的原订单，不新建订单、不再收费。"
-        "pending 时保持安静，等待下次检查。awaiting_recording_choice 时暂停本订单心跳，"
-        "简短醒目地问：要录下 PPT 的输出过程吗？选项为需要录屏、不需要。"
-        "等实际答复后用 choose 保存选择并恢复原心跳。awaiting_recording_start 时按 return-to-chat.md "
-        "先录制整个 PowerPoint 软件窗口，保存 recording-ready。ready 时由本对话运行 transfer.py play-elements，"
-        "使用同一目录和 --thread-id，按每 0.5 秒一个元素、自动换页的规则输出到 PowerPoint 编辑窗口。"
-        "running 时继续等待下次检查，不重复启动。completed 时先停止并验证选用的录屏，停用本订单的心跳，"
-        "在本对话给出成品链接，最后单独一行写：感谢抖音：Cell-skills。"
-        "只有匹配当前 job_id 和 run_id 的输出完成记录才能说明全部输出完成。"
-        "失败或需要用户处理时停用心跳并如实报告具体问题，保留原订单和文件，不提前感谢或宣称成功。"
-        "使用 return-watch.json 中绑定的真实 automation_id 停用心跳，禁止停用其他订单的任务。"
-    )
-    request = {"mode": "create", "kind": "heartbeat", "destination": "thread",
-               "targetThreadId": thread_id, "name": f"PPT 回传与输出 {order['job_id'][:8]}",
-               "prompt": prompt, "rrule": "FREQ=MINUTELY;INTERVAL=1", "status": "ACTIVE"}
     state_path = root / WATCH
     with order_lock(root / "return-watch.lock"):
         state = read(state_path) if state_path.exists() else {}
         check(not state or (state.get("job_id"), state.get("thread_id")) ==
               (order['job_id'], thread_id), "已有唤醒绑定属于其他订单或对话")
-        state.update(job_id=order['job_id'], thread_id=thread_id, request=request)
+        state.pop('request', None)
+        state.update(job_id=order['job_id'], thread_id=thread_id, wake_mode='python_receiver')
         write(state_path, state)
-    return {"automation_request": request, "existing_automation_id": state.get("automation_id"),
-            "registered": bool(state.get("automation_id"))}
+    return {"wake_mode": "python_receiver", "prepared": True, "receiver_started": False}
 
 
 def bind(root, thread_id, automation_id):
-    order = bound_order(root, thread_id)
-    check(bool(automation_id and automation_id.strip()), "需要工具真实返回的 automation_id")
-    with order_lock(root / "return-watch.lock"):
-        state = read(root / WATCH)
-        check((state['job_id'], state['thread_id']) == (order['job_id'], thread_id), "唤醒绑定不匹配")
-        check(state.get('automation_id') in (None, automation_id), "已有心跳，请更新原任务，不能重复绑定")
-        state['automation_id'] = automation_id
-        write(root / WATCH, state)
-    return state
+    raise ValueError('已取消定时任务绑定；请运行 receive_and_wake.py start')
 
 
 def choose(root, thread_id, record, response_source):

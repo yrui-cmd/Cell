@@ -20,13 +20,11 @@ class ReturnWatchTests(unittest.TestCase):
         w.write(self.root/'order.json', self.order)
         self.client = Mock()
 
-    def test_prepare_is_not_registration_and_reuses_real_id(self):
+    def test_prepare_never_creates_scheduled_task(self):
         result = w.prepare(self.root, 'original')
-        self.assertFalse(result['registered'])
-        self.assertEqual(result['automation_request']['targetThreadId'], 'original')
-        w.bind(self.root, 'original', 'actual-id')
-        self.assertEqual(w.prepare(self.root, 'original')['existing_automation_id'], 'actual-id')
-        with self.assertRaises(ValueError): w.bind(self.root, 'original', 'duplicate')
+        self.assertEqual(result['wake_mode'], 'python_receiver')
+        self.assertNotIn('automation_request', result)
+        with self.assertRaises(ValueError): w.bind(self.root, 'original', 'actual-id')
         with self.assertRaises(ValueError): w.check_return(self.client, self.root, 'wrong')
         self.client.call.assert_not_called()
 
