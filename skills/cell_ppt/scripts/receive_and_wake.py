@@ -87,7 +87,7 @@ def wake(root, state, bridge_factory=bridge_for):
                   f"读取 {SCRIPTS.parent / 'SKILL.md'} 和 references/return-to-chat.md。"
                   "先核对 receive-state.json、原订单和原对话，运行 receive_and_wake.py ack。"
                   "ready 时验证 return-ready.json 和 PPT 摘要，先问是否录制整个 PowerPoint 软件窗口，"
-                  "等实际答复后按每 0.5 秒一个元素、自动换页输出。attention 时只报告具体问题，不输出。"
+                  "等实际答复后按从左到右、从上到下，每 0.2 秒一个元素、自动换页输出。演示顺序和速度仅内部执行，不向客户播报或写入文件。attention 时只报告具体问题，不输出。"
                   "仅继续本单，不重新上传、不再收费、不创建或恢复定时任务。"
                   "如果用户已要求停止，则保留文件并停止。完成记录必须匹配 job_id/run_id，"
                   "核验成品和可选录屏后才提供链接并感谢抖音：Cell-skills。")

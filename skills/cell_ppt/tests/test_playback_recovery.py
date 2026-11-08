@@ -13,6 +13,32 @@ import progress_panel
 import transfer
 
 class PlaybackRecoveryTests(unittest.TestCase):
+    def test_relationship_before_slide_keeps_source_offsets(self):
+        from zipfile import ZipFile
+        from pptx import Presentation
+        from pptx.util import Inches
+        from copy import copy
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, reordered, dest = (root / n for n in ('source.pptx', 'reordered.pptx', 'preview.pptx'))
+            pres = Presentation()
+            for i in range(2):
+                slide = pres.slides.add_slide(pres.slide_layouts[6])
+                slide.shapes.add_textbox(Inches(1), Inches(1), Inches(5), Inches(2)).text = 'Slide ' + str(i)
+            pres.save(source)
+            with ZipFile(source) as src, ZipFile(reordered, 'w') as out:
+                # An earlier modified slide shifts the next relationship's offset.
+                first = ['ppt/slides/slide1.xml', 'ppt/slides/_rels/slide2.xml.rels', 'ppt/slides/slide2.xml']
+                names = first + [n for n in src.namelist() if n not in first]
+                for name in names:
+                    out.writestr(copy(src.getinfo(name)), src.read(name))
+            before = reordered.read_bytes()
+            targets = playback.prepare(reordered, dest)
+            self.assertEqual(len(targets), 2)
+            self.assertEqual(reordered.read_bytes(), before)
+            with ZipFile(dest) as z:
+                self.assertIsNone(z.testzip())
+
     def test_wrong_type_removed_but_valid_tags_preserved(self):
         rel='http://schemas.openxmlformats.org/officeDocument/2006/relationships'
         xml=etree.fromstring(f'<p:sld xmlns:p="{playback.NS}" xmlns:r="{rel}"><p:nvPr><p:custDataLst><p:tags r:id="wrong"/><p:tags r:id="good"/></p:custDataLst></p:nvPr></p:sld>')

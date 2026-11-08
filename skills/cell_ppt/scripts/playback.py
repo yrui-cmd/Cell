@@ -1,5 +1,6 @@
 """Create an isolated edit-mode copy and a manifest of objects to reveal."""
 from hashlib import file_digest
+from copy import copy
 import os
 from pathlib import Path
 import subprocess
@@ -19,12 +20,50 @@ def p(name):
     return f"{{{NS}}}{name}"
 
 
-def hide_for_playback(slide):
+def reading_order(slide_xml, slide=None):
+    """Order top-level elements by rows without altering their drawing/z order."""
+    geometry = {str(s.shape_id): s for s in slide.shapes} if slide is not None else {}
+    tree = slide_xml.find(f"{p('cSld')}/{p('spTree')}")
+    positioned = []
+    for index, element in enumerate(tree):
+        if not isinstance(element.tag, str):
+            continue
+        name = etree.QName(element)
+        if name.namespace != NS or name.localname not in SHAPES:
+            continue
+        info = element[0].find(p('cNvPr'))
+        if info is None or not info.get('id') or info.get('hidden') in {'1', 'true'}:
+            continue
+        shape = geometry.get(info.get('id'))
+        if shape is not None:
+            left, top = shape.left, shape.top
+        else:
+            off = element.find(f"{p('spPr')}/{{{DRAWING}}}xfrm/{{{DRAWING}}}off")
+            if off is None:
+                off = element.find(f"{p('grpSpPr')}/{{{DRAWING}}}xfrm/{{{DRAWING}}}off")
+            if off is None:
+                off = element.find(f"{p('xfrm')}/{{{DRAWING}}}off")
+            left, top = (int(off.get('x', 0)), int(off.get('y', 0))) if off is not None else (None, None)
+        positioned.append((float('inf') if top is None else top,
+                           float('inf') if left is None else left, index, element))
+    remaining = sorted(positioned, key=lambda item: item[:3])
+    result = []
+    while remaining:
+        row_top = remaining[0][0]
+        row, later = [], []
+        for item in remaining:
+            # Small alignment differences still belong to the same visual row.
+            (row if item[0] <= row_top + 6 * 12700 else later).append(item)
+        result.extend(item[3] for item in sorted(row, key=lambda item: (item[1], item[0], item[2])))
+        remaining = later
+    return result
+
+
+def hide_for_playback(slide, geometry=None):
     if slide.get("show") in {"0", "false"}:
         return []
     ids = []
-    tree = slide.find(f"{p('cSld')}/{p('spTree')}")
-    for shape in tree:
+    for shape in reading_order(slide, geometry):
         if not isinstance(shape.tag, str):
             continue
         name = etree.QName(shape)
@@ -40,10 +79,9 @@ def hide_for_playback(slide):
 def stage_for_macos(slide_xml, slide):
     if slide_xml.get("show") in {"0", "false"}:
         return []
-    tree = slide_xml.find(f"{p('cSld')}/{p('spTree')}")
     original = {str(shape.shape_id): shape for shape in slide.shapes}
     targets = []
-    for element in tree:
+    for element in reading_order(slide_xml, slide):
         if not isinstance(element.tag, str):
             continue
         name = etree.QName(element)
@@ -148,12 +186,14 @@ def prepare(source, destination, *, macos=False):
                     relationships = (etree.fromstring(original.read(rel_name), parser)
                                      if rel_name in original.namelist() else [])
                     repaired = remove_invalid_tags(xml, relationships)
-                    items = stage_for_macos(xml, slide) if macos else hide_for_playback(xml)
+                    items = stage_for_macos(xml, slide) if macos else hide_for_playback(xml, slide)
                     if items:
                         targets[str(index if macos else slide.slide_id)] = items
                     if items or repaired:
                         payload = etree.tostring(xml, encoding="UTF-8", xml_declaration=True)
-                deck.writestr(member, payload)
+                # writestr mutates header_offset; preserve the source archive's index
+                # because slide relationships may be read again later in the loop.
+                deck.writestr(copy(member), payload)
         if len(Presentation(staged).slides) != len(slides):
             raise ValueError("输出预览副本页数与回传成品不一致")
         with source.open("rb") as stream:

@@ -71,7 +71,7 @@ on run argv
             end tell
             set pendingItems to rest of pendingItems
             set item queueIndex of queues to pendingItems
-            delay 0.5
+            delay 0.2
             if pendingItems is {} then
                 set pendingPages to pendingPages - 1
                 if pendingPages > 0 then

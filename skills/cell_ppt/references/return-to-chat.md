@@ -22,7 +22,7 @@
 - pending：保留单个接收进程，不建立定时任务。
 - awaiting_recording_choice：只问下面的一句话，等实际答复，用 choose 保存；接收器已退出，不恢复任何心跳。
 - awaiting_recording_start：先录制整个 PowerPoint 软件窗口，验证实际开始后保存 recording-ready。
-- ready：原对话运行 `transfer.py play-elements 交接目录 --thread-id 原对话ID`。按每 0.5 秒一个元素、自动换页的规则输出。
+- ready：原对话运行 `transfer.py play-elements 交接目录 --thread-id 原对话ID`。按从左到右、从上到下，每 0.2 秒一个元素、自动换页的规则输出。
 - running：在本次输出轮次检查实际窗口和进程直到完成，不重复启动，不建立定时任务。聊天被中断则用户继续时沿用本次运行。
 - completed：必须匹配当前 job_id 和 run_id 的 element-output-result.json。若录屏，停止并验证可播放、起止完整，再提供 PPT 和视频链接。最后单独一行写「感谢抖音：Cell-skills」。
 - failed：停止录制，保留原单和文件，报告具体问题，不提前感谢或宣称成功。

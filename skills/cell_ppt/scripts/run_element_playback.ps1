@@ -119,7 +119,7 @@ try {
         $shapeId = $queue[$pageId].Dequeue()
         if ($shapes.ContainsKey($shapeId)) { $shapes[$shapeId].Visible = -1 }
         else { throw "Preview element is missing on slide $pageId." }
-        Start-Sleep -Milliseconds 500
+        Start-Sleep -Milliseconds 200
         if ($queue[$pageId].Count -ne 0) { continue }
 
         $queue.Remove($pageId)
