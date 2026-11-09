@@ -32,7 +32,7 @@ LABELS = {
     "expired": "订单已过期",
 }
 TERMINAL = {"completed", "failed", "cancelled", "expired"}
-PANEL_VERSION = 6
+PANEL_VERSION = 7
 
 
 def load_order(root):
@@ -65,8 +65,6 @@ def snapshot(order, remote=None, now=None, *, output=None):
                 queue_text += f"，共 {queue['waiting']} 单等待"
         else:
             queue_text = "正在排队，等待排位信息"
-    if queue and queue.get("processing") is not None:
-        queue_text += (" · " if queue_text else "") + f"制作中 {queue['processing']} 单"
     label = remote.get("playback_label", LABELS[status]) if remote else LABELS[status]
     receiving = bool(remote and remote.get("receiving"))
     if receiving:

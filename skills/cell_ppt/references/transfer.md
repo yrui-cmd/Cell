@@ -6,7 +6,7 @@
 - `GET /balance` 查可用页额度。`POST /uploads` 只传 multipart `material`（交接 PDF），不传 `pptx` 或 `pptx2`。头为 `X-PPT-Job-Mode: planned_deck` 与已保存的 `Idempotency-Key`。客户端与接单程序读取 PDF 第一行 `PPT 总页数：N 页`；服务以该声明的目标 PPT 页数作为报价依据，每个目标 PPT 页 1 额度；PDF 的模板、问答、资料页及正文续页不增加计费页数。内嵌 `ppt-material-index.json` 用于兼容和定位，存在时其整数 `page_count` 须与首页一致；缺少索引的普通 PDF 由服务器按首页明确声明处理。网站沿用原报价、客户确认和扣费逻辑。
 - 核对模式、PDF SHA-256、计费页数和金额。`GET /jobs/{job_id}` 查询同一单。只对当前 PDF 已获用户确认、报价完全相符的 `quoted` 调用 `POST /jobs/{job_id}/confirm`，传 `expected_page_credits`。确认即扣费入队。
 - 采用绘图客户端的可恢复方式，在网络调用前落盘幂等键、原聊天、文件摘要及额度。重复运行复用原键或原 job_id。客户端不接受跳转至其他主机。没有订单号时重试原请求；已有订单号时使用同一订单。
-- 入队后运行 `python -X utf8 scripts/transfer.py progress 交接目录`，将返回的 `progress_url` 用 Codex 的 `open_in_codex` 打开在聊天右侧。也可用同一命令重开原订单的面板。面板显示当前排位、前方单数、等待总单数（包含自己）及制作中单数。预计制作用时按已确认的目标 PPT 页数乘以 15 分钟计算，排队期间不倒计时；首次查询确认 `processing` 时记录开始时间并持久化到 `job-progress.json`，重开面板不重置。接口没有承诺制作开始时间字段，因此使用客户端首次观察时间，不以入队时间倒推。进度百分比是时间估算，不是真实页面完成率；超时继续显示等待，不能自动宣布完成。
+- 入队后运行 `python -X utf8 scripts/transfer.py progress 交接目录`，将返回的 `progress_url` 用 Codex 的 `open_in_codex` 打开在聊天右侧。也可用同一命令重开原订单的面板。面板显示当前排位、前方单数、等待总单数（包含自己），不展示全站制作中单数。预计制作用时按已确认的目标 PPT 页数乘以 15 分钟计算，排队期间不倒计时；首次查询确认 `processing` 时记录开始时间并持久化到 `job-progress.json`，重开面板不重置。接口没有承诺制作开始时间字段，因此使用客户端首次观察时间，不以入队时间倒推。进度百分比是时间估算，不是真实页面完成率；超时继续显示等待，不能自动宣布完成。
 - 面板由后台 Python 进程提供，每 5 秒串行查询原订单，沿用客户密钥。读取 `GET /jobs/{job_id}` 的 `queue.position/ahead/waiting/processing/as_of_unix`；`processing` 显示“制作中”，忽略排位；其他终态清空排队信息。查询失败保留上次结果并提示“状态更新中”，恢复后自动刷新；旧服务缺少 queue 时显示等待排位信息，不编造名次。制作完成后只接收、校验并保存成品，不启动 PowerPoint。绑定的 Python 接收进程在校验成品后一次性唤醒原聊天，询问是否录屏后再输出；感谢语只在原聊天完成输出时发送。暂时下载失败仍重试同一单。
 
 ## 上传后结束聊天
