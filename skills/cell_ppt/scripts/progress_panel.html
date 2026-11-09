@@ -29,6 +29,8 @@
     <div id="fill"></div>
   </div>
   <div class="details"><span id="estimate"></span><span id="elapsed"></span></div>
+  <p id="queue" aria-live="polite"></p>
+  <p id="freshness" aria-live="polite"></p>
   <p id="note" aria-live="polite">正在读取原订单</p>
 </main>
 <script>
@@ -46,15 +48,17 @@
       if (!response.ok) throw new Error();
       const s = await response.json();
       el('label').textContent = s.label;
-      el('percent').textContent = (s.percent === 100 ? '100' : s.percent.toFixed(1)) + '%';
+      el('percent').textContent = s.status === 'completed' ? '100%' : s.counting ? '预计 ' + s.percent.toFixed(1) + '%' : '—';
       el('fill').style.width = s.percent + '%';
       el('track').classList.toggle('active', !s.terminal);
       el('track').setAttribute('aria-valuenow', s.percent);
-      el('estimate').textContent = '预计用时 ' + duration(s.estimate_seconds);
-      el('elapsed').textContent = '已等待 ' + duration(s.elapsed_seconds);
+      el('estimate').textContent = '预计制作用时 ' + duration(s.estimate_seconds);
+      el('elapsed').textContent = s.counting ? '已制作 ' + duration(s.elapsed_seconds) : '';
+      el('queue').textContent = s.queue_text;
+      el('freshness').textContent = s.updating ? '状态更新中，暂显示上次查询结果' : '';
       el('note').textContent = s.receiving ? '自动接收原订单成品' :
         s.output_state === 'running' ? '等待 PowerPoint 输出完成' :
-        s.terminal ? s.source : s.source + ' · ' +
+        s.terminal ? s.source : !s.counting ? '开始制作后才计时，排队时间不计入预计制作用时' :
           (s.overdue ? '超过预计时间，继续等待' : '预计剩余 ' + duration(s.remaining_seconds));
     } catch {
       el('track').classList.remove('active');

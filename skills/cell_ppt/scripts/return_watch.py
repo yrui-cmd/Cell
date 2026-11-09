@@ -10,6 +10,7 @@ from handoff import check, inspect, json_text
 from output_worker import result_for
 from playback import worker_alive
 from transfer import Client, load_credential, order_lock, read, write
+from job_progress import observe
 
 WATCH = "return-watch.json"
 
@@ -94,6 +95,7 @@ def check_return(client, root, thread_id):
                 "diagnostic_log": str(root / 'element-playback.log')}
     reply = client.call('GET', f"/jobs/{order['job_id']}")
     check(reply.get('job_id') == order['job_id'], "服务器返回了其他订单")
+    progress = observe(root, order, reply)
     if reply['status'] == 'completed':
         ready = receive_ready(client, root, order, reply)
         watch = read(root / WATCH) if (root / WATCH).exists() else {}
@@ -104,7 +106,9 @@ def check_return(client, root, thread_id):
         return ready
     check(reply['status'] in {'queued', 'processing', 'failed', 'cancelled', 'expired'}, "订单状态异常")
     return {"status": 'pending' if reply['status'] in {'queued', 'processing'} else 'failed',
-            "remote_status": reply['status'], "job_id": order['job_id']}
+            "remote_status": reply['status'], "job_id": order['job_id'],
+            "queue": progress.get('queue'),
+            "processing_started_at_unix": progress.get('processing_started_at_unix')}
 
 
 def main():

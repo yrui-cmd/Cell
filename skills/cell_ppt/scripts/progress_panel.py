@@ -20,8 +20,9 @@ from output_worker import result_for
 from playback import worker_alive
 from ppt_credentials import load as load_credential
 from transfer import Client, MODE, check, order_lock, read, write
+from job_progress import POLL_SECONDS, SECONDS_PER_PAGE, load as load_progress, observe
 
-SECONDS_PER_CREDIT = 9 * 60 + 32
+SECONDS_PER_CREDIT = SECONDS_PER_PAGE
 LABELS = {
     "queued": "已入队",
     "processing": "制作中",
@@ -31,7 +32,7 @@ LABELS = {
     "expired": "订单已过期",
 }
 TERMINAL = {"completed", "failed", "cancelled", "expired"}
-PANEL_VERSION = 5
+PANEL_VERSION = 6
 
 
 def load_order(root):
@@ -49,8 +50,23 @@ def snapshot(order, remote=None, now=None, *, output=None):
     now = time.time() if now is None else now
     estimate = order["credits"] * SECONDS_PER_CREDIT
     status = remote["status"] if remote else order["status"]
-    observed = remote["checked_at"] if remote else order["queued_at_unix"]
-    elapsed = max(0, (observed if status in TERMINAL else now) - order["queued_at_unix"])
+    started = remote.get("processing_started_at_unix") if remote else None
+    end = remote.get("finished_at_unix", remote["checked_at"]) if remote else now
+    elapsed = max(0, (end if status in TERMINAL else now) - started) if started is not None else 0
+    counting = status == "processing" and started is not None
+    queue = remote.get("queue") if remote and status in {"queued", "processing"} else None
+    queue_text = ""
+    if status == "queued":
+        if queue and queue.get("position", 0) >= 1:
+            queue_text = f"当前排第 {queue['position']} 位"
+            if queue.get("ahead") is not None:
+                queue_text += f"，前面还有 {queue['ahead']} 单"
+            if queue.get("waiting") is not None:
+                queue_text += f"，共 {queue['waiting']} 单等待"
+        else:
+            queue_text = "正在排队，等待排位信息"
+    if queue and queue.get("processing") is not None:
+        queue_text += (" · " if queue_text else "") + f"制作中 {queue['processing']} 单"
     label = remote.get("playback_label", LABELS[status]) if remote else LABELS[status]
     receiving = bool(remote and remote.get("receiving"))
     if receiving:
@@ -60,11 +76,14 @@ def snapshot(order, remote=None, now=None, *, output=None):
     elif output == "failed":
         label = "成品已保存 · 预览中断，可重试"
     return {"credits": order["credits"], "estimate_seconds": round(estimate, 1),
-            "percent": 100 if status == "completed" else min(99, elapsed / estimate * 100),
-            "elapsed_seconds": int(elapsed), "remaining_seconds": max(0, estimate - elapsed),
+            "percent": 100 if status == "completed" else min(99, elapsed / estimate * 100) if counting else 0,
+            "elapsed_seconds": int(elapsed), "remaining_seconds": max(0, estimate - elapsed) if counting else None,
+            "status": status, "queue": queue, "queue_text": queue_text, "counting": counting,
+            "updating": bool(remote and (remote.get("update_error") or
+                              status not in TERMINAL and now - remote["checked_at"] > 15)),
             "label": label, "terminal": status in TERMINAL and output != "running" and not receiving,
             "receiving": receiving, "output_state": output,
-            "overdue": status not in TERMINAL and elapsed >= estimate,
+            "overdue": counting and elapsed >= estimate,
             "source": "服务端状态" if remote else "本地订单回执"}
 
 
@@ -76,7 +95,7 @@ def refresh(server, root, order, token):
                 reply = client.call("GET", f"/jobs/{order['job_id']}")
                 if (reply.get("job_id") == order["job_id"] and reply.get("mode") == MODE
                         and reply.get("page_count") == order["credits"] and reply.get("status") in LABELS):
-                    server.remote = {"status": reply["status"], "checked_at": time.time()}
+                    server.remote = observe(root, order, reply)
                     if reply["status"] == "completed":
                         server.remote.update(receiving=True, playback_label="制作完成 · 正在接收成品")
                         try:
@@ -94,9 +113,12 @@ def refresh(server, root, order, token):
                             return
                     if reply["status"] in TERMINAL - {"completed"}:
                         return
+                else:
+                    raise ValueError("订单状态响应不匹配")
             except (OSError, ValueError, requests.RequestException):
-                pass
-            time.sleep(60)
+                server.remote = {**(server.remote or {"status": order["status"],
+                                  "checked_at": time.time()}), "update_error": True}
+            time.sleep(POLL_SECONDS)
 
 
 def make_server(order, token, root):
@@ -142,7 +164,7 @@ def make_server(order, token, root):
             self.wfile.write(body)
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    server.remote = None
+    server.remote = load_progress(root, order) or None
     server.output = None
     server.last_access = time.monotonic()
     server.timeout = 1
