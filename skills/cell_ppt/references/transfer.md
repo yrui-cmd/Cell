@@ -1,5 +1,7 @@
 # 固定 PPT 接口
 
+上传前必须完成[客户确认](handoff.md#客户确认)：在原聊天列出当前 PDF 的分区、大纲和每页内容，收到对这一版内容及额度的明确确认，再核对 PDF SHA-256 与 approval.json 一致。没有实际答复时不得调用上传接口；不能先传 PDF 再询问是否按其内容制作。
+
 固定地址 `https://xiaomiao-ai.com/api/ppt/v1`。由 Python 执行 `scripts/transfer.py submit 交接目录` 或 `status 交接目录`。客户端自动读取[已配置的 PPT 密钥](credentials.md)。
 
 - `GET /health` 须返回 `ok: true`、`version: 2`、`job_modes` 含 `planned_deck`，且 `planned_upload` 声明 `files: ["material"]`、`format: "pdf"`、`billing: "declared_ppt_content_pages"`。不支持的契约先止步。
