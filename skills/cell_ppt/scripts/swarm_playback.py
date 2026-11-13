@@ -11,8 +11,67 @@ from hashlib import sha256
 from contextlib import contextmanager
 from pptx import Presentation
 
-COLORS = ["0284C7", "7C3AED", "16A34A", "EA580C", "DB2777", "0891B2", "4F46E5"]
+COLORS = [
+    "0284C7",
+    "7C3AED",
+    "16A34A",
+    "EA580C",
+    "DB2777",
+    "0891B2",
+    "4F46E5",
+    "CA8A04",
+    "0D9488",
+    "BE123C",
+]
+GRAPHIC_WORKERS = 4
+TEXT_WORKERS = 6
 FRAME_DELAY = 0.012
+
+
+BUSY_ERRORS = {-2147418111, -2147417846}
+
+
+def com_retry(action, timeout=8.0):
+    """Retry only explicit RPC busy/rejected calls; other failures stay visible."""
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            return action()
+        except Exception as error:
+            if (
+                getattr(error, "hresult", None) not in BUSY_ERRORS
+                or time.monotonic() >= deadline
+            ):
+                raise
+            time.sleep(0.04)
+
+
+class ComObject:
+    """Bounded busy-call recovery for nested Office objects and methods."""
+
+    def __init__(self, obj):
+        object.__setattr__(self, "_obj", obj)
+
+    def __getattr__(self, name):
+        value = com_retry(lambda: getattr(self._obj, name))
+        if name == "_oleobj_":
+            return value
+        if hasattr(value, "_oleobj_"):
+            return wrap_com(value)
+        if callable(value):
+            return lambda *a, **kw: wrap_com(com_retry(lambda: value(*a, **kw)))
+        return wrap_com(value)
+
+    def __setattr__(self, name, value):
+        com_retry(lambda: setattr(self._obj, name, value))
+
+    def __iter__(self):
+        for n in range(1, self.Count + 1):
+            yield self.Item(n)
+
+
+def wrap_com(value):
+    return ComObject(value) if hasattr(value, "_oleobj_") else value
 
 
 def rgb(h):
@@ -117,8 +176,28 @@ def exclusive_playback():
 def page_stream(slide, shapes, W, H, helpers, metrics):
     import win32com.client
 
-    pointers = []
-    bubbles = []
+    # Cache COM properties once. Text clones are prepared hidden, before pointers.
+    texts, graphics, info, clones = [], [], {}, {}
+    for shape in shapes:
+        sid = shape.Id
+        x, y, w, h = map(float, (shape.Left, shape.Top, shape.Width, shape.Height))
+        text = (
+            shape.TextFrame.TextRange.Text
+            if shape.HasTextFrame and shape.TextFrame.HasText
+            else ""
+        )
+        info[sid] = (x, y, w, h, shape.ZOrderPosition, text)
+        if text.strip():
+            texts.append(shape)
+            clone = shape.Duplicate().Item(1)
+            helpers.append(clone)
+            clone.Visible = 0
+            clone.Left, clone.Top = x, y
+            clone.TextFrame2.TextRange.Font.Fill.Transparency = 1.0
+            clones[sid] = clone
+        else:
+            graphics.append(shape)
+    pointers, bubbles = [], []
     for i, color in enumerate(COLORS):
         f = slide.Shapes.BuildFreeform(0, -200, -200)
         for a, b in [(0, 17), (4, 13), (8, 21), (12, 19), (8, 11), (16, 11), (0, 0)]:
@@ -129,8 +208,7 @@ def page_stream(slide, shapes, W, H, helpers, metrics):
         c.Fill.ForeColor.RGB = rgb(color)
         c.Line.ForeColor.RGB = rgb("FFFFFF")
         c.Line.Weight = 0.75
-        c.Left = W * 0.5 + i * 18
-        c.Top = H - 24
+        c.Left, c.Top = W * 0.5 + i * 12, H - 24
         pointers.append(c)
         helpers.append(c)
         b = slide.Shapes.AddTextbox(1, -200, -200, 88, 22)
@@ -144,33 +222,17 @@ def page_stream(slide, shapes, W, H, helpers, metrics):
         b.TextFrame.TextRange.Font.Color.RGB = rgb(color)
         b.TextFrame.MarginTop = 1
         b.TextFrame.MarginBottom = 1
-        b.Visible = 0
         bubbles.append(b)
         helpers.append(b)
-    # Four independent typography workers and three graphic workers.
-    texts = []
-    graphics = []
-    for s in shapes:
-        if (
-            s.HasTextFrame
-            and s.TextFrame.HasText
-            and s.TextFrame.TextRange.Text.strip()
-        ):
-            texts.append(s)
-        else:
-            graphics.append(s)
-    graphics.sort(key=lambda s: (s.ZOrderPosition,))
-    tq = [[] for _ in range(4)]
-    loads = [0] * 4
-    for s in texts:
-        lane = min(range(4), key=lambda i: loads[i])
-        tq[lane].append(s)
-        loads[lane] += len(s.TextFrame.TextRange.Text)
-    gq = [graphics[i::3] for i in range(3)]
-    drawn = set()
-    active_kind = {}
-    parallel_text_frames = 0
-    parallel_frames = 0
+    graphics.sort(key=lambda s: info[s.Id][4])
+    tq, loads = [[] for _ in range(TEXT_WORKERS)], [0] * TEXT_WORKERS
+    for shape in texts:
+        lane = min(range(TEXT_WORKERS), key=lambda i: loads[i])
+        tq[lane].append(shape)
+        loads[lane] += len(info[shape.Id][5])
+    gq = [graphics[i::GRAPHIC_WORKERS] for i in range(GRAPHIC_WORKERS)]
+    drawn, active_kind = set(), {}
+    parallel_text_frames = parallel_frames = 0
 
     def motion(c, tx, ty, steps=2):
         c.Visible = -1
@@ -180,33 +242,19 @@ def page_stream(slide, shapes, W, H, helpers, metrics):
             q = q * q * (3 - 2 * q)
             c.Left = x0 + (tx - x0) * q
             c.Top = y0 + (ty - y0) * q
-            c.ZOrder(0)
             yield
 
     def graphic_worker(i, queue):
         c = pointers[i]
         for s in queue:
             active_kind[i] = "graphic"
-            x, y, sw, sh = map(float, (s.Left, s.Top, s.Width, s.Height))
-            yield from motion(c, x, y)
-            # Preview through a copy; the original is never resized or reordered.
-            clone = s.Duplicate().Item(1)
-            helpers.append(clone)
-            clone.Visible = -1
-            clone.LockAspectRatio = 0
-            for n in range(1, 5):
-                q = n / 4
-                clone.Width = max(0.5, sw * q)
-                clone.Height = max(0.5, sh * q)
-                clone.Left = x
-                clone.Top = y
-                c.Left = min(W - 16, x + sw * q)
-                c.Top = min(H - 22, y + sh * q)
-                c.ZOrder(0)
-                yield
+            x, y, sw, sh, *_ = info[s.Id]
+            yield from motion(c, x, y, steps=1)
+            # Reveal the untouched native graphic once; no resize/duplicate/delete cycle.
             s.Visible = -1
-            clone.Delete()
-            helpers.remove(clone)
+            c.Left = min(W - 16, x + sw)
+            c.Top = min(H - 22, y + sh)
+            yield
             drawn.add(s.Id)
         active_kind.pop(i, None)
         c.Visible = 0
@@ -216,73 +264,74 @@ def page_stream(slide, shapes, W, H, helpers, metrics):
         b = bubbles[i]
         for s in queue:
             # Wait for overlapping background graphics to avoid text appearing on an absent card.
+            x, y, sw, sh, z, full = info[s.Id]
             parents = [
                 g.Id
                 for g in graphics
-                if g.Width > 20
-                and g.Height > 15
-                and g.ZOrderPosition < s.ZOrderPosition
-                and g.Left <= s.Left + 2
-                and g.Top <= s.Top + 2
-                and g.Left + g.Width >= s.Left + s.Width - 2
-                and g.Top + g.Height >= s.Top + s.Height - 2
+                if (
+                    lambda a: a[2] > 20
+                    and a[3] > 15
+                    and a[4] < z
+                    and a[0] <= x + 2
+                    and a[1] <= y + 2
+                    and a[0] + a[2] >= x + sw - 2
+                    and a[1] + a[3] >= y + sh - 2
+                )(info[g.Id])
             ]
             while any(k not in drawn for k in parents):
                 active_kind[i] = "waiting"
                 yield
             active_kind[i] = "text"
-            x, y = float(s.Left), float(s.Top)
-            yield from motion(c, x, y)
-            clone = s.Duplicate().Item(1)
-            helpers.append(clone)
-            clone.Visible = 0
-            clone.Left = x
-            clone.Top = y
-            full = s.TextFrame.TextRange.Text
-            clone.TextFrame2.TextRange.Font.Fill.Transparency = 1.0
+            yield from motion(c, x, y, steps=1)
+            clone = clones[s.Id]
             clone.Visible = -1
+            source_range = s.TextFrame.TextRange
+            r = clone.TextFrame2.TextRange
+            ole = r._oleobj_
+            characters_id = com_retry(lambda: ole.GetIDsOfNames("Characters"))
+            bubble_range = b.TextFrame.TextRange
             # Reveal original characters in place; wrapping, runs, font sizes and colors stay intact.
             for n, units, ch, py in character_steps(full):
-                bounds = s.TextFrame.TextRange.Characters(n, units)
+                bounds = source_range.Characters(n, units)
                 cx = max(
                     0, min(W - 18, float(bounds.BoundLeft) + float(bounds.BoundWidth))
                 )
                 cy = max(0, min(H - 24, float(bounds.BoundTop)))
                 c.Left = cx
                 c.Top = cy
-                c.ZOrder(0)
                 if "\u4e00" <= ch <= "\u9fff":
                     b.Left = max(0, min(W - 90, cx))
                     b.Top = cy + 24 if cy + 48 < H else cy - 24
                     for k in [len(py)]:
-                        b.TextFrame.TextRange.Text = py[:k]
+                        bubble_range.Text = py[:k]
                         b.Visible = -1
-                        b.ZOrder(0)
                         yield
-                r = clone.TextFrame2.TextRange
-                char_range = win32com.client.Dispatch(
-                    r._oleobj_.InvokeTypes(
-                        r._oleobj_.GetIDsOfNames("Characters"),
-                        0,
-                        2,
-                        (9, 0),
-                        ((3, 49), (3, 49)),
-                        n,
-                        units,
+                char_range = wrap_com(
+                    win32com.client.Dispatch(
+                        com_retry(
+                            lambda: ole.InvokeTypes(
+                                characters_id,
+                                0,
+                                2,
+                                (9, 0),
+                                ((3, 49), (3, 49)),
+                                n,
+                                units,
+                            )
+                        )
                     )
                 )
                 char_range.Font.Fill.Transparency = 0.0
                 b.Visible = 0
                 yield
             s.Visible = -1
-            clone.Delete()
-            helpers.remove(clone)
+            clone.Visible = 0
         active_kind.pop(i, None)
         c.Visible = 0
         b.Visible = 0
 
-    agents = [graphic_worker(i, gq[i]) for i in range(3)] + [
-        text_worker(i + 3, tq[i]) for i in range(4)
+    agents = [graphic_worker(i, gq[i]) for i in range(GRAPHIC_WORKERS)] + [
+        text_worker(i + GRAPHIC_WORKERS, tq[i]) for i in range(TEXT_WORKERS)
     ]
     while agents:
         agents = advance(agents)
@@ -291,9 +340,9 @@ def page_stream(slide, shapes, W, H, helpers, metrics):
         if sum(v == "text" for v in active_kind.values()) > 1:
             parallel_text_frames += 1
         yield
-    for helper in list(helpers):
-        helper.Delete()
-    helpers.clear()
+    # Hide only here. Delete in one final cleanup, never during typing.
+    for helper in helpers:
+        helper.Visible = 0
 
     metrics.update(
         parallel_frames=parallel_frames, parallel_text_frames=parallel_text_frames
@@ -322,12 +371,14 @@ def run(manifest):
     app = deck = None
     with exclusive_playback():
         try:
-            app = win32com.client.Dispatch("PowerPoint.Application")
+            app = wrap_com(win32com.client.Dispatch("PowerPoint.Application"))
             app.Visible = True
             deck = app.Presentations.Open(str(copy), False, False, True)
             window = deck.Windows.Item(1)
             window.Activate()
+            window.WindowState = 3
             window.ViewType = 1
+            window.View.ZoomToFit = True
             slides, pending = validate_targets(deck, state["targets"])
             pending = {k: v for k, v in pending.items() if v}
             width, height = float(deck.PageSetup.SlideWidth), float(
@@ -336,23 +387,30 @@ def run(manifest):
             if pending:
                 window.View.GotoSlide(min(slides[k].SlideIndex for k in pending))
             print("ELEMENT_PLAYBACK_EDITOR_OPEN", flush=True)
+            if state.get("recording_gate"):
+                gate = manifest.parent / "recording.started"
+                deadline = time.monotonic() + 120
+                while not gate.exists():
+                    if (manifest.parent / "playback.cancel").exists():
+                        raise RuntimeError("Playback cancelled before recording")
+                    if time.monotonic() >= deadline:
+                        raise RuntimeError(
+                            "Recording did not start; playback cancelled"
+                        )
+                    time.sleep(0.05)
             streams = {}
             started = time.monotonic()
             waiting = False
+            last_view_check = 0.0
+            slide = window.View.Slide
+            active = window
             while pending:
-                if not deck.Windows.Count:
-                    raise RuntimeError(
-                        "The preview window closed before output finished"
-                    )
+                if (manifest.parent / "playback.cancel").exists():
+                    raise RuntimeError("Playback cancelled")
                 foreground = win32gui.GetWindowText(win32gui.GetForegroundWindow())
-                active = app.ActiveWindow
-                if (
-                    not any(
-                        foreground.startswith(name + " - ")
-                        for name in (copy.name, copy.stem)
-                    )
-                    or not active
-                    or Path(active.Presentation.FullName).resolve() != copy
+                if not any(
+                    foreground.startswith(name + " - ")
+                    for name in (copy.name, copy.stem)
                 ):
                     if not waiting:
                         print("ELEMENT_PLAYBACK_WAITING_FOR_FOREGROUND", flush=True)
@@ -362,7 +420,9 @@ def run(manifest):
                 if waiting:
                     print("ELEMENT_PLAYBACK_FOREGROUND_READY", flush=True)
                     waiting = False
-                slide = active.View.Slide
+                if time.monotonic() - last_view_check > 0.25:
+                    slide = active.View.Slide
+                    last_view_check = time.monotonic()
                 page = str(slide.SlideID)
                 if page not in pending:
                     time.sleep(0.1)
@@ -402,8 +462,14 @@ def run(manifest):
                             later[0],
                         )
                         active.View.GotoSlide(slides[next_page].SlideIndex)
+                        slide = slides[next_page]
+                        last_view_check = time.monotonic()
                 time.sleep(FRAME_DELAY)
-            # Native originals alone remain; temporary text never changes their formatting.
+            # All helpers are already hidden. One cleanup after every page has finished.
+            for page_helpers in helpers.values():
+                for helper in page_helpers:
+                    helper.Delete()
+                page_helpers.clear()
             deck.Save()
             if content_signature(copy) != expected:
                 raise RuntimeError("Preview content or geometry changed during output")

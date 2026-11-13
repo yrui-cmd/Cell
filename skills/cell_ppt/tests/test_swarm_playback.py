@@ -11,6 +11,31 @@ import swarm_playback as swarm
 import output_worker
 
 class SwarmTests(unittest.TestCase):
+    def test_busy_calls_retry_but_other_errors_do_not(self):
+        class Busy(Exception):
+            hresult = -2147418111
+        calls = []
+        def action():
+            calls.append(1)
+            if len(calls) < 3:
+                raise Busy()
+            return 42
+        with patch.object(swarm.time, 'sleep'):
+            self.assertEqual(swarm.com_retry(action), 42)
+        self.assertEqual(len(calls), 3)
+        with self.assertRaises(Busy):
+            swarm.com_retry(lambda: (_ for _ in ()).throw(Busy()), timeout=0)
+        with self.assertRaises(ValueError):
+            swarm.com_retry(lambda: (_ for _ in ()).throw(ValueError('invalid')))
+
+    def test_ten_workers_and_no_deletion_during_page_animation(self):
+        import inspect
+        self.assertEqual(swarm.GRAPHIC_WORKERS + swarm.TEXT_WORKERS, 10)
+        self.assertEqual(len(swarm.COLORS), 10)
+        page = inspect.getsource(swarm.page_stream)
+        self.assertNotIn('.Delete(', page)
+        self.assertNotIn('.ZOrder(', page)
+
     def test_parallel_progress_not_serial_drain(self):
         seen=[]
         def worker(name,steps):
