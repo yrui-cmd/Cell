@@ -173,10 +173,9 @@ def exclusive_playback():
         win32api.CloseHandle(handle)
 
 
-def page_stream(slide, shapes, W, H, helpers, metrics):
-    import win32com.client
-
-    # Cache COM properties once. Text clones are prepared hidden, before pointers.
+def prepare_page(slide, shapes, W, H, helpers):
+    """Build helpers while the presentation has no window, never on page entry."""
+    # Cache COM properties once. Keep all geometry inside the slide bounds.
     texts, graphics, info, clones = [], [], {}, {}
     paste_assets = set()
     for shape in shapes:
@@ -203,9 +202,9 @@ def page_stream(slide, shapes, W, H, helpers, metrics):
                 paste_assets.add(sid)
     pointers, bubbles = [], []
     for i, color in enumerate(COLORS):
-        f = slide.Shapes.BuildFreeform(0, -200, -200)
+        f = slide.Shapes.BuildFreeform(0, 0, 0)
         for a, b in [(0, 17), (4, 13), (8, 21), (12, 19), (8, 11), (16, 11), (0, 0)]:
-            f.AddNodes(0, 0, a - 200, b - 200)
+            f.AddNodes(0, 0, a, b)
         c = f.ConvertToShape()
         c.Visible = 0
         c.Name = f"SwarmPointer{i}"
@@ -215,7 +214,7 @@ def page_stream(slide, shapes, W, H, helpers, metrics):
         c.Left, c.Top = W * 0.5 + i * 12, H - 24
         pointers.append(c)
         helpers.append(c)
-        b = slide.Shapes.AddTextbox(1, -200, -200, 88, 22)
+        b = slide.Shapes.AddTextbox(1, 0, 0, 88, 22)
         b.Visible = 0
         b.Name = f"SwarmPinyin{i}"
         b.Fill.Visible = -1
@@ -228,6 +227,13 @@ def page_stream(slide, shapes, W, H, helpers, metrics):
         b.TextFrame.MarginBottom = 1
         bubbles.append(b)
         helpers.append(b)
+    return texts, graphics, info, clones, paste_assets, pointers, bubbles
+
+
+def page_stream(prepared, W, H, helpers, metrics):
+    import win32com.client
+
+    texts, graphics, info, clones, paste_assets, pointers, bubbles = prepared
     graphics.sort(key=lambda s: info[s.Id][4])
     tq, loads = [[] for _ in range(TEXT_WORKERS)], [0] * TEXT_WORKERS
     for shape in texts:
@@ -260,7 +266,7 @@ def page_stream(slide, shapes, W, H, helpers, metrics):
                 bubble.Top = max(0, min(H - 24, y - 24))
                 bubble.TextFrame.TextRange.Text = "Ctrl+V"
                 bubble.Visible = -1
-                until = time.monotonic() + .10
+                until = time.monotonic() + 0.10
                 while time.monotonic() < until:
                     yield
             # Reveal the untouched native graphic once; no resize/duplicate/delete cycle.
@@ -270,7 +276,7 @@ def page_stream(slide, shapes, W, H, helpers, metrics):
             yield
             drawn.add(s.Id)
             if s.Id in paste_assets:
-                until = time.monotonic() + .12
+                until = time.monotonic() + 0.12
                 while time.monotonic() < until:
                     yield
                 bubble.Visible = 0
@@ -392,17 +398,30 @@ def run(manifest):
         try:
             app = wrap_com(win32com.client.Dispatch("PowerPoint.Application"))
             app.Visible = True
-            deck = app.Presentations.Open(str(copy), False, False, True)
-            window = deck.Windows.Item(1)
-            window.Activate()
-            window.WindowState = 3
-            window.ViewType = 1
-            window.View.ZoomToFit = True
+            # No visible window while duplicating text or constructing cursor helpers.
+            # These COM mutations otherwise repaint and re-fit the active slide repeatedly.
+            deck = app.Presentations.Open(str(copy), False, False, False)
             slides, pending = validate_targets(deck, state["targets"])
             pending = {k: v for k, v in pending.items() if v}
             width, height = float(deck.PageSetup.SlideWidth), float(
                 deck.PageSetup.SlideHeight
             )
+            prepared = {}
+            for page in pending:
+                helpers[page] = []
+                metrics[page] = {}
+                prepared[page] = prepare_page(
+                    slides[page], pending[page], width, height, helpers[page]
+                )
+            window = deck.NewWindow()
+            window.Activate()
+            window.WindowState = 3
+            window.ViewType = 1
+            window.View.ZoomToFit = True
+            # Freeze this fitted scale before page transitions or transient text changes.
+            fitted_zoom = window.View.Zoom
+            window.View.ZoomToFit = False
+            window.View.Zoom = fitted_zoom
             if pending:
                 window.View.GotoSlide(min(slides[k].SlideIndex for k in pending))
             print("ELEMENT_PLAYBACK_EDITOR_OPEN", flush=True)
@@ -447,11 +466,8 @@ def run(manifest):
                     time.sleep(0.1)
                     continue
                 if page not in streams:
-                    helpers[page] = []
-                    metrics[page] = {}
                     streams[page] = page_stream(
-                        slide,
-                        pending[page],
+                        prepared[page],
                         width,
                         height,
                         helpers[page],
