@@ -7,12 +7,62 @@ import subprocess
 import sys
 import time
 import uuid
+import statistics
 from pathlib import Path
 
 from handoff import sha
 from playback import prepare, launch, worker_alive
 from output_worker import result_for
 from transfer import read, write
+
+
+def video_sample(ffmpeg, path, seconds=0):
+    """Inspect decoded pixels, not just the presence of a video stream."""
+    result = subprocess.run(
+        [
+            ffmpeg,
+            "-v",
+            "error",
+            "-ss",
+            str(seconds),
+            "-i",
+            str(path),
+            "-frames:v",
+            "1",
+            "-vf",
+            "scale=160:90",
+            "-pix_fmt",
+            "gray",
+            "-f",
+            "rawvideo",
+            "pipe:1",
+        ],
+        capture_output=True,
+        timeout=15,
+        creationflags=subprocess.CREATE_NO_WINDOW,
+    )
+    pixels = result.stdout
+    if result.returncode or len(pixels) != 160 * 90:
+        raise RuntimeError("Cannot decode the recorded video frame")
+    spread = statistics.pstdev(pixels)
+    if spread < 2 or max(pixels) - min(pixels) < 12:
+        raise RuntimeError("Recording contains blank/flat frames; delivery stopped")
+    from hashlib import sha256
+
+    return {
+        "time": seconds,
+        "stddev": round(spread, 3),
+        "sha256": sha256(pixels).hexdigest(),
+    }
+
+
+def screen_bounds(hwnd):
+    import win32gui, win32api
+
+    left, top, right, bottom = win32gui.GetWindowRect(hwnd)
+    x, y = win32api.GetSystemMetrics(76), win32api.GetSystemMetrics(77)
+    width, height = win32api.GetSystemMetrics(78), win32api.GetSystemMetrics(79)
+    return (max(x, left), max(y, top), min(x + width, right), min(y + height, bottom))
 
 
 def resolve_source(source, order_root, thread_id):
@@ -41,6 +91,10 @@ def resolve_source(source, order_root, thread_id):
 def run(args):
     if sys.platform != "win32":
         raise ValueError("This local multi-pointer replay requires Windows PowerPoint")
+    # Match gdigrab's physical pixels on displays using 125%/150% scaling.
+    import ctypes
+
+    ctypes.windll.shcore.SetProcessDpiAwareness(2)
     source, job, parent = resolve_source(args.source, args.order_root, args.thread_id)
     ffmpeg = shutil.which("ffmpeg") if args.record == "yes" else None
     if args.record == "yes" and not ffmpeg:
@@ -82,6 +136,8 @@ def run(args):
     recorder = log = None
     recording_started = False
     status = None
+    record_hwnd = bounds = stable_bounds = None
+    stable_since = 0
     try:
         deadline = time.monotonic() + 900
         last_page = ""
@@ -112,6 +168,15 @@ def run(args):
                         break
                     time.sleep(0.2)
                     continue
+                record_hwnd = win32gui.GetForegroundWindow()
+                current_bounds = screen_bounds(record_hwnd)
+                if stable_bounds != current_bounds:
+                    stable_bounds, stable_since = current_bounds, time.monotonic()
+                if time.monotonic() - stable_since < 1:
+                    time.sleep(0.1)
+                    continue
+                bounds = current_bounds
+                left, top, right, bottom = bounds
                 log = (root / "recording.log").open("wb")
                 command = [
                     ffmpeg,
@@ -123,8 +188,14 @@ def run(args):
                     "20",
                     "-draw_mouse",
                     "0",
+                    "-offset_x",
+                    str(left),
+                    "-offset_y",
+                    str(top),
+                    "-video_size",
+                    f"{right-left}x{bottom-top}",
                     "-i",
-                    "title=" + copy.name + " - PowerPoint",
+                    "desktop",
                     "-an",
                     "-vf",
                     "pad=ceil(iw/2)*2:ceil(ih/2)*2",
@@ -132,6 +203,8 @@ def run(args):
                     "libx264",
                     "-preset",
                     "ultrafast",
+                    "-tune",
+                    "zerolatency",
                     "-crf",
                     "23",
                     "-pix_fmt",
@@ -140,6 +213,8 @@ def run(args):
                     "+frag_keyframe+empty_moov",
                     "-g",
                     "40",
+                    "-flush_packets",
+                    "1",
                     "-progress",
                     str(root / "recording-progress.txt"),
                     str(root / "PPT-output.mp4"),
@@ -152,6 +227,13 @@ def run(args):
                     creationflags=subprocess.CREATE_NO_WINDOW,
                 )
             if recorder:
+                if (
+                    win32gui.GetForegroundWindow() != record_hwnd
+                    or screen_bounds(record_hwnd) != bounds
+                ):
+                    raise RuntimeError(
+                        "Recording interrupted: PowerPoint moved or lost foreground; partial video retained"
+                    )
                 if recorder.poll() is not None:
                     raise RuntimeError(
                         "Recording stopped unexpectedly; see recording.log"
@@ -163,8 +245,22 @@ def run(args):
                         for line in progress.read_text().splitlines()
                         if "=" in line
                     )
-                    if int(fields.get("frame", "0")) > 0:
-                        write(root / "recording.started", {"frames_verified": True})
+                    if int(fields.get("frame", "0")) >= 45:
+                        try:
+                            sample = video_sample(ffmpeg, root / "PPT-output.mp4")
+                        except RuntimeError as error:
+                            # A fragmented MP4 may not have flushed its first GOP yet.
+                            if (
+                                str(error).startswith("Cannot decode")
+                                and int(fields.get("frame", "0")) < 200
+                            ):
+                                time.sleep(0.2)
+                                continue
+                            raise
+                        write(
+                            root / "recording.started",
+                            {"frames_verified": True, "pixel_sample": sample},
+                        )
                         recording_started = True
             pages = [line for line in content.splitlines() if "PAGE_DONE|" in line]
             if pages and pages[-1] != last_page:
@@ -196,6 +292,7 @@ def run(args):
                     "returncode": recorder.returncode,
                     "path": str(root / "PPT-output.mp4"),
                     "scope": "entire_powerpoint_window",
+                    "pixels_verified": False,
                 },
             )
         if log:
@@ -204,6 +301,26 @@ def run(args):
         raise RuntimeError(f"Playback failed; see {root / 'element-playback.log'}")
     if recorder and recorder.returncode:
         raise RuntimeError("PPT finished but recording failed")
+    if recorder:
+        fields = dict(
+            line.split("=", 1)
+            for line in (root / "recording-progress.txt").read_text().splitlines()
+            if "=" in line
+        )
+        duration = int(fields.get("out_time_us", "0")) / 1e6
+        samples = [
+            video_sample(ffmpeg, root / "PPT-output.mp4", t)
+            for t in (0.25, duration * 0.5, max(0, duration - 1))
+        ]
+        if len({s["sha256"] for s in samples}) < 2:
+            raise RuntimeError("Recorded picture did not change; delivery stopped")
+        write(
+            root / "recording-pixel-check.json",
+            {"duration": duration, "samples": samples},
+        )
+        record = read(root / "recording-result.json")
+        record["pixels_verified"] = True
+        write(root / "recording-result.json", record)
     print(
         json.dumps(
             {
