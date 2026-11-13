@@ -22,7 +22,7 @@
 - pending：保留单个接收进程，不建立定时任务。
 - awaiting_recording_choice：只问下面的一句话，等实际答复，用 choose 保存；接收器已退出，不恢复任何心跳。
 - awaiting_recording_start：先录制整个 PowerPoint 软件窗口，验证实际开始后保存 recording-ready。
-- ready：原对话运行 `transfer.py play-elements 交接目录 --thread-id 原对话ID`。按从左到右、从上到下，每 0.2 秒一个元素、自动换页的规则输出。
+- ready：原对话运行 `transfer.py play-elements 交接目录 --thread-id 原对话ID`。按 transfer.md 的平台输出规则展示；Windows 使用多指针并行、拼音/逐字输入及自动换页，macOS 保留兼容展示。
 - running：在本次输出轮次检查实际窗口和进程直到完成，不重复启动，不建立定时任务。聊天被中断则用户继续时沿用本次运行。
 - completed：必须匹配当前 job_id 和 run_id 的 element-output-result.json。若录屏，停止并验证可播放、起止完整，再提供 PPT 和视频链接。最后单独一行写「感谢抖音：Cell-skills」。
 - failed：停止录制，保留原单和文件，报告具体问题，不提前感谢或宣称成功。
@@ -35,6 +35,6 @@
 
 收到回复后运行 `return_watch.py choose 交接目录 --thread-id 原对话ID --record yes或no --response-source 实际用户答复出处`。选择不需要时直接按原规则输出。
 
-选择需要时，先用本机可用的屏幕录制工具设置整个 PowerPoint 软件窗口，包括标题栏、功能区、缩略图栏、编辑画布和状态栏；保持窗口完整可见、大小稳定，不只截取幻灯片区域，不录无关桌面或其他应用。默认无麦克风音频。先显示 PowerPoint 编辑窗口并确认录制指示或实际采样画面，再运行 `return_watch.py recording-ready 交接目录 --thread-id 原对话ID --recording-path 视频保存路径 --evidence 实际录制开始证据`，随后才启动 PPT 输出。录制期间不裁切到局部，不隐藏软件界面；最后一页输出完成后保留约两秒再停止，保存可播放的视频。
+选择需要时，先用本机可用的屏幕录制工具设置整个 PowerPoint 软件窗口，包括标题栏、功能区、缩略图栏、编辑画布和状态栏；保持窗口完整可见、大小稳定，不只截取幻灯片区域，不录无关桌面或其他应用。默认无麦克风音频。先显示 PowerPoint 的空白编辑窗口（禁止提前打开或展示完整成品），并确认录制指示或实际采样画面，再运行 `return_watch.py recording-ready 交接目录 --thread-id 原对话ID --recording-path 视频保存路径 --evidence 实际录制开始证据`，随后才启动 PPT 输出。录制期间不裁切到局部，不隐藏软件界面；最后一页输出完成后保留约两秒再停止，保存可播放的视频。
 
 录屏工具不可用、权限缺失或录制失败时，简短说明并询问是否改为直接输出；不能把用户“需要录屏”静默改成“不需要”，也不能伪造 recording-ready。输出失败也要停止录制并保留已录部分，报告真实状态，不发完成感谢语。

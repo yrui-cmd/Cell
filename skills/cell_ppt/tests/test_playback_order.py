@@ -47,12 +47,9 @@ class PlaybackOrderTests(unittest.TestCase):
                     self.assertEqual(actual_ids, [s.shape_id for s in slide.shapes])
                     self.assertEqual(len(xml.findall('.//' + playback.p('grpSp'))), 1)
 
-    def test_runtime_delays_match(self):
+    def test_mac_compatibility_delay(self):
         scripts = Path(playback.__file__).parent
-        ps = (scripts / 'run_element_playback.ps1').read_text(encoding='utf-8')
         mac = (scripts / 'run_element_playback.applescript').read_text(encoding='utf-8')
-        self.assertIn('Start-Sleep -Milliseconds 200', ps)
-        self.assertNotIn('Start-Sleep -Milliseconds 500', ps)
         self.assertIn('delay 0.2\n            if pendingItems', mac)
         self.assertNotIn('delay 0.5', mac)
 

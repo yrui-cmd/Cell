@@ -48,12 +48,10 @@ def run(manifest):
         if deck.parent != manifest.parent or deck == Path(state["source"]).resolve() or sha(deck) != state["copy_sha256"]:
             raise ValueError("Invalid PPT preview copy")
         if sys.platform == "win32":
-            powershell = Path(os.environ["SystemRoot"]) / "System32/WindowsPowerShell/v1.0/powershell.exe"
-            worker = Path(__file__).with_name("run_element_playback.ps1")
+            worker = Path(__file__).with_name("swarm_playback.py")
             with manifest.with_name("element-playback.log").open("ab") as log:
-                code = subprocess.run([str(powershell), "-NoProfile", "-NonInteractive", "-File", str(worker),
-                                   "-Manifest", str(manifest)], check=False,
-                                      stdin=subprocess.DEVNULL, stdout=log, stderr=log,
+                code = subprocess.run([sys.executable, "-X", "utf8", str(worker), str(manifest)],
+                                      check=False, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
                                       creationflags=subprocess.CREATE_NO_WINDOW).returncode
         elif sys.platform == "darwin":
             code = run_macos(deck, state["targets"])

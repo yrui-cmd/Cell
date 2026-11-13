@@ -4,3 +4,4 @@ python-pptx>=1.0,<2
 lxml>=5,<7
 requests>=2.31,<3
 pywin32>=306; sys_platform == "win32"
+pypinyin>=0.55,<1; sys_platform == "win32"
