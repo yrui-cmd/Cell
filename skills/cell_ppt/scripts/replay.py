@@ -56,15 +56,6 @@ def video_sample(ffmpeg, path, seconds=0):
     }
 
 
-def screen_bounds(hwnd):
-    import win32gui, win32api
-
-    left, top, right, bottom = win32gui.GetWindowRect(hwnd)
-    x, y = win32api.GetSystemMetrics(76), win32api.GetSystemMetrics(77)
-    width, height = win32api.GetSystemMetrics(78), win32api.GetSystemMetrics(79)
-    return (max(x, left), max(y, top), min(x + width, right), min(y + height, bottom))
-
-
 def resolve_source(source, order_root, thread_id):
     if order_root:
         order_root = Path(order_root).resolve()
@@ -113,7 +104,10 @@ def run(args):
         raise ValueError("FFmpeg is required for the requested recording")
     import pypinyin  # Validate before starting Office.
     import win32com.client
-    import win32gui
+    import win32gui, win32process
+    from window_recording import WindowRecorder, bound_window
+    if args.record == "yes":
+        import windows_capture  # Fail before creating a preview when the dependency is absent.
 
     root = (
         Path(args.output_dir).resolve()
@@ -148,12 +142,9 @@ def run(args):
     recorder = log = None
     recording_started = False
     status = None
-    record_hwnd = bounds = stable_bounds = None
-    stable_since = 0
     try:
         deadline = time.monotonic() + 900
         last_page = ""
-        focus_prompted = False
         while time.monotonic() < deadline:
             path = root / "element-playback.log"
             content = (
@@ -166,86 +157,13 @@ def run(args):
                 and not recorder
                 and "ELEMENT_PLAYBACK_EDITOR_OPEN" in content
             ):
-                if not win32gui.GetWindowText(
-                    win32gui.GetForegroundWindow()
-                ).startswith(copy.name + " - "):
-                    if not focus_prompted:
-                        print(
-                            "请切到 PPT-replay 的 PowerPoint 窗口，录屏和展示将自动开始。",
-                            flush=True,
-                        )
-                        focus_prompted = True
-                    if result_for(root, state):
-                        status = result_for(root, state)
-                        break
-                    time.sleep(0.2)
-                    continue
-                record_hwnd = win32gui.GetForegroundWindow()
-                current_bounds = screen_bounds(record_hwnd)
-                if stable_bounds != current_bounds:
-                    stable_bounds, stable_since = current_bounds, time.monotonic()
-                if time.monotonic() - stable_since < 1:
+                ready = root / "window-ready.json"
+                if not ready.exists():
                     time.sleep(0.1)
                     continue
-                bounds = current_bounds
-                left, top, right, bottom = bounds
-                log = (root / "recording.log").open("wb")
-                command = [
-                    ffmpeg,
-                    "-hide_banner",
-                    "-nostats",
-                    "-f",
-                    "gdigrab",
-                    "-framerate",
-                    "20",
-                    "-draw_mouse",
-                    "0",
-                    "-offset_x",
-                    str(left),
-                    "-offset_y",
-                    str(top),
-                    "-video_size",
-                    f"{right-left}x{bottom-top}",
-                    "-i",
-                    "desktop",
-                    "-an",
-                    "-vf",
-                    "pad=ceil(iw/2)*2:ceil(ih/2)*2",
-                    "-c:v",
-                    "libx264",
-                    "-preset",
-                    "ultrafast",
-                    "-tune",
-                    "zerolatency",
-                    "-crf",
-                    "23",
-                    "-pix_fmt",
-                    "yuv420p",
-                    "-movflags",
-                    "+frag_keyframe+empty_moov",
-                    "-g",
-                    "40",
-                    "-flush_packets",
-                    "1",
-                    "-progress",
-                    str(root / "recording-progress.txt"),
-                    str(root / "PPT-output.mp4"),
-                ]
-                recorder = subprocess.Popen(
-                    command,
-                    stdin=subprocess.PIPE,
-                    stdout=log,
-                    stderr=log,
-                    creationflags=subprocess.CREATE_NO_WINDOW,
-                )
+                record_hwnd = bound_window(read(ready), state, win32gui, win32process)
+                recorder = WindowRecorder(ffmpeg, record_hwnd, root)
             if recorder:
-                if (
-                    win32gui.GetForegroundWindow() != record_hwnd
-                    or screen_bounds(record_hwnd) != bounds
-                ):
-                    raise RuntimeError(
-                        "Recording interrupted: PowerPoint moved or lost foreground; partial video retained"
-                    )
                 if recorder.poll() is not None:
                     raise RuntimeError(
                         "Recording stopped unexpectedly; see recording.log"
@@ -294,8 +212,7 @@ def run(args):
         if status is None:
             (root / "playback.cancel").touch()
         if recorder:
-            if recorder.poll() is None:
-                recorder.communicate(b"q\n", timeout=30)
+            recorder.communicate(timeout=30)
             write(
                 root / "recording-result.json",
                 {
@@ -304,6 +221,7 @@ def run(args):
                     "returncode": recorder.returncode,
                     "path": str(root / "PPT-output.mp4"),
                     "scope": "entire_powerpoint_window",
+                    "capture_backend": "windows_graphics_capture",
                     "pixels_verified": False,
                 },
             )

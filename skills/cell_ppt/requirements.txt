@@ -5,3 +5,4 @@ lxml>=5,<7
 requests>=2.31,<3
 pywin32>=306; sys_platform == "win32"
 pypinyin>=0.55,<1; sys_platform == "win32"
+windows-capture>=1.5,<2; sys_platform == "win32"

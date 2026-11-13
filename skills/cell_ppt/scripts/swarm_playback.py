@@ -331,22 +331,20 @@ def page_stream(prepared, W, H, helpers, metrics):
                         bubble_range.Text = py[:k]
                         b.Visible = -1
                         yield
-                char_range = wrap_com(
-                    win32com.client.Dispatch(
-                        com_retry(
-                            lambda: ole.InvokeTypes(
-                                characters_id,
-                                0,
-                                2,
-                                (9, 0),
-                                ((3, 49), (3, 49)),
-                                n,
-                                units,
-                            )
-                        )
-                    )
-                )
-                char_range.Font.Fill.Transparency = 0.0
+                # Resolve the COM properties on the actual returned interface, avoiding
+                # pywin32's cached wrapper choosing an unrelated Office collection class.
+                char_ole = com_retry(lambda: ole.InvokeTypes(
+                    characters_id, 0, 2, (9, 0), ((3, 49), (3, 49)), n, units
+                ))
+                font_ole = com_retry(lambda: char_ole.InvokeTypes(
+                    char_ole.GetIDsOfNames("Font"), 0, 2, (9, 0), ()
+                ))
+                fill_ole = com_retry(lambda: font_ole.InvokeTypes(
+                    font_ole.GetIDsOfNames("Fill"), 0, 2, (9, 0), ()
+                ))
+                com_retry(lambda: fill_ole.InvokeTypes(
+                    fill_ole.GetIDsOfNames("Transparency"), 0, 4, (24, 0), ((4, 1),), 0.0
+                ))
                 b.Visible = 0
                 yield
             s.Visible = -1
@@ -424,10 +422,27 @@ def run(manifest):
             window.View.Zoom = fitted_zoom
             if pending:
                 window.View.GotoSlide(min(slides[k].SlideIndex for k in pending))
+            import win32process
+            from transfer import write
+            from window_recording import matches_preview_title
+            preview_windows = []
+            win32gui.EnumWindows(
+                lambda hwnd, _: preview_windows.append(hwnd)
+                if matches_preview_title(win32gui.GetWindowText(hwnd), copy) else None,
+                None,
+            )
+            if len(preview_windows) != 1:
+                raise RuntimeError("Cannot uniquely identify the PowerPoint preview window")
+            preview_hwnd = preview_windows[0]
+            write(manifest.parent / "window-ready.json", {
+                "job_id": state["job_id"], "run_id": state["run_id"],
+                "hwnd": preview_hwnd,
+                "pid": win32process.GetWindowThreadProcessId(preview_hwnd)[1],
+            })
             print("ELEMENT_PLAYBACK_EDITOR_OPEN", flush=True)
             if state.get("recording_gate"):
                 gate = manifest.parent / "recording.started"
-                deadline = time.monotonic() + 120
+                deadline = time.monotonic() + 900
                 while not gate.exists():
                     if (manifest.parent / "playback.cancel").exists():
                         raise RuntimeError("Playback cancelled before recording")
@@ -445,11 +460,8 @@ def run(manifest):
             while pending:
                 if (manifest.parent / "playback.cancel").exists():
                     raise RuntimeError("Playback cancelled")
-                foreground = win32gui.GetWindowText(win32gui.GetForegroundWindow())
-                if not any(
-                    foreground.startswith(name + " - ")
-                    for name in (copy.name, copy.stem)
-                ):
+                foreground = win32gui.GetAncestor(win32gui.GetForegroundWindow(), 2)
+                if foreground != preview_hwnd or win32gui.IsIconic(preview_hwnd):
                     if not waiting:
                         print("ELEMENT_PLAYBACK_WAITING_FOR_FOREGROUND", flush=True)
                         waiting = True
