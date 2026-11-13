@@ -88,6 +88,18 @@ def resolve_source(source, order_root, thread_id):
     return path, "local-replay-" + uuid.uuid4().hex, path.parent
 
 
+def export_delivery(root, source, preview, video=None):
+    """Keep private working names separate from the user's original delivery name."""
+    folder = Path(root) / "交付"
+    folder.mkdir(exist_ok=False)
+    pptx = folder / Path(source).name
+    shutil.copyfile(preview, pptx)
+    recording = folder / (Path(source).stem + ".mp4") if video else None
+    if recording:
+        shutil.copyfile(video, recording)
+    return {"pptx": str(pptx), "video": str(recording) if recording else None}
+
+
 def run(args):
     if sys.platform != "win32":
         raise ValueError("This local multi-pointer replay requires Windows PowerPoint")
@@ -321,16 +333,11 @@ def run(args):
         record = read(root / "recording-result.json")
         record["pixels_verified"] = True
         write(root / "recording-result.json", record)
-    print(
-        json.dumps(
-            {
-                "status": status,
-                "pptx": str(copy),
-                "video": str(root / "PPT-output.mp4") if recorder else None,
-            },
-            ensure_ascii=False,
-        )
+    delivery = export_delivery(
+        root, source, copy, root / "PPT-output.mp4" if recorder else None
     )
+    write(root / "delivery.json", {"job_id": job, "run_id": state["run_id"], **delivery})
+    print(json.dumps({"status": status, **delivery}, ensure_ascii=False))
     return 0
 
 
