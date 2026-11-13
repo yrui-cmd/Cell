@@ -94,7 +94,7 @@ def export_delivery(root, source, preview, video=None):
     folder.mkdir(exist_ok=False)
     pptx = folder / Path(source).name
     shutil.copyfile(preview, pptx)
-    recording = folder / (Path(source).stem + ".mp4") if video else None
+    recording = folder / "ppt.mp4" if video else None
     if recording:
         shutil.copyfile(video, recording)
     return {"pptx": str(pptx), "video": str(recording) if recording else None}
