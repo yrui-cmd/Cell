@@ -178,6 +178,7 @@ def page_stream(slide, shapes, W, H, helpers, metrics):
 
     # Cache COM properties once. Text clones are prepared hidden, before pointers.
     texts, graphics, info, clones = [], [], {}, {}
+    paste_assets = set()
     for shape in shapes:
         sid = shape.Id
         x, y, w, h = map(float, (shape.Left, shape.Top, shape.Width, shape.Height))
@@ -197,6 +198,9 @@ def page_stream(slide, shapes, W, H, helpers, metrics):
             clones[sid] = clone
         else:
             graphics.append(shape)
+            # Pictures, linked pictures, grouped illustrations, charts/tables and SVGs.
+            if int(shape.Type) in {3, 6, 11, 13, 19, 28, 29}:
+                paste_assets.add(sid)
     pointers, bubbles = [], []
     for i, color in enumerate(COLORS):
         f = slide.Shapes.BuildFreeform(0, -200, -200)
@@ -246,18 +250,33 @@ def page_stream(slide, shapes, W, H, helpers, metrics):
 
     def graphic_worker(i, queue):
         c = pointers[i]
+        bubble = bubbles[i]
         for s in queue:
             active_kind[i] = "graphic"
             x, y, sw, sh, *_ = info[s.Id]
             yield from motion(c, x, y, steps=1)
+            if s.Id in paste_assets:
+                bubble.Left = max(0, min(W - 90, x + 18))
+                bubble.Top = max(0, min(H - 24, y - 24))
+                bubble.TextFrame.TextRange.Text = "Ctrl+V"
+                bubble.Visible = -1
+                until = time.monotonic() + .10
+                while time.monotonic() < until:
+                    yield
             # Reveal the untouched native graphic once; no resize/duplicate/delete cycle.
             s.Visible = -1
             c.Left = min(W - 16, x + sw)
             c.Top = min(H - 22, y + sh)
             yield
             drawn.add(s.Id)
+            if s.Id in paste_assets:
+                until = time.monotonic() + .12
+                while time.monotonic() < until:
+                    yield
+                bubble.Visible = 0
         active_kind.pop(i, None)
         c.Visible = 0
+        bubble.Visible = 0
 
     def text_worker(i, queue):
         c = pointers[i]
