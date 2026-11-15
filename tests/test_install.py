@@ -20,6 +20,11 @@ def test_install_copies_every_non_plugin_skill():
         assert set(installed) == EXPECTED
         assert {path.name for path in destination.iterdir()} == EXPECTED
         assert all((destination / name / "SKILL.md").is_file() for name in EXPECTED)
+        for name in ("cell_su7", "cell_su8"):
+            for relative in ("scripts/ppt_swarm_playback.py", "scripts/cursor_overlay.py",
+                             "scripts/prepare_path_playback.py", "scripts/run_ppt_path_playback.ps1",
+                             "references/powerpoint-workflow.md"):
+                assert (destination / name / relative).read_bytes() == (SOURCE / name / relative).read_bytes()
 
 
 def test_conflict_is_detected_before_any_skill_is_copied():

@@ -88,6 +88,8 @@ python install.py
 
 ---
 
+`cell_su7` 和 `cell_su8` 的 Windows PowerPoint 演示统一为 12 鼠标并行重建：原始路径序列按顺序分成 12 个连续段，图框拉伸、文字逐字出现，完成任务的鼠标立即隐藏。播放前先设置全屏并请求前置，失去前台焦点时暂停。共享光标层、批量显示和文字缓存减少调用；最终文件保留原生可编辑对象。详见 [su7 演示流程](skills/cell_su7/references/powerpoint-workflow.md) 和 [su8 演示流程](skills/cell_su8/references/powerpoint-workflow.md)。
+
 ## cell_ppt
 
 用于做pptx。
