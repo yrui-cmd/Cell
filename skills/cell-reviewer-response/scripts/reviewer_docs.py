@@ -39,7 +39,15 @@ TRANSLATION_LANGUAGES = {"en", "zh"}
 COMPLETION_STATUSES = {"draft_with_placeholders", "needs_author_input", "blocked",
                        "ready_to_submit"}
 CHECKS = ("coverage", "evidence", "locations", "figures",
+          "authority_versions", "manuscript_consistency",
+          "response_manuscript_consistency", "quantitative_consistency",
           "humanizer", "facts_after_humanizer")
+EVIDENCE_KINDS = {"manuscript_text", "quantitative_result", "theoretical_result",
+                  "literature", "administrative"}
+QUANTITATIVE_TRACE_FIELDS = ("input_version", "method_version", "configuration",
+                             "evaluation_set", "metric_definition",
+                             "failures_or_exclusions", "run_status")
+THEORY_SCOPE_FIELDS = ("mathematical_object", "assumptions", "claim_type", "tolerance")
 MANUSCRIPT_KINDS = {"manuscript", "revised_manuscript"}
 LOCATION_KINDS = MANUSCRIPT_KINDS | {"figure", "table", "supplementary"}
 PLACEHOLDER = re.compile(
@@ -251,6 +259,50 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
         if excerpt and content is not None and norm(excerpt) not in norm(content):
             errors.append(f"{label}: quoted evidence not found in source")
 
+    def evidence_reference(ref: Any, label: str) -> None:
+        """Validate claim evidence in addition to its file/locator binding."""
+        reference(ref, label)
+        if not isinstance(ref, dict):
+            return
+        kind = ref.get("evidence_kind")
+        if kind not in EVIDENCE_KINDS:
+            errors.append(
+                f"{label}: evidence_kind must be manuscript_text, quantitative_result, "
+                "theoretical_result, literature, or administrative")
+            return
+        if kind == "quantitative_result":
+            trace = ref.get("quantitative_trace")
+            if not isinstance(trace, dict):
+                errors.append(f"{label}: quantitative_result needs quantitative_trace")
+            else:
+                for key in QUANTITATIVE_TRACE_FIELDS:
+                    if not text(trace.get(key)):
+                        errors.append(f"{label}: quantitative_trace needs {key}")
+                    elif stage == "stage2" and PLACEHOLDER.search(text(trace.get(key))):
+                        errors.append(f"{label}: quantitative_trace.{key} contains a placeholder")
+        elif kind == "theoretical_result":
+            scope = ref.get("theory_scope")
+            if not isinstance(scope, dict):
+                errors.append(f"{label}: theoretical_result needs theory_scope")
+            else:
+                for key in THEORY_SCOPE_FIELDS:
+                    if not text(scope.get(key)):
+                        errors.append(f"{label}: theory_scope needs {key}")
+                    elif stage == "stage2" and PLACEHOLDER.search(text(scope.get(key))):
+                        errors.append(f"{label}: theory_scope.{key} contains a placeholder")
+        elif kind == "literature":
+            scope = ref.get("literature_scope")
+            if not isinstance(scope, dict):
+                errors.append(f"{label}: literature evidence needs literature_scope")
+            else:
+                if scope.get("primary_source_checked") is not True:
+                    errors.append(f"{label}: literature primary source must be checked")
+                for key in ("model_scope", "supported_claim"):
+                    if not text(scope.get(key)):
+                        errors.append(f"{label}: literature_scope needs {key}")
+                    elif stage == "stage2" and PLACEHOLDER.search(text(scope.get(key))):
+                        errors.append(f"{label}: literature_scope.{key} contains a placeholder")
+
     reviewers: dict[str, dict[str, Any]] = {}
     reviewer_positions = set()
     for reviewer in data.get("reviewers", []):
@@ -348,7 +400,7 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
             errors.append(f"{iid}: invalid status")
         evidence = issue.get("evidence", [])
         for ref in evidence:
-            reference(ref, iid)
+            evidence_reference(ref, iid)
         if status == "ready":
             if route != "reply_only" or not evidence:
                 errors.append(f"{iid}: ready requires reply_only and checked evidence")
@@ -374,7 +426,7 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
                     "implemented", "clarified", "reasoned_disagreement", "limited_alternative"}:
                 errors.append(f"{iid}: resolution disposition missing")
             for ref in resolution.get("evidence", []):
-                reference(ref, iid + " resolution")
+                evidence_reference(ref, iid + " resolution")
             changes = resolution.get("changes", [])
             for ref in changes:
                 reference(ref, iid + " change")

@@ -32,7 +32,8 @@ def fixture(root: Path) -> dict:
     ]
     review = root / "reviews.txt"
     review.write_text("SYNTHETIC TEST REVIEWS\n\n" + "\n\n".join(texts), encoding="utf-8")
-    ref = {"artifact_id": "manuscript", "locator": "Methods, paragraph 1",
+    ref = {"artifact_id": "manuscript", "evidence_kind": "manuscript_text",
+           "locator": "Methods, paragraph 1",
            "supports": "The unit represented by each point is described.",
            "excerpt": "Each point represents one independent specimen."}
     data = {
@@ -97,7 +98,8 @@ def fixture(root: Path) -> dict:
         if cid == "E-C1":
             excerpt = "Data are included in the supplementary material."
             item["draft_response"] = "The data availability statement specifies that the data are included in the supplementary material."
-            item["evidence"] = [{"artifact_id": "manuscript", "locator": "Data availability statement",
+            item["evidence"] = [{"artifact_id": "manuscript", "evidence_kind": "manuscript_text",
+                                 "locator": "Data availability statement",
                                  "supports": excerpt, "excerpt": excerpt}]
         data["issues"].append(item)
     return data
@@ -116,7 +118,8 @@ def completed(data: dict) -> dict:
             locator = "Discussion, paragraph 1" if causal else "Results, paragraph 1; Figure 2"
             excerpt = ("The study design does not establish causality." if causal
                        else "Group-specific distributions are reported in Figure 2.")
-            ref = {"artifact_id": "manuscript", "locator": locator,
+            ref = {"artifact_id": "manuscript", "evidence_kind": "manuscript_text",
+                   "locator": locator,
                    "supports": excerpt, "excerpt": excerpt}
             issue["status"] = "resolved"
             issue["resolution"] = {"disposition": "implemented", "summary": excerpt,
@@ -317,6 +320,59 @@ class ReviewerDocsTests(unittest.TestCase):
         data["checks"]["humanizer"] = False
         with self.assertRaises(ValidationError):
             validate(data, self.root, "stage2")
+
+    def test_cross_document_audit_checks_are_required(self):
+        data = completed(self.data)
+        data["checks"]["response_manuscript_consistency"] = False
+        with self.assertRaisesRegex(ValidationError, "response_manuscript_consistency"):
+            validate(data, self.root, "stage2")
+
+    def test_claim_evidence_kind_is_required(self):
+        self.data["issues"][0]["evidence"][0].pop("evidence_kind")
+        with self.assertRaisesRegex(ValidationError, "evidence_kind"):
+            validate(self.data, self.root, "stage1")
+
+    def test_quantitative_evidence_requires_complete_trace(self):
+        ref = self.data["issues"][0]["evidence"][0]
+        ref["evidence_kind"] = "quantitative_result"
+        with self.assertRaisesRegex(ValidationError, "quantitative_trace"):
+            validate(self.data, self.root, "stage1")
+        ref["quantitative_trace"] = {
+            "input_version": "synthetic-v1",
+            "method_version": "test-method-v1",
+            "configuration": "fixed synthetic configuration",
+            "evaluation_set": "all four synthetic comments",
+            "metric_definition": "count of comments; unit: comment",
+            "failures_or_exclusions": "none after checking the synthetic fixture",
+            "run_status": "completed",
+        }
+        validate(self.data, self.root, "stage1")
+
+    def test_theoretical_evidence_requires_scope(self):
+        ref = self.data["issues"][0]["evidence"][0]
+        ref["evidence_kind"] = "theoretical_result"
+        with self.assertRaisesRegex(ValidationError, "theory_scope"):
+            validate(self.data, self.root, "stage1")
+        ref["theory_scope"] = {
+            "mathematical_object": "synthetic finite comment set",
+            "assumptions": "the fixture contains all listed comments",
+            "claim_type": "coverage",
+            "tolerance": "exact matching; no numerical tolerance",
+        }
+        validate(self.data, self.root, "stage1")
+
+    def test_literature_evidence_requires_primary_source_review(self):
+        ref = self.data["issues"][0]["evidence"][0]
+        ref["evidence_kind"] = "literature"
+        ref["literature_scope"] = {
+            "primary_source_checked": False,
+            "model_scope": "synthetic test scope",
+            "supported_claim": "the unit represented by each point",
+        }
+        with self.assertRaisesRegex(ValidationError, "primary source"):
+            validate(self.data, self.root, "stage1")
+        ref["literature_scope"]["primary_source_checked"] = True
+        validate(self.data, self.root, "stage1")
 
     def test_no_locations_fails(self):
         data = completed(self.data)

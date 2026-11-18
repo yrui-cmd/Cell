@@ -27,7 +27,7 @@ python scripts/test_reviewer_docs.py
 
 ## 状态结构
 
-顶层字段为 `schema_version: 1`、`meta`、`artifacts`、`reviewers`、`comments`、`issues`、可选 `figure_map`、`checks`；第二阶段另需 `verification`。
+顶层字段为 `schema_version: 1`、`meta`、`artifacts`、`reviewers`、`comments`、`issues`、可选 `figure_map`、`checks`；第二阶段另需 `verification`。跨会话项目可在同一内部工作目录维护 `PROJECT_MEMORY.md`，模板与边界见 `revision-audit.md`；它不进入脚本事实判断，也不能替代 artifacts 和证据引用。
 
 ### meta
 
@@ -142,11 +142,30 @@ digest = hashlib.sha256(path.read_bytes()).hexdigest()
 ```json
 {
   "artifact_id": "actual-source-id",
+  "evidence_kind": "manuscript_text",
   "locator": "Methods, paragraph 3; Figure 2c legend",
   "supports": "该位置能够支持的具体事实",
   "excerpt": "可选：必须在源文件中能逐字找到的引文"
 }
 ```
+
+`evidence_kind` 在问题现有证据和 resolution evidence 中必填：`manuscript_text` / `quantitative_result` / `theoretical_result` / `literature` / `administrative`。修改位置、`final_locations` 和逐字引文定位仍使用普通引用结构，不把位置本身冒充结论证据。
+
+定量结果增加：
+
+```json
+"quantitative_trace": {
+  "input_version": "实际数据或输入版本",
+  "method_version": "代码、模型或方法版本",
+  "configuration": "关键参数和实验配置",
+  "evaluation_set": "实际样本、案例、路径或评价时段",
+  "metric_definition": "指标、分母、单位和统计量定义",
+  "failures_or_exclusions": "失败/缺失/未完成/排除案例；没有时说明核对结果",
+  "run_status": "完成状态、求解状态或终止条件"
+}
+```
+
+理论结果增加 `theory_scope`，非空字段为 `mathematical_object`、`assumptions`、`claim_type`、`tolerance`。文献证据增加 `literature_scope`：`primary_source_checked: true`、`model_scope` 和 `supported_claim`。这些字段记录实际核对结果；不知道时保持问题 open，不用“无”绕过。
 
 `resolution` 结构：
 
@@ -170,7 +189,7 @@ digest = hashlib.sha256(path.read_bytes()).hexdigest()
 
 ### checks
 
-第二阶段必须全部为 true：`coverage`、`evidence`、`locations`、`figures`、`humanizer`、`facts_after_humanizer`。这些字段是宿主实际完成相应核对后的记录，不能一开始全填 true。
+第二阶段必须全部为 true：`coverage`、`evidence`、`locations`、`figures`、`authority_versions`、`manuscript_consistency`、`response_manuscript_consistency`、`quantitative_consistency`、`humanizer`、`facts_after_humanizer`。新增四项分别表示：当前权威文件链已核对；手稿章节间术语/符号/指标/结论一致；回复与当前手稿逐项一致；数值、分母、单位、评价集合、失败/排除案例及运行状态一致。这些字段是宿主实际完成相应核对后的记录，不能一开始全填 true。
 
 任何来源、正文、结果、图号、回复发生实质变动，先把受影响核验项重置为 false。检查失败处理原问题，不修改校验规则。图表未发生变化也要核对引用一致性，不能跳过 `figures`。
 
@@ -191,6 +210,6 @@ digest = hashlib.sha256(path.read_bytes()).hexdigest()
 
 第一阶段必须看见红色待处理条目及具体方案，并显示问题类型与严重程度；无待处理条目时不强行标红。第二阶段在确有主要修改时显示摘要；没有主要修改时省略，不造条目。每条意见按 Comment、Response、Changes made、可选 Revised manuscript text、Locations 构建。第二阶段不能有作者待办、占位符、内部任务 ID、工作日志或虚构修改位置。审稿人原文中的问题或占位符是原始证据，不能被清理规则擅自改写。
 
-将脚本生成的文件用宿主 Word 工具渲染，检查每一页；必要的字体/段落微调之后重新检查。Word 生成成功与科学核验通过是不同环节，二者均实际执行。
+将脚本生成的文件用宿主 Word 工具渲染，检查每一页；必要的字体/段落微调之后重新检查。若作者把 clean/marked、最终 PDF 或投稿系统合并预览纳入本次任务，按 `revision-audit.md` 继续核对。Word 生成成功、科学核验通过和最终渲染检查是不同环节，均须实际执行；脚本的结构通过不代表视觉终审完成。
 
 所有测试数据与输出仅为实现验证，默认不发给用户。首次处理意见时交中英文对照 Markdown；第一阶段另交第一份 Word。若 Markdown 已交且来源未变，后续不重复；成功完成第二阶段只新增第二份 Word。若首次材料已足够直接完成第二阶段，则交 Markdown 与第二份 Word，不额外交第一份 Word。
