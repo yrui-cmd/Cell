@@ -15,6 +15,7 @@ MEMBERS = {
     "cell-submission",
     "cell-visualization-code",
     "cell-data-figure",
+    "cell_reanalyse",
     "cell_su7",
     "cell-cns-figure",
     "cell-ppt-edited",

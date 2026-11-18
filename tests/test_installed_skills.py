@@ -21,6 +21,7 @@ FREE_SKILLS = {
     "cell-reviewer-response",
     "cell-submission",
     "cell-data-figure",
+    "cell_reanalyse",
     "cell_sci_magic",
 }
 ENTRYPOINTS = (

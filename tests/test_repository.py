@@ -19,6 +19,7 @@ EXPECTED_SKILLS = {
     "cell-submission",
     "cell-visualization-code",
     "cell-data-figure",
+    "cell_reanalyse",
     "cell_su7",
     "cell_su8",
     "cell-cns-figure",
