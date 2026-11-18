@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build two-stage reviewer-response DOCX files from an agent-verified ledger.
+"""Build bilingual intake Markdown and two-stage reviewer-response DOCX files.
 
 No model/API calls. This module checks structure, source snapshots and gates.
 It does not infer whether an experiment was scientifically adequate.
@@ -34,10 +34,14 @@ CATEGORIES = {"clarification", "methods", "experiment", "analysis", "statistics"
 SEVERITIES = {"high", "medium", "low"}
 RESPONSE_MODES = {"agree_and_change", "partial_agreement", "clarification",
                   "reasoned_disagreement", "unable_with_alternative"}
+SOURCE_LANGUAGES = {"en", "zh", "mixed", "other"}
+TRANSLATION_LANGUAGES = {"en", "zh"}
 COMPLETION_STATUSES = {"draft_with_placeholders", "needs_author_input", "blocked",
                        "ready_to_submit"}
 CHECKS = ("coverage", "evidence", "locations", "figures",
           "humanizer", "facts_after_humanizer")
+MANUSCRIPT_KINDS = {"manuscript", "revised_manuscript"}
+LOCATION_KINDS = MANUSCRIPT_KINDS | {"figure", "table", "supplementary"}
 PLACEHOLDER = re.compile(
     r"\b(?:TBD|TODO|PLACEHOLDER)\b|\[(?:INSERT|待补|待填|待确认)[^\]]*\]"
     r"|\b(?:page|pages|line|lines)\s+(?:XX+|\?+)\b|待取得.{0,24}补写"
@@ -91,12 +95,22 @@ def artifact_object_types(path: Path) -> list[str]:
         "drawing": "drawing_or_image", "pict": "legacy_drawing_or_image",
         "object": "embedded_object", "txbxContent": "text_box",
         "altChunk": "external_content_chunk",
+        "ins": "tracked_change", "del": "tracked_change",
+        "moveFrom": "tracked_change", "moveTo": "tracked_change",
+        "commentRangeStart": "comment", "commentRangeEnd": "comment",
+        "commentReference": "comment",
     }
     found: set[str] = set()
     with zipfile.ZipFile(path) as package:
         for info in package.infolist():
             if not info.filename.startswith("word/") or not info.filename.endswith(".xml"):
                 continue
+            if re.fullmatch(r"word/header\d*\.xml|word/footer\d*\.xml", info.filename):
+                found.add("header_or_footer")
+            elif info.filename in {"word/footnotes.xml", "word/endnotes.xml"}:
+                found.add("footnote_or_endnote")
+            elif info.filename == "word/comments.xml":
+                found.add("comment")
             if info.file_size > 32 * 1024 * 1024:
                 raise ValueError(f"DOCX XML part is too large to inspect: {info.filename}")
             root = ET.fromstring(package.read(info))
@@ -143,6 +157,32 @@ def natural(value: str) -> tuple[Any, ...]:
     return rank, parts
 
 
+def validate_translation(comment: dict[str, Any], cid: str, errors: list[str]) -> None:
+    source_language = comment.get("original_language")
+    translation_language = comment.get("translation_language")
+    if source_language not in SOURCE_LANGUAGES:
+        errors.append(f"{cid}: original_language must be en, zh, mixed, or other")
+    if translation_language not in TRANSLATION_LANGUAGES:
+        errors.append(f"{cid}: translation_language must be en or zh")
+    if source_language == "en" and translation_language != "zh":
+        errors.append(f"{cid}: English original requires a Chinese translation")
+    if source_language == "zh" and translation_language != "en":
+        errors.append(f"{cid}: Chinese original requires an English translation")
+    if not text(comment.get("translated_text")):
+        errors.append(f"{cid}: translated_text is required for the bilingual review record")
+    if comment.get("translation_checked") is not True:
+        errors.append(f"{cid}: translation_checked must be true after bilingual fidelity review")
+
+
+def markdown_quote(value: str) -> str:
+    lines = value.splitlines() or [""]
+    return "\n".join(">" if not line else "> " + line for line in lines)
+
+
+def markdown_inline(value: str) -> str:
+    return re.sub(r"([\\`*_{}\[\]()#+!|>])", r"\\\1", value)
+
+
 def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
     errors: list[str] = []
     artifacts: dict[str, dict[str, Any]] = {}
@@ -152,7 +192,7 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
         errors.append("schema_version must be 1")
     meta = data.get("meta", {})
     completion_status = meta.get("completion_status")
-    if completion_status not in COMPLETION_STATUSES:
+    if stage != "intake" and completion_status not in COMPLETION_STATUSES:
         errors.append("meta.completion_status is missing or invalid")
     for a in data.get("artifacts", []):
         aid = text(a.get("id"))
@@ -202,6 +242,10 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
             errors.append(f"{label}: evidence needs locator and supports")
         if stage == "stage2" and PLACEHOLDER.search(text(ref.get("locator"))):
             errors.append(f"{label}: unresolved location placeholder")
+        if stage == "stage2" and (
+                PLACEHOLDER.search(text(ref.get("supports")))
+                or PLACEHOLDER.search(text(ref.get("excerpt")))):
+            errors.append(f"{label}: evidence contains a final placeholder")
         excerpt = text(ref.get("excerpt"))
         content = source_texts.get(aid)
         if excerpt and content is not None and norm(excerpt) not in norm(content):
@@ -214,8 +258,9 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
         position = reviewer.get("order")
         if not rid or rid in reviewers or not text(reviewer.get("label")):
             errors.append("reviewer IDs/labels must be nonempty and IDs unique")
-        if not isinstance(position, int) or position in reviewer_positions:
-            errors.append("reviewer order must be an explicit unique integer")
+        if (not isinstance(position, int) or isinstance(position, bool)
+                or position < 1 or position in reviewer_positions):
+            errors.append("reviewer order must be an explicit unique positive integer")
         reviewer_positions.add(position)
         reviewers[rid] = reviewer
         if reviewer.get("kind") not in {"editor", "reviewer"}:
@@ -231,8 +276,9 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
         if c.get("reviewer_id") not in reviewers:
             errors.append(f"{cid}: missing reviewer")
         pos = (c.get("reviewer_id"), c.get("order"))
-        if not isinstance(c.get("order"), int) or pos in comment_positions:
-            errors.append(f"{cid}: duplicate/missing original order")
+        if (not isinstance(c.get("order"), int) or isinstance(c.get("order"), bool)
+                or c.get("order") < 1 or pos in comment_positions):
+            errors.append(f"{cid}: original order must be a unique positive integer")
         comment_positions.add(pos)
         original = text(c.get("original_text"))
         if not original:
@@ -245,6 +291,7 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
             errors.append(f"{cid}: use a readable original text/DOCX or a source-linked transcript")
         elif original and norm(original) not in norm(content):
             errors.append(f"{cid}: original comment does not match source verbatim")
+        validate_translation(c, cid, errors)
         revised = text(c.get("revised_text"))
         if revised:
             if stage == "stage2" and PLACEHOLDER.search(revised):
@@ -267,6 +314,12 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
             errors.append(f"{rid}: original comment count mismatch")
     if meta.get("review_sources_complete") is not True and not text(meta.get("source_gaps")):
         errors.append("incomplete review sources require a concrete source_gaps note")
+
+    if stage == "intake":
+        if errors:
+            raise ValidationError("\n".join(dict.fromkeys(errors)))
+        return {"comments": len(comments), "reviewers": len(reviewers),
+                "sources_complete": meta.get("review_sources_complete") is True}
 
     issue_ids: set[str] = set()
     children: dict[str, list[dict[str, Any]]] = {cid: [] for cid in comments}
@@ -299,6 +352,10 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
         if status == "ready":
             if route != "reply_only" or not evidence:
                 errors.append(f"{iid}: ready requires reply_only and checked evidence")
+            if not text(issue.get("no_change_reason")):
+                errors.append(f"{iid}: ready reply_only issue needs a specific no_change_reason")
+            elif stage == "stage2" and PLACEHOLDER.search(text(issue.get("no_change_reason"))):
+                errors.append(f"{iid}: no_change_reason contains a final placeholder")
         elif status == "open":
             open_ids.append(iid)
             plan = issue.get("plan", {})
@@ -341,6 +398,11 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
             errors.append("stage2 requires meta.completion_status=ready_to_submit")
         if meta.get("review_sources_complete") is not True:
             errors.append("review sources are incomplete")
+        current_manuscript_id = text(meta.get("current_manuscript_id"))
+        if not current_manuscript_id or current_manuscript_id not in artifacts:
+            errors.append("stage2 requires a current_manuscript_id linked to an accessible artifact")
+        elif artifacts[current_manuscript_id].get("kind") not in MANUSCRIPT_KINDS:
+            errors.append("current_manuscript_id must identify a manuscript or revised_manuscript artifact")
         if open_ids:
             errors.append("unresolved issues: " + ", ".join(open_ids))
         for key in CHECKS:
@@ -354,9 +416,9 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
             if mode not in RESPONSE_MODES:
                 errors.append(f"{cid}: final response_mode is missing or invalid")
             covered = c.get("final_issue_ids", [])
-            expected_ids = {i["id"] for i in children.get(cid, [])}
-            if not isinstance(covered, list) or len(covered) != len(set(covered)) or set(covered) != expected_ids:
-                errors.append(f"{cid}: final response coverage does not match all subquestions")
+            expected_ids = [i["id"] for i in children.get(cid, [])]
+            if not isinstance(covered, list) or covered != expected_ids:
+                errors.append(f"{cid}: final response coverage must match all subquestions in order")
             dispositions = {
                 i.get("resolution", {}).get("disposition") for i in children.get(cid, [])
             }
@@ -367,15 +429,45 @@ def validate(data: dict[str, Any], base: Path, stage: str) -> dict[str, Any]:
                 errors.append(f"{cid}: reasoned_disagreement mode lacks a matching resolution")
             if mode == "unable_with_alternative" and "limited_alternative" not in dispositions:
                 errors.append(f"{cid}: unable_with_alternative mode lacks a verified alternative resolution")
+            if mode == "partial_agreement":
+                rationale = text(c.get("response_mode_rationale"))
+                if not rationale or PLACEHOLDER.search(rationale):
+                    errors.append(f"{cid}: partial_agreement needs a specific response_mode_rationale")
+            final_locations = c.get("final_locations", [])
+            if not isinstance(final_locations, list):
+                errors.append(f"{cid}: final_locations must be a list")
+                final_locations = []
+            for ref in final_locations:
+                reference(ref, cid + " final location")
+                if (isinstance(ref, dict)
+                        and artifacts.get(ref.get("artifact_id"), {}).get("kind") not in LOCATION_KINDS):
+                    errors.append(f"{cid}: final location must point to a manuscript, figure, table, or supplementary artifact")
+            location_pairs = {
+                (ref.get("artifact_id"), norm(text(ref.get("locator"))))
+                for ref in final_locations if isinstance(ref, dict)
+            }
+            change_pairs = {
+                (ref.get("artifact_id"), norm(text(ref.get("locator"))))
+                for i in children.get(cid, [])
+                for ref in i.get("resolution", {}).get("changes", [])
+                if isinstance(ref, dict)
+            }
+            if not change_pairs.issubset(location_pairs):
+                errors.append(f"{cid}: final_locations must include every verified manuscript change")
+            no_location_reason = text(c.get("location_not_applicable_reason"))
+            if not final_locations and not no_location_reason:
+                errors.append(f"{cid}: provide verified final_locations or a specific not-applicable reason")
+            if stage == "stage2" and PLACEHOLDER.search(no_location_reason):
+                errors.append(f"{cid}: location_not_applicable_reason contains a placeholder")
         for key in ("title", "manuscript_id", "opening", "signature"):
             if PLACEHOLDER.search(text(meta.get(key))):
                 errors.append(f"meta.{key}: final placeholder detected")
         if not text(meta.get("opening")):
             errors.append("a fact-checked short opening is required for stage2")
         principal = meta.get("principal_revisions")
-        if (not isinstance(principal, list) or not principal
+        if (not isinstance(principal, list)
                 or any(not text(item) or PLACEHOLDER.search(text(item)) for item in principal)):
-            errors.append("meta.principal_revisions needs a verified nonempty summary list")
+            errors.append("meta.principal_revisions must be a verified list; use [] when there are no principal revisions")
         verification = data.get("verification")
         if not isinstance(verification, dict):
             errors.append("stage2 verification must bind the final checks to current content")
@@ -465,6 +557,81 @@ def evidence_text(refs: list[dict[str, Any]]) -> str:
     return "；".join(dict.fromkeys(r["locator"] for r in refs))
 
 
+def intake_markdown(data: dict[str, Any]) -> str:
+    meta = data["meta"]
+    lines = ["# 审稿意见中英文对照", ""]
+    manuscript_meta: list[str] = []
+    if text(meta.get("title")):
+        manuscript_meta.append("- 稿件题目：" + markdown_inline(meta["title"]))
+    if text(meta.get("manuscript_id")):
+        manuscript_meta.append("- 稿件编号：" + markdown_inline(meta["manuscript_id"]))
+    if text(meta.get("journal")):
+        manuscript_meta.append("- 目标期刊：" + markdown_inline(meta["journal"]))
+    lines.extend(manuscript_meta + [
+        f'- 原始父意见数：{meta["original_comment_count"]}',
+        "- 说明：原文逐字保留；译文仅用于理解和处理，不替代投稿系统中的原始意见。",
+    ])
+    if meta.get("review_sources_complete") is not True:
+        lines.append("- 来源缺口：" + markdown_inline(meta["source_gaps"]))
+    lines.append("")
+    original_headings = {
+        "en": "英文原文", "zh": "中文原文",
+        "mixed": "混合语言原文", "other": "其他语言原文",
+    }
+    reviewers = sorted(data["reviewers"], key=lambda r: (0 if r["kind"] == "editor" else 1, r["order"]))
+    for reviewer in reviewers:
+        comments = sorted(
+            [c for c in data["comments"] if c["reviewer_id"] == reviewer["id"]],
+            key=lambda c: c["order"],
+        )
+        if not comments:
+            continue
+        lines.extend(["## " + markdown_inline(reviewer["label"]), ""])
+        for comment in comments:
+            label = text(comment.get("original_label")) or "Unnumbered comment"
+            lines.extend([
+                "### " + markdown_inline(label) + " · " + markdown_inline(comment["id"]),
+                "",
+                "- 来源位置：" + markdown_inline(comment["source_locator"]),
+                "",
+                "#### " + original_headings[comment["original_language"]],
+                "",
+                markdown_quote(comment["original_text"]),
+                "",
+                "#### " + ("中文翻译" if comment["translation_language"] == "zh" else "English translation"),
+                "",
+                markdown_quote(comment["translated_text"]),
+                "",
+            ])
+            if text(comment.get("translation_note")):
+                lines.extend([
+                    "- 翻译说明：" + markdown_inline(comment["translation_note"]),
+                    "",
+                ])
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def build_intake(data: dict[str, Any], base: Path, output: Path) -> dict[str, Any]:
+    result = validate(data, base, "intake")
+    output = output.resolve()
+    if output in {resolve_path(a["path"], base) for a in data["artifacts"]}:
+        raise ValidationError("output would overwrite an input source")
+    if output.suffix.lower() != ".md":
+        raise ValidationError("intake output must be a .md file")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    content = intake_markdown(data)
+    with tempfile.NamedTemporaryFile(
+            dir=output.parent, suffix=".md", mode="w", encoding="utf-8",
+            newline="\n", delete=False) as stream:
+        tmp = Path(stream.name)
+        stream.write(content)
+    try:
+        tmp.replace(output)
+    finally:
+        tmp.unlink(missing_ok=True)
+    return {**result, "output": str(output)}
+
+
 def stage1_doc(data: dict[str, Any]) -> Any:
     doc = base_document("审稿意见：Figure 归类与解决方案")
     meta = data["meta"]
@@ -492,6 +659,7 @@ def stage1_doc(data: dict[str, Any]) -> Any:
             font(run, bold=True)
     header = OxmlElement("w:tblHeader")
     table.rows[0]._tr.get_or_add_trPr().append(header)
+    parent_first_group: dict[str, str] = {}
     for group in groups:
         subset = [i for i in issues if i["primary_group"] == group]
         nopen = sum(i["status"] == "open" for i in subset)
@@ -514,7 +682,11 @@ def stage1_doc(data: dict[str, Any]) -> Any:
             if c["id"] not in shown:
                 label = text(c.get("original_label")) or "Unnumbered comment"
                 paragraph(doc, f'{r["label"]} / {label} / {c["id"]}', style="Heading 2", bold=True)
-                paragraph(doc, c["original_text"], italic=True)
+                if c["id"] in parent_first_group:
+                    paragraph(doc, "完整原始意见见：" + parent_first_group[c["id"]] + "。")
+                else:
+                    paragraph(doc, c["original_text"], italic=True)
+                    parent_first_group[c["id"]] = group
                 shown.add(c["id"])
             red = i["status"] == "open"
             state = "待解决" if red else "已可据实回复"
@@ -535,6 +707,8 @@ def stage1_doc(data: dict[str, Any]) -> Any:
                 refs = i.get("evidence", []) + i.get("resolution", {}).get("evidence", [])
                 if refs:
                     paragraph(doc, "依据：" + evidence_text(refs))
+                if text(i.get("no_change_reason")):
+                    paragraph(doc, "无需修改稿件的理由：" + i["no_change_reason"])
     return doc
 
 
@@ -545,9 +719,10 @@ def stage2_doc(data: dict[str, Any]) -> Any:
         if text(meta.get(key)):
             paragraph(doc, prefix + meta[key])
     paragraph(doc, meta["opening"])
-    paragraph(doc, "Summary of principal revisions", style="Heading 1", bold=True)
-    for item in meta["principal_revisions"]:
-        paragraph(doc, item, style="List Bullet")
+    if meta["principal_revisions"]:
+        paragraph(doc, "Summary of principal revisions", style="Heading 1", bold=True)
+        for item in meta["principal_revisions"]:
+            paragraph(doc, item, style="List Bullet")
     reviewers = sorted(data["reviewers"], key=lambda r: (0 if r["kind"] == "editor" else 1, r["order"]))
     for reviewer in reviewers:
         comments = sorted([c for c in data["comments"] if c["reviewer_id"] == reviewer["id"]], key=lambda c: c["order"])
@@ -570,7 +745,7 @@ def stage2_doc(data: dict[str, Any]) -> Any:
             no_change_notes = [
                 text(i.get("resolution", {}).get("no_change_reason"))
                 for i in kids if text(i.get("resolution", {}).get("no_change_reason"))
-            ]
+            ] + [text(i.get("no_change_reason")) for i in kids if text(i.get("no_change_reason"))]
             paragraph(doc, "Changes made", style="Heading 3", bold=True)
             if change_refs and change_notes:
                 paragraph(doc, " ".join(dict.fromkeys(change_notes)))
@@ -581,14 +756,13 @@ def stage2_doc(data: dict[str, Any]) -> Any:
             if text(c.get("revised_text")):
                 paragraph(doc, "Revised manuscript text", style="Heading 3", bold=True)
                 paragraph(doc, c["revised_text"], italic=True)
-            all_refs = change_refs or [
-                ref for i in kids
-                for ref in (i.get("resolution", {}).get("evidence", []) or i.get("evidence", []))
-            ]
-            if all_refs:
-                locators = "; ".join(dict.fromkeys(ref["locator"] for ref in all_refs))
-                paragraph(doc, "Locations", style="Heading 3", bold=True)
+            paragraph(doc, "Locations", style="Heading 3", bold=True)
+            final_locations = c.get("final_locations", [])
+            if final_locations:
+                locators = "; ".join(dict.fromkeys(ref["locator"] for ref in final_locations))
                 paragraph(doc, locators)
+            else:
+                paragraph(doc, c["location_not_applicable_reason"])
     if text(meta.get("signature")):
         paragraph(doc, meta["signature"])
     return doc
@@ -616,7 +790,7 @@ def build(data: dict[str, Any], base: Path, stage: str, output: Path) -> dict[st
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("stage", choices=["stage1", "stage2", "check1", "check2", "fingerprint"])
+    parser.add_argument("stage", choices=["intake", "stage1", "stage2", "check0", "check1", "check2", "fingerprint"])
     parser.add_argument("ledger", type=Path)
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
@@ -625,13 +799,16 @@ def main() -> int:
         if args.stage == "fingerprint":
             print(json.dumps({"content_sha256": verification_fingerprint(data)}, ensure_ascii=False))
             return 0
-        stage = "stage2" if args.stage in {"stage2", "check2"} else "stage1"
+        stage = ("intake" if args.stage in {"intake", "check0"}
+                 else "stage2" if args.stage in {"stage2", "check2"} else "stage1")
         if args.stage.startswith("check"):
             result = validate(data, args.ledger.resolve().parent, stage)
         else:
             if args.out is None:
-                raise ValidationError("--out is required when generating Word")
-            result = build(data, args.ledger.resolve().parent, stage, args.out)
+                raise ValidationError("--out is required when generating a deliverable")
+            result = (build_intake(data, args.ledger.resolve().parent, args.out)
+                      if stage == "intake"
+                      else build(data, args.ledger.resolve().parent, stage, args.out))
         print(json.dumps(result, ensure_ascii=False))
         return 0
     except (ValidationError, OSError, ValueError, KeyError, TypeError) as exc:

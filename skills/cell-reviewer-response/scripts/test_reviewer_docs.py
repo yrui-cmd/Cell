@@ -10,8 +10,8 @@ from pathlib import Path
 
 from docx import Document
 
-from reviewer_docs import (CHECKS, ValidationError, build, sha256, validate,
-                           verification_fingerprint)
+from reviewer_docs import (CHECKS, ValidationError, build, build_intake, sha256,
+                           validate, verification_fingerprint)
 
 
 def fixture(root: Path) -> dict:
@@ -43,8 +43,8 @@ def fixture(root: Path) -> dict:
                  "completion_status": "needs_author_input",
                  "opening": "Thank you for reviewing the manuscript. We respond to each comment below."},
         "artifacts": [
-            {"id": "reviews", "path": str(review), "sha256": sha256(review)},
-            {"id": "manuscript", "path": str(manuscript), "sha256": sha256(manuscript)},
+            {"id": "reviews", "kind": "review_source", "path": str(review), "sha256": sha256(review)},
+            {"id": "manuscript", "kind": "revised_manuscript", "path": str(manuscript), "sha256": sha256(manuscript)},
         ],
         "reviewers": [
             {"id": "E", "label": "Editor", "kind": "editor", "order": 1, "comment_count": 1},
@@ -54,10 +54,18 @@ def fixture(root: Path) -> dict:
         "comments": [], "issues": [], "checks": {},
     }
     mappings = [("E-C1", "E", 1), ("R1-C1", "R1", 1), ("R1-C2", "R1", 2), ("R2-C1", "R2", 1)]
-    for (cid, rid, order), original in zip(mappings, texts):
+    translations = [
+        "请澄清数据可得性声明。",
+        "在图2中，每个数据点代表什么？",
+        "请报告图2中各组的具体分布，并说明图S1是否能够证明因果关系。",
+        "请解释图2中的重复单位。",
+    ]
+    for (cid, rid, order), original, translated in zip(mappings, texts, translations):
         data["comments"].append({"id": cid, "reviewer_id": rid, "order": order,
                                  "original_label": f"Comment {order}", "original_text": original,
-                                 "source_artifact_id": "reviews", "source_locator": f"{rid}, comment {order}"})
+                                 "source_artifact_id": "reviews", "source_locator": f"{rid}, comment {order}",
+                                 "original_language": "en", "translation_language": "zh",
+                                 "translated_text": translated, "translation_checked": True})
     specs = [
         ("E-C1a", "E-C1", "General / Data availability", False, "核对数据可得性说明。"),
         ("R1-C1a", "R1-C1", "Figure 2", False, "解释每个数据点所代表的单位。"),
@@ -76,6 +84,8 @@ def fixture(root: Path) -> dict:
                 "draft_response": ("The additional analysis remains to be assessed before the response is finalized."
                                    if pending else "Each point represents one independent specimen, as described in the Methods."),
                 "evidence": [] if pending else [copy.deepcopy(ref)]}
+        if not pending:
+            item["no_change_reason"] = "The requested point is already stated in the current manuscript."
         if pending:
             item["plan"] = {
                 "action": "核对相关结果并据实更新本条回复。",
@@ -122,6 +132,15 @@ def completed(data: dict) -> dict:
                                    "The Discussion clarifies that the study design does not establish causality.")
         else:
             c["final_response"] = "Each point represents one independent specimen, as described in the Methods."
+        change_refs = [
+            ref for issue in kids
+            for ref in issue.get("resolution", {}).get("changes", [])
+        ]
+        evidence_refs = [
+            ref for issue in kids
+            for ref in (issue.get("resolution", {}).get("evidence", []) or issue.get("evidence", []))
+        ]
+        c["final_locations"] = copy.deepcopy(change_refs or evidence_refs)
     method_text = "Each point represents one independent specimen."
     data["comments"][1]["revised_text"] = method_text
     data["comments"][1]["revised_text_evidence"] = {
@@ -156,6 +175,55 @@ class ReviewerDocsTests(unittest.TestCase):
             build(self.data, self.root, "stage2", target)
         self.assertFalse(target.exists())
 
+    def test_intake_builds_bilingual_markdown_in_source_order(self):
+        target = self.root / "00_审稿意见_中英文对照.md"
+        result = build_intake(self.data, self.root, target)
+        self.assertEqual(result["comments"], 4)
+        content = target.read_text(encoding="utf-8")
+        self.assertIn("# 审稿意见中英文对照", content)
+        self.assertIn("#### 英文原文", content)
+        self.assertIn("#### 中文翻译", content)
+        self.assertIn("> Please clarify the data availability statement.", content)
+        self.assertIn("> 请澄清数据可得性声明。", content)
+        self.assertLess(content.index("## Editor"), content.index("## Reviewer 1"))
+        self.assertLess(content.index("## Reviewer 1"), content.index("## Reviewer 2"))
+
+    def test_intake_requires_bilingual_translation(self):
+        self.data["comments"][0]["translated_text"] = ""
+        with self.assertRaisesRegex(ValidationError, "translated_text"):
+            validate(self.data, self.root, "intake")
+
+    def test_intake_enforces_opposite_language_for_english_or_chinese(self):
+        self.data["comments"][0]["translation_language"] = "en"
+        with self.assertRaisesRegex(ValidationError, "English original requires a Chinese translation"):
+            validate(self.data, self.root, "intake")
+
+        comment = self.data["comments"][0]
+        review_path = Path(self.data["artifacts"][0]["path"])
+        review_path.write_text(
+            review_path.read_text(encoding="utf-8").replace(
+                comment["original_text"], "请澄清数据可得性声明。"),
+            encoding="utf-8",
+        )
+        self.data["artifacts"][0]["sha256"] = sha256(review_path)
+        comment.update(
+            original_text="请澄清数据可得性声明。",
+            original_language="zh",
+            translated_text="Please clarify the data availability statement.",
+            translation_language="zh",
+        )
+        with self.assertRaisesRegex(ValidationError, "Chinese original requires an English translation"):
+            validate(self.data, self.root, "intake")
+
+    def test_intake_requires_translation_fidelity_review(self):
+        self.data["comments"][0]["translation_checked"] = False
+        with self.assertRaisesRegex(ValidationError, "translation_checked"):
+            validate(self.data, self.root, "intake")
+
+    def test_intake_never_overwrites_review_source(self):
+        with self.assertRaisesRegex(ValidationError, "overwrite"):
+            build_intake(self.data, self.root, Path(self.data["artifacts"][0]["path"]))
+
     def test_stage1_red_and_primary_counts(self):
         target = self.root / "first.docx"
         result = build(self.data, self.root, "stage1", target)
@@ -167,6 +235,9 @@ class ReviewerDocsTests(unittest.TestCase):
         rows = [[c.text for c in r.cells] for r in doc.tables[0].rows]
         self.assertIn(["Figure 2", "3", "2", "1"], rows)
         self.assertFalse(any(row[0] == "General / Statistics" for row in rows))
+        all_text = "\n".join(p.text for p in doc.paragraphs)
+        self.assertEqual(all_text.count(self.data["comments"][2]["original_text"]), 1)
+        self.assertIn("完整原始意见见：Figure 2。", all_text)
 
     def test_ready_final_order_and_no_red(self):
         target = self.root / "final.docx"
@@ -220,6 +291,21 @@ class ReviewerDocsTests(unittest.TestCase):
             "notes": "Inspected the equation against the final rendered manuscript.",
         }
         validate(data, self.root, "stage2")
+
+    def test_docx_tracked_change_requires_bound_object_review(self):
+        data = completed(self.data)
+        path = self.root / "manuscript-with-revision.docx"
+        doc = Document()
+        paragraph = doc.add_paragraph(Path(data["artifacts"][1]["path"]).read_text(encoding="utf-8"))
+        insertion = paragraph._p.makeelement(
+            "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}ins")
+        paragraph._p.append(insertion)
+        doc.save(path)
+        artifact = data["artifacts"][1]
+        artifact.update(path=str(path), sha256=sha256(path))
+        seal(data)
+        with self.assertRaisesRegex(ValidationError, "tracked_change"):
+            validate(data, self.root, "stage2")
 
     def test_original_comment_cannot_be_rewritten(self):
         self.data["comments"][1]["original_text"] = "A paraphrase that was not in the review."
@@ -311,11 +397,54 @@ class ReviewerDocsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValidationError, "category"):
             validate(self.data, self.root, "stage1")
 
-    def test_stage2_requires_principal_revision_summary(self):
+    def test_stage2_allows_no_principal_revisions_without_fabricating_one(self):
         data = completed(self.data)
         data["meta"]["principal_revisions"] = []
-        with self.assertRaisesRegex(ValidationError, "principal_revisions"):
+        seal(data)
+        validate(data, self.root, "stage2")
+        target = self.root / "no-principal-revisions.docx"
+        build(data, self.root, "stage2", target)
+        texts = [p.text for p in Document(target).paragraphs]
+        self.assertNotIn("Summary of principal revisions", texts)
+
+    def test_stage2_requires_current_manuscript(self):
+        data = completed(self.data)
+        data["meta"]["current_manuscript_id"] = "missing-artifact"
+        seal(data)
+        with self.assertRaisesRegex(ValidationError, "current_manuscript_id"):
             validate(data, self.root, "stage2")
+
+    def test_current_manuscript_cannot_point_to_review_source(self):
+        data = completed(self.data)
+        data["meta"]["current_manuscript_id"] = "reviews"
+        seal(data)
+        with self.assertRaisesRegex(ValidationError, "manuscript or revised_manuscript"):
+            validate(data, self.root, "stage2")
+
+    def test_final_locations_must_include_verified_changes(self):
+        data = completed(self.data)
+        data["comments"][2]["final_locations"] = []
+        data["comments"][2]["location_not_applicable_reason"] = "No location applies."
+        seal(data)
+        with self.assertRaisesRegex(ValidationError, "include every verified manuscript change"):
+            validate(data, self.root, "stage2")
+
+    def test_ready_issue_requires_specific_no_change_reason(self):
+        self.data["issues"][0].pop("no_change_reason")
+        with self.assertRaisesRegex(ValidationError, "no_change_reason"):
+            validate(self.data, self.root, "stage1")
+
+    def test_partial_agreement_requires_rationale(self):
+        data = completed(self.data)
+        data["comments"][2]["response_mode"] = "partial_agreement"
+        seal(data)
+        with self.assertRaisesRegex(ValidationError, "response_mode_rationale"):
+            validate(data, self.root, "stage2")
+        data["comments"][2]["response_mode_rationale"] = (
+            "The requested distribution analysis was added, while the causal interpretation was narrowed."
+        )
+        seal(data)
+        validate(data, self.root, "stage2")
 
     def test_unable_mode_requires_verified_alternative(self):
         data = completed(self.data)

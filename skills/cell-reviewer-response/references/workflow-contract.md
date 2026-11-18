@@ -13,6 +13,8 @@ Word 渲染优先使用宿主现有文档能力；在配有 LibreOffice 的环�
 在 skill 根目录执行，`work` 是本次内部工作目录：
 
 ```sh
+python scripts/reviewer_docs.py check0 work/ledger.json
+python scripts/reviewer_docs.py intake work/ledger.json --out work/00_审稿意见_中英文对照.md
 python scripts/reviewer_docs.py check1 work/ledger.json
 python scripts/reviewer_docs.py stage1 work/ledger.json --out work/01_审稿意见_Figure归类与解决方案.docx
 python scripts/reviewer_docs.py fingerprint work/ledger.json
@@ -32,15 +34,15 @@ python scripts/test_reviewer_docs.py
 - `title`、`manuscript_id`、`journal`：已知才填写。标题不详可空，不虚构作者/单位/编号。
 - `original_comment_count`：完整提取到的父意见总数，不是拆分的问题数。必须与 `comments` 长度一致。
 - `review_sources_complete`：所有来源是否完整读到，真实布尔值。为 false 时 `source_gaps` 必须指出具体缺页/缺审稿人/截断位置。第一阶段可继续，第二阶段不通过。
-- `current_manuscript_id`：最终已核对稿件的 artifact ID；稿件修改定位均指向它。第一阶段尚未收到可留空。
+- `current_manuscript_id`：最终已核对稿件的 artifact ID；稿件修改定位均指向它。第一阶段尚未收到可留空，第二阶段必须存在并指向可访问 artifact。
 - `opening`：第二份 Word 的简短开场；事实核对完成后填写。不要预填“全部建议均已采纳”。
-- `principal_revisions`：第二阶段必填的非空字符串列表，只概括真实完成且实质影响论文的主要修改；不得包含占位符。
+- `principal_revisions`：第二阶段必填列表，只概括真实完成且实质影响论文的主要修改；不得包含占位符。没有主要修改时使用空列表 `[]`，生成器会省略摘要区块。
 - `completion_status`：`draft_with_placeholders` / `needs_author_input` / `blocked` / `ready_to_submit`。存在 open issue 时不能写 `ready_to_submit`；第二阶段只接受 `ready_to_submit`。
 - `signature`：可选，仅作者提供署名时使用，不要求为生成回复而查找个人身份。
 
 ### artifacts
 
-每项包括 `id`、`path`、`sha256`，可增加 `kind`、`origin_id`、`provenance`、`version`。
+每项包括 `id`、`path`、`sha256`，可增加 `kind`、`origin_id`、`provenance`、`version`。第二阶段由 `current_manuscript_id` 指向的文件必须标为 `kind: manuscript` 或 `kind: revised_manuscript`；正式位置可指向这两类或 `figure`、`table`、`supplementary`，不能指向审稿信、内部台账或一般数据文件。
 
 `path` 为真实可访问路径，或相对于 ledger 的路径；不写猜测的挂载路径。`sha256` 由文件实际字节计算，不能是任意 64 位字符串。原文件改变后旧记录必须失败，宿主重读并更新所有受影响回复后才能重新存入新摘要。不要只刷新哈希而保留旧的事实核验状态。
 
@@ -48,7 +50,7 @@ python scripts/test_reviewer_docs.py
 
 程序直接核对 TXT/MD/CSV/TSV/JSON/DOCX 内的原文与可选引文；图像/PDF等文件只核对可访问性和哈希，内容仍须由宿主实际查看。表格里的 Word 原文也可读取。不要把“有哈希”当成“科学结论正确”。
 
-DOCX 的普通段落提取不能证明公式、图片、旧式绘图、文本框、嵌入对象或外部内容块已被读取。程序检测到这些对象时，第二阶段要求该 artifact 增加 `object_review`：`source_sha256` 必须等于当前文件摘要，`inspected_types` 覆盖程序报告的类型，`notes` 记录实际查看的位置和结果。该记录只证明宿主对当前版本做了对象级查看，不证明公式或图的科学内容正确；文件改变后必须重查。
+DOCX 的普通段落提取不能证明公式、图片、旧式绘图、文本框、嵌入对象、外部内容块、修订痕迹、批注、页眉页脚或脚注尾注已被读取。程序检测到这些对象时，第二阶段要求该 artifact 增加 `object_review`：`source_sha256` 必须等于当前文件摘要，`inspected_types` 覆盖程序报告的类型，`notes` 记录实际查看的位置和结果。该记录只证明宿主对当前版本做了对象级查看，不证明其科学内容正确；文件改变后必须重查。
 
 计算文件摘要示例：
 
@@ -72,11 +74,23 @@ digest = hashlib.sha256(path.read_bytes()).hexdigest()
   "order": 3,
   "original_label": "Comment 3",
   "original_text": "从实际来源逐字提取的完整原文",
+  "original_language": "en",
+  "translation_language": "zh",
+  "translated_text": "逐句核对后的忠实中文翻译",
+  "translation_checked": true,
+  "translation_note": "可选：只记录无法消除的术语或原文歧义",
   "source_artifact_id": "review-transcript",
   "source_locator": "Reviewer 1, Comment 3",
   "response_mode": "partial_agreement",
   "final_response": "第二阶段有证据后写入的完整正式答复",
   "final_issue_ids": ["R1-C3a", "R1-C3b"],
+  "final_locations": [
+    {
+      "artifact_id": "revised-manuscript",
+      "locator": "Discussion, paragraph 4",
+      "supports": "正式回复中报告的修改位于此处"
+    }
+  ],
   "revised_text": "可选：当前修订稿中的逐字引文",
   "revised_text_evidence": {
     "artifact_id": "revised-manuscript",
@@ -89,7 +103,9 @@ digest = hashlib.sha256(path.read_bytes()).hexdigest()
 
 示例字段解释不是可直接用来生成用户文档的事实；真正运行时逐项替换为实际内容。无原编号时 `original_label` 留空，内部 ID 继续用于追踪；不能编造原编号。每条原文必须在来源中找到，允许读取时的换行/空格差异，不允许改写。
 
-`response_mode` 第二阶段必填：agree_and_change、partial_agreement、clarification、reasoned_disagreement、unable_with_alternative。详细选择规则和正式区块结构见 `response-writing-standard.md`。`revised_text` 仅在有帮助或期刊要求时填写；一旦填写，必须用 `revised_text_evidence` 绑定当前修订稿，且 excerpt 与引文逐字一致。
+`original_language` 只能为 `en`、`zh`、`mixed` 或 `other`。英文原文必须使用 `translation_language: zh`，中文原文必须使用 `translation_language: en`；混合或其他语言明确选择 `en` 或 `zh`。`translated_text` 不得为空。宿主按 `bilingual-intake.md` 逐句核对数字、单位、统计量、Figure/Table 标签、引文、专有名词、否定与语气强度后，才将 `translation_checked` 设为 true；程序只校验这个状态和结构，不能代替人工/模型的语义复核。
+
+`response_mode` 第二阶段必填：agree_and_change、partial_agreement、clarification、reasoned_disagreement、unable_with_alternative。详细选择规则和正式区块结构见 `response-writing-standard.md`。选择 `partial_agreement` 时另填具体 `response_mode_rationale`，说明采纳和保留的边界。`final_locations` 显式列出正式回复要显示的位置，必须包含该父意见下所有 `resolution.changes`；若确实没有可用位置，则用 `location_not_applicable_reason` 说明具体原因，不能两者皆空。`revised_text` 仅在有帮助或期刊要求时填写；一旦填写，必须用 `revised_text_evidence` 绑定当前修订稿，且 excerpt 与引文逐字一致。
 
 ### issues
 
@@ -108,7 +124,7 @@ digest = hashlib.sha256(path.read_bytes()).hexdigest()
 - `plan`：未解决时必填六个内容，见下。
 - `resolution`：已经完成实质处理时填写，见下。
 
-`ready` 只用于 reply_only 且有现有证据、没有待实施修改；`open` 为待解决，第一份中真实标红；`resolved` 要有实际处理结果。不采纳建议使用 reasoned_disagreement 路线，只有科学理由充分、必要正文修改落实才为 resolved。
+`ready` 只用于 reply_only 且有现有证据、没有待实施修改，并填写具体 `no_change_reason`；`open` 为待解决，第一份中真实标红；`resolved` 要有实际处理结果。不采纳建议使用 reasoned_disagreement 路线，只有科学理由充分、必要正文修改落实才为 resolved。
 
 `plan` 的六个非空字段：
 
@@ -171,8 +187,10 @@ digest = hashlib.sha256(path.read_bytes()).hexdigest()
 
 ## 文档交付检查
 
-第一阶段必须看见红色待处理条目及具体方案，并显示问题类型与严重程度；无待处理条目时不强行标红。第二阶段在开场后显示主要修改摘要，每条意见按 Comment、Response、Changes made、可选 Revised manuscript text、Locations 构建。第二阶段不能有作者待办、占位符、内部任务 ID、工作日志或虚构修改位置。审稿人原文中的问题或占位符是原始证据，不能被清理规则擅自改写。
+意见归档阶段先运行 `check0`，再生成 UTF-8、LF 换行的 `00_审稿意见_中英文对照.md`。检查 reviewer/编辑顺序、父意见数量、来源定位、原文和译文是否齐全，并抽查渲染后的引用块；不得把 Markdown 覆盖到 ledger 或来源文件。来源变化后必须重新读取、翻译、核对并生成，不能沿用旧文件。
+
+第一阶段必须看见红色待处理条目及具体方案，并显示问题类型与严重程度；无待处理条目时不强行标红。第二阶段在确有主要修改时显示摘要；没有主要修改时省略，不造条目。每条意见按 Comment、Response、Changes made、可选 Revised manuscript text、Locations 构建。第二阶段不能有作者待办、占位符、内部任务 ID、工作日志或虚构修改位置。审稿人原文中的问题或占位符是原始证据，不能被清理规则擅自改写。
 
 将脚本生成的文件用宿主 Word 工具渲染，检查每一页；必要的字体/段落微调之后重新检查。Word 生成成功与科学核验通过是不同环节，二者均实际执行。
 
-所有测试数据与输出仅为实现验证，默认不发给用户。一次会话第一阶段结束只交第一份；成功完成第二阶段只交第二份。
+所有测试数据与输出仅为实现验证，默认不发给用户。首次处理意见时交中英文对照 Markdown；第一阶段另交第一份 Word。若 Markdown 已交且来源未变，后续不重复；成功完成第二阶段只新增第二份 Word。若首次材料已足够直接完成第二阶段，则交 Markdown 与第二份 Word，不额外交第一份 Word。
