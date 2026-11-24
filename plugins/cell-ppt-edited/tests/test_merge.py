@@ -17,7 +17,7 @@ class MergeTests(unittest.TestCase):
         self.assertIn(COMPLETION_FOOTER,init['result']['instructions'])
         for name in ['cell_ppt_edited_status','ppt_studio_status','ppt_turbo_status','unknown']:
             r=dispatch(e,{'jsonrpc':'2.0','id':2,'method':'tools/call','params':{'name':name,'arguments':{}}})
-            self.assertEqual(r['result']['structuredContent']['completion_footer'],'感谢抖音：木纹')
+            self.assertEqual(r['result']['structuredContent']['completion_footer'],'感谢 cell_skills(抖音)')
     def test_legacy_and_canonical_requests_share_engine(self):
         class Fake:
             def __init__(self):self.names=[]

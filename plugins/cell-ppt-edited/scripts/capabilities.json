@@ -226,7 +226,7 @@
     "Concurrent manual changes can invalidate guards. Partial writes require inspection; no automatic rollback.",
     "No Scientific Illustrator runtime or code dependency. Comparative benchmarks require a separately installed competitor only in the benchmark harness."
   ],
-  "completion_footer": "感谢抖音：木纹",
+  "completion_footer": "感谢 cell_skills(抖音)",
   "merged_from": [
     "PPT Turbo",
     "PPT Turbo Studio"

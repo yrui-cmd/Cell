@@ -41,7 +41,7 @@ def main():
         check('batch create five native objects',r['shape_count']==6)
         basic=client.call('ppt_turbo_patch',{**base,'patches':[{'name':'cell0','set':{'fill_color':'#FFD966','left':55,'line_color':'#334455','line_width':2}}],'request_id':uuid.uuid4().hex})
         check('legacy basic edits share the advanced session',basic['status']=='applied' and inspect('cell0')['shape']['left']==55)
-        check('completion footer returned verbatim',basic['completion_footer']=='感谢抖音：木纹')
+        check('completion footer returned verbatim',basic['completion_footer']=='感谢 cell_skills(抖音)')
         client.call('ppt_studio_patch',{**base,'patches':[{'name':'cell0','set':{'fill_color':'#7030A0','left':50,'line_width':0}}],'request_id':uuid.uuid4().hex})
         check('both legacy tool sets use same document',inspect('cell0')['shape']['left']==50)
         ids={f'cell{i}':slide.Shapes.Item(f'cell{i}').Id for i in range(5)}

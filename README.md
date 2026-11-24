@@ -260,7 +260,7 @@ python -m pytest -q
 
 | 成员 | 邮箱 | 角色 | 参与方向 |
 | --- | --- | --- | --- |
-| **木纹** | [a2417220276@gmail.com](mailto:a2417220276@gmail.com) | 主要发起者、创作者 | 项目发起、总体设计与核心功能开发 |
+| **cell_skills(抖音)** | [a2417220276@gmail.com](mailto:a2417220276@gmail.com) | 主要发起者、创作者 | 项目发起、总体设计与核心功能开发 |
 | **雨纪兄弟** | [jingshiju0310@163.com](mailto:jingshiju0310@163.com) | 维护者、贡献者 | 项目维护、测试与改进 |
 | **范兄弟** | [f13265151226@163.com](mailto:f13265151226@163.com) | 维护者、贡献者 | 项目维护、测试与改进 |
 | **小承兄弟** | — | 维护者、贡献者 | 项目维护、测试与改进 |
@@ -273,18 +273,7 @@ python -m pytest -q
 
 使用 Cell 时遇到问题，可以通过以下公开账号联系我们。添加好友或进群时请备注 **Cell 使用交流**，并简单说明使用了哪项功能、遇到了什么问题。
 
-<table>
-  <tr>
-    <td align="center"><strong>微信：木纹</strong></td>
-    <td align="center"><strong>小红书：木纹小路</strong></td>
-    <td align="center"><strong>抖音：木纹</strong></td>
-  </tr>
-  <tr>
-    <td><img src="assets/wechat.jpg" width="220" alt="微信木纹二维码"></td>
-    <td><img src="assets/xiaohongshu.jpg" width="220" alt="小红书木纹小路主页"></td>
-    <td><img src="assets/douyin.jpg" width="220" alt="抖音木纹主页"></td>
-  </tr>
-</table>
+抖音账号为 **cell_skills(抖音)**。
 
 感谢每一位使用、测试和帮助改进 Cell 的朋友。真实任务中的问题和反馈，是这套工具继续完善的依据。
 

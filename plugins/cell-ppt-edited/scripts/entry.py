@@ -23,7 +23,7 @@ def self_test():
         init=dispatch(e,{'jsonrpc':'2.0','id':1,'method':'initialize'})
         caps=e.capabilities()
         assert len(caps['actions'])==7
-        assert '感谢抖音：木纹' in init['result']['instructions']
+        assert '感谢 cell_skills(抖音)' in init['result']['instructions']
         import pythoncom,win32com.client
         print(json.dumps({'self_test':'passed','version':VERSION,'actions':len(caps['actions']),'COM_imports':True}))
         return 0
